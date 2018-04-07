@@ -30,7 +30,7 @@ Three interfaces are exposed by the viper console :
 Following rhai functions are called by the console :
 
 * `fn init()` : called once during the cartridge boot.
-    * this is where images should be loaded with `gfx:loadImg`
+    * this is where images should be loaded with `gfx_load_img`
 * `fn update()` : called 60 times per second
     * this is where you should update your variables
 * `fn render()` : called every frame
@@ -40,65 +40,35 @@ Following rhai functions are called by the console :
 
 ### <a name="h2.1"></a>2.1. Architecture
 
-The viper screen size is 384x224 pixels. The graphics engine stores ten 512x256 pixel buffers : 8 screen layers and 2 sprite sheets.
+The viper screen size is 384x224 pixels. Top left coordinate is 0,0. bottom right coordinate is 383,223.
+
+The graphics engine stores twelve pixel buffers. By default, all layers have a size of 384x224 and only layer 0 is displayed. Layers 1 to 11 can be used to store spritesheets. But you can decide to display other layers on screen using `gfx_show_layer`.
 
 * Layer 0 is the background layer.
 * Layer 1 is on top of layer 0.
 * Layer 2 is on top of layer 1, etc...
-* Black (0,0,0) is transparent on layers 1 to 7.
-* layers are referenced as `gfx.LAYER[0]` to `gfx.LAYER[7]`.
-* spritesheets are referenced as `gfx.SPRITESHEET[0]` to `gfx.SPRITESHEET[1]`.
+* Black color (0,0,0) is transparent on layers 1 to 11.
 
-Each layer has an x,y offset defining the 384x224 screen position inside the 512x256 layer. When offset is 0,0 (default), the screen is centered inside the layer (at position 64,16).
+You can also change the size of a layer with `gfx_set_layer_size`. If this layer is displayed on screen, you can set the coordinate of the top-left screen pixel in that layer using `gfx_set_layer_offset`.
 
-```
- +----------------------512------------------------+
- |                                                 |
- |      +---------------384----------------+       |
- |      |                                  |       |
-256     |                                  |       |
- |     224                                 |       |
- |      |                                  |       |
- |      |                                  |       |
- |      +----------------------------------+       |
- |                                                 |
- +-------------------------------------------------+
-```
+Each layer applies a color operation between its color and the underlying color. You can change the color operation of a layer with `gfx_set_layer_operation` :
 
-* top left coordinate is -64,-16. bottom right coordinate is 447, 239.
-* when offset is 0,0, the screen displays pixels from coordinates (0,0) to  (383,223)
-
-Each layer applies a color operation between its color and the underlying color :
-
-* `SET` : new pixel color = layer pixel color (default)
-* `ADD` : new pixel color = current pixel color + layer pixel color
-* `AVERAGE` : new pixel color = (current pixel color + layer pixel color)/2
-* `SUBTRACT` : new pixel color = current pixel color - layer pixel color
-* `MULTIPLY` : new pixel color = current pixel color * layer pixel color
+* `GFX_LAYEROP_SET` : new pixel color = layer pixel color (default)
+* `GFX_LAYEROP_ADD` : new pixel color = current pixel color + layer pixel color
+* `GFX_LAYEROP_AVERAGE` : new pixel color = (current pixel color + layer pixel color)/2
+* `GFX_LAYEROP_SUBTRACT` : new pixel color = current pixel color - layer pixel color
+* `GFX_LAYEROP_MULTIPLY` : new pixel color = current pixel color * layer pixel color
 
 Example :
 
-`gfx:layerOperation(gfx.ADD, gfx.LAYER[1])`
+`gfx_set_layer_operation(1, GFX_LAYEROP_ADD);`
 
-You can draw on a spritesheet like on any layer by activating it with activatePixelBuffer :
-
-`gfx:activatePixelBuffer(gfx.SPRITESHEET[1])`
+When you're using rendering functions (gfx_rectangle, gfx_blit, ...), you're drawing on the active layer.
+You can set current active layer with `gfx_set_active_layer`, even if it's not shown on screen.
 
 ### <a name="h2.2"></a>2.2. Drawing API
 
-Most drawing functions take an optional color as parameter. If it is not defined, the default color (set with color(r,g,b)) will be used. Else the default color is changed.
-For example :
-
-```
-    gfx:color(255,0,0)
-    gfx:clear()
-```
-
-is equivalent to
-
-```
-    gfx:clear(255,0,0)
-```
+Most drawing functions take a (r,g,b) color as last parameter. Each component value should be between 0.0 and 1.0.
 
 * `activatePixelBuffer(buffer)`
     * set current drawing pixel buffer.
