@@ -1,0 +1,1543 @@
+// they started it
+// (c) joe trewin
+// http://fistfulofsquid.com
+// @joeyspacerocks
+
+// Viper / Oberon conversion
+// jice
+
+const PI = 3.14159;
+const X_OFFSET = 80;
+const Y_OFFSET = 0;
+const SPRITE_PER_ROW = 16;
+const SPRITE_SIZE = 14;
+const SCREEN_SIZE = 16 * SPRITE_SIZE;
+const LAYER_SPRITE = 7;
+const SPRITESHEET_SIZE = 224;
+
+let controller=-1;
+
+// sound data
+let INST_TRIANGLE;
+let INST_TILTED;
+let INST_SAW;
+let INST_SQUARE;
+let INST_PULSE;
+let INST_ORGAN;
+let INST_NOISE;
+let INST_PHASER;
+let SFX;
+
+let p1 = {};
+let lrs = [];
+let als = [];
+let exp = [];
+let smoke = [];
+let shake = 0;
+let stars = [];
+let powerups = [];
+let wave = 0;
+let pu_drop_timer=1600;
+let xlife_timer=0;
+
+let max_wave=20;
+let max_lives=5;
+let max_missiles=5;
+
+let flash = nil;
+let ui_y = 0;
+
+let wt_max=200;
+let wave_timer=-1;
+let wave_score=0;
+let warp=0;
+
+let bonus=0;
+
+let titles = {};
+let scrn = {};
+
+let col=fn(r,g,b) {
+    return {r:r/255,g:g/255,b:b/255};
+};
+let PAL = [
+    col(0, 0, 1),
+    col(29, 43, 83),
+    col(126, 37, 83),
+    col(0, 135, 81),
+    col(171, 82, 54),
+    col(95, 87, 79),
+    col(194, 195, 199),
+    col(255, 241, 232),
+    col(255, 0, 77),
+    col(255, 163, 0),
+    col(255, 236, 39),
+    col(0, 228, 54),
+    col(41, 173, 255),
+    col(131, 118, 156),
+    col(255, 119, 168),
+    col(255, 204, 170),
+];
+
+let new_game;
+
+// -----------------------------
+// -- PICO-8 compatibility layer
+// -----------------------------
+fn sprc(n, x, y, w, h, c) {
+    let int_spr=std.math.floor(n);
+    let spritex = (int_spr % SPRITE_PER_ROW) * SPRITE_SIZE;
+    let spritey = std.math.floor(int_spr / SPRITE_PER_ROW) * SPRITE_SIZE;
+    gfx.blit(
+        spritex,
+        spritey,
+        w * SPRITE_SIZE,
+        h * SPRITE_SIZE,
+        std.math.floor(x + X_OFFSET),
+        std.math.floor(y + Y_OFFSET),
+        0,
+        0,
+        false,
+        false,
+        PAL[c].r,PAL[c].g,PAL[c].b
+    );
+}
+
+fn ssprc(n, x, y, w, h) {
+    let int_spr=std.math.floor(n);
+    let spritex = (int_spr % SPRITE_PER_ROW) * SPRITE_SIZE;
+    let spritey = std.math.floor(int_spr / SPRITE_PER_ROW) * SPRITE_SIZE;
+    gfx.blit(
+        spritex,
+        spritey,
+        SPRITE_SIZE,
+        SPRITE_SIZE,
+        std.math.floor(x + X_OFFSET),
+        std.math.floor(y + Y_OFFSET),
+        w,
+        h,
+        false,
+        false,
+        1.2,1.2,1.2
+    );
+}
+
+fn spr(n, x, y, w, h) {
+    sprc(n,x,y,w,h,7);
+}
+
+fn rectfill(x1, y1, x2, y2, col) {
+    let w=x2-x1+1;
+    let h=y2-y1+1;
+    let x=x1+X_OFFSET;
+    let y=y1+Y_OFFSET;
+    gfx.rectangle(x,y,w,h, PAL[col].r, PAL[col].g,PAL[col].b);
+}
+
+fn circfill(x,y,r,col) {
+    gfx.disk(x+X_OFFSET,y+Y_OFFSET,r,PAL[col].r, PAL[col].g,PAL[col].b);
+}
+
+fn line(x1,y1,x2,y2,col) {
+    gfx.line(x1+X_OFFSET,y1+Y_OFFSET,
+        x2+X_OFFSET,y2+Y_OFFSET,
+        PAL[col].r, PAL[col].g, PAL[col].b
+    );
+}
+
+fn _print(msg, px, py, col) {
+    gfx.gfx_print(msg, std.math.floor(px + X_OFFSET), std.math.floor(py + Y_OFFSET), PAL[col].r, PAL[col].g, PAL[col].b);
+}
+
+fn printc(s,y,c) {
+	let x=112-(s#len()*0.5)*8-1;
+	_print(s,x,y,c);
+}
+
+fn camera(x,y) {
+    gfx.set_layer_offset(0, x, y);
+}
+
+fn rect(x1,y1,x2,y2,col) {
+    line(x1,y1,x2,y1,col);
+    line(x1,y2,x2,y2,col);
+    line(x1,y1,x1,y2,col);
+    line(x2,y1,x2,y2,col);
+}
+
+fn atan2(dx,dy) {
+    let r = std.math.atan2(dy,dx)* 0.15915494; // 1/(2PI)
+    if r < 0 {
+        return -r;
+    } else {
+        return 1-r;
+    }
+}
+
+//-------------------------
+//-- title
+//-------------------------
+
+fn rnd_blob(b) {
+    let a=std.rnd.rand()*2*PI;
+    let r=175+std.rnd.rand()*70;
+    b.x=std.math.cos(a)*r+112;
+    b.y=std.math.sin(a)*r+112;
+    b.r=std.rnd.rand()*17+10;
+    let spd=(std.rnd.rand()*15+3)/15;
+    b.dx=-std.math.cos(a)*spd;
+    b.dy=-std.math.sin(a)*spd;
+    b.col=1;
+    return b;
+}
+
+fn create_blobs() {
+	titles.blobs=[];
+	for i in 0..160 {
+		titles.blobs#push(rnd_blob({}));
+	}
+}
+
+fn trail(p) {
+    if std.rnd.rand()>0.5 {
+		let s = {};
+		s.x = p1.x+7;
+		s.y = p1.y+20;
+		if warp>0 {
+ 		    s.ttl = 20;
+ 		    s.col = 8;
+			s.dx = (std.math.floor(std.rnd.rand()*8) - 2)*0.2;
+			s.dy = (3 + std.rnd.rand()*5) * 0.2;
+        } else {
+ 		    s.ttl = 15;
+ 		    s.col = 2;
+			s.dx = (std.math.floor(std.rnd.rand()*5) - 1)*0.3;
+			s.dy = (1 + std.rnd.rand()*7) * 0.1;
+ 	    }
+		smoke#push(s);
+	}
+}
+
+
+fn create_laser(p,x,s) {
+    let l = {};
+	l.y = p.y + 14;
+	l.x = x + std.rnd.rand()*2 - 1;
+	l.sprite = s;
+    l.update = nil;
+    l.explode=nil;
+    l.to_remove=false;
+	lrs#push( l);
+}
+
+fn fire_laser(p) {
+    if p.f_elapsed == 0 {
+		if p.twin_lasers {
+			create_laser(p,p.x-2,16);
+			create_laser(p,p.x+2,16);
+        } else {
+			create_laser(p,p.x,2);
+		}
+
+		snd.play_pattern(0);
+		p.f_elapsed = 1;
+	}
+}
+
+
+fn nearest_alien(y,ymax) {
+	let r=nil;
+	let ymin=0;
+	for a in als {
+		if a.y>ymin and a.y<ymax {
+			ymax=a.y;
+			r=a;
+		}
+	}
+	return r;
+}
+
+fn missile_trail(m) {
+    if std.rnd.rand()*4>1	{
+		let s = {};
+		s.x = m.x+7;
+		s.y = m.y+7;
+
+		let ang=(m.ang+((std.rnd.rand()*10-5)/20))*2*PI;
+		s.dx = -std.math.cos(ang) * 0.175;
+		s.dy = -std.math.sin(ang) * 0.175;
+		s.ttl = 20;
+		s.col = m.tcol;
+		smoke#push(s);
+	}
+}
+
+
+fn explode(x, y, ttl, col) {
+    let e = {};
+    e.x = x;
+    e.y = y;
+    e.ttl = ttl;
+    e.col = col;
+    exp#push( e);
+}
+
+
+fn add_smoke(x,y,amt,c) {
+    for i in 1..amt {
+        let s = {};
+        s.x = x;
+        s.y = y;
+        s.dx = (std.rnd.rand()*10 - 5) * 0.24;
+        s.dy = (std.rnd.rand()*10 - 5) * 0.24;
+        s.ttl = std.rnd.rand()*20+amt*8;
+        s.col = c;
+        smoke#push( s);
+    }
+}
+
+fn upd_missile(this) {
+	let dx=this.target.x-this.x;
+	let dy=this.target.y-this.y;
+	let tang=atan2(dx,dy);
+
+	let dist=std.math.sqrt(dx*dx+dy*dy);
+
+	let da=tang-this.ang;
+	if da!=0 {
+        let turn;
+		if dist<10 {
+			turn=0.03;
+		} else if dist<50 {
+			turn=0.01;
+        } else {
+			turn=0.005;
+		}
+
+		let av=turn;
+        av *= da > 0 ?1: da < 0?-1:0;
+
+		if da>0.5 av=-av;
+
+		this.ang+=av;
+		if this.ang<0 this.ang+=1;
+		if this.ang>1 this.ang-=1;
+	}
+
+	this.x+=std.math.cos(-this.ang*2*PI)*this.spd;
+	this.y+=std.math.sin(-this.ang*2*PI)*this.spd;
+	if this.spd<2 this.spd+=0.1;
+
+	missile_trail(this);
+
+	this.timer+=1;
+	if this.timer>300 {
+	    explode(this.x,this.y,4+std.rnd.rand()*4,10);
+        add_smoke(this.x,this.y,5,5);
+        shake=10;
+        this.to_remove=true;
+		snd.play_pattern(2);
+	}
+}
+
+fn create_missile(x,y,trg) {
+    let l = {};
+    l.x = x;
+    l.y = y;
+    l.target=trg;
+    if trg.x>x {
+        l.ang=0;
+    } else {
+        l.ang=0.5;
+    }
+    l.spd = 1.75*(0.4 + std.rnd.rand()*0.5);
+    l.timer=0;
+    l.sprite=5;
+    l.update=upd_missile;
+    l.draw=nil;
+    l.ty=nil;
+    l.to_remove=false;
+    l.anim=nil;
+    l.kill=nil;
+    snd.play_pattern(8);
+
+    return l;
+}
+
+fn add_score(n) {
+	let s1=std.math.floor(p1.score /30000);
+	p1.score+=n;
+	let s2=std.math.floor(p1.score /30000);
+
+	if p1.score>0 and p1.lives<max_lives and s2>s1 {
+		p1.lives+=1;
+		snd.play_pattern(11);
+		xlife_timer=40;
+	}
+}
+
+
+fn drop_powerup(x,y,sprite,action) {
+	let pu={};
+	pu.x=x;
+	pu.y=y;
+	pu.sprite=sprite;
+	pu.action=action;
+	powerups#push(pu);
+}
+
+
+fn pua_missile(this) {
+	if p1.missiles < max_missiles {
+		p1.missiles+=1;
+	}
+}
+
+fn pua_shield(this) {
+	p1.shield=p1.max_shields;
+}
+
+fn kill_alien(a,dmg) {
+	add_smoke(a.x+4,a.y,5,5);
+	a.shield-=dmg;
+
+	if a.shield>0 {
+		a.hurt=10;
+		snd.play_pattern(10);
+    } else {
+        explode(a.x+4,a.y,9,10);
+        a.to_remove=true;
+        shake=4;
+        snd.play_pattern(std.rnd.rand()*2 + 1);
+
+        if a.kill!=nil {
+            a.kill();
+        }
+
+		add_score(a.scr);
+		wave_score+=a.scr;
+
+		if pu_drop_timer==0 {
+			pu_drop_timer=600;
+
+			let t=std.math.floor(std.rnd.rand()*2);
+			if t==0 {
+				drop_powerup(a.x,a.y,12,pua_missile);
+			} else if t==1 {
+				drop_powerup(a.x,a.y,13,pua_shield);
+			}
+		}
+	}
+}
+
+
+fn flash_screen(timer, col) {
+	flash={};
+	flash.timer=timer;
+	flash.col=col;
+}
+
+fn missile_explode(this) {
+	flash_screen(10,10);
+    explode(this.x,this.y,20,14);
+    explode(this.x+10,this.y+10,10,7);
+    explode(this.x-5,this.y+5,10,7);
+    add_smoke(this.x,this.y,5,14);
+    shake=20;
+	snd.play_pattern(2);
+
+	for a in als {
+	    let dx=this.x-a.x;
+	    let dy=this.y-a.y;
+		if dx*dx+dy*dy <1000 {
+			kill_alien(a,3);
+		}
+	}
+}
+
+fn fire_missile(p) {
+    if p.missiles > 0 {
+ 	    p.missiles-=1;
+
+		let x = p.x + 3;
+		let y = p.y + 4;
+
+		let trg = nearest_alien(p.y,80);
+		if trg==nil {
+			trg={};
+			trg.x=40+std.rnd.rand()*48;
+			trg.y=40+std.rnd.rand()*30;
+		}
+
+		let l=create_missile(x,y,trg);
+		l.tcol=2;
+		l.explode=missile_explode;
+        l.to_remove=false;
+		if p.dx>0 {
+			l.ang=0;
+		} else if p.dx<0 {
+			l.ang=0.5;
+		}
+
+		lrs#push( l);
+	}
+}
+
+fn new_life(p) {
+	p.lives-=1;
+	p.dead=false;
+	p.x=105;
+	p.y=178;
+	p.dx=0;
+	p.f_elapsed=0;
+	p.inv=200;
+
+	p.shield=p.max_shields;
+	p.shield_timer=0;
+}
+
+fn update_stars() {
+	for s in stars {
+		s.y+=2*(s.dy + (warp*0.3));
+		if s.y > 223 {
+			s.y=-18;
+			s.x=std.rnd.rand()*223;
+		}
+	}
+}
+
+fn update_blobs(s,reset) {
+	for b in titles.blobs {
+		b.x+=b.dx;
+		b.y+=b.dy;
+
+		if b.x+b.r>0 and b.x-b.r<223 and b.y+b.r>0 and b.y-b.r<223 {
+			b.r*=s;
+		}
+
+		if b.r<1.5 and reset rnd_blob(b);
+	}
+}
+
+fn hide_titles(this) {
+	update_stars();
+	update_blobs(0.92,false);
+
+	if titles.ty>-104 {
+		titles.ty+=(-105-titles.ty)*0.12;
+		titles.oy+=(250-titles.oy)*0.12;
+    } else {
+		new_game();
+	}
+}
+
+fn update_titles(this) {
+	update_stars();
+
+	if titles.ty<70 {
+		titles.ty+=(70-titles.ty)*0.12;
+	}
+
+	if titles.oy>160 {
+		titles.oy+=(160-titles.oy)*0.12;
+	}
+
+    for i in 0..8 {
+        if inp.pad_button(i,0) {
+            controller=i;
+            break;
+        }
+    }
+	if controller >= 0 {
+		scrn.update=hide_titles;
+	}
+
+	update_blobs(0.98,true);
+}
+
+fn draw_stars() {
+	for s in stars {
+	    let sy2=s.y-(s.dy+warp*0.3)*2;
+	    let c=s.col;
+	    if warp==0 and c==7 c=13;
+		line(s.x,s.y,s.x,sy2,c);
+	}
+}
+
+fn waggle(s,x,y,sx,sy) {
+	let t = viper.now()*1.6;
+
+    let rx;
+    let ry;
+    let cols=[1,2,0,1,2,0];
+	for i in 0..5 {
+		rx = x+std.math.cos(t*0.4*2*PI)*7;
+		ry = y+std.math.sin(t*0.4*2*PI)*10;
+		sprc(s,rx,ry,sx,sy,cols[i]);
+		t+=0.2;
+	}
+
+	spr(s,std.math.floor(rx),std.math.floor(ry),
+        std.math.floor(sx),std.math.floor(sy));
+}
+
+fn draw_pressmsg(s,x,y) {
+	let c=(std.math.sin(viper.now()*2*PI*0.8)+1)*7+1;
+	_print(std.str.format1("press X %1",s),x,y,c);
+	_print(std.str.format1("press   %1",s),x,y,14);
+}
+
+fn draw_titles(this) {
+    rectfill(0,0,223,223,0);
+	draw_stars();
+
+	for b in titles.blobs {
+		if b.r > 1.1 {
+			circfill(b.x,b.y,b.r,b.col);
+		}
+	}
+
+    waggle(64,2,titles.ty,16,4);
+
+    draw_pressmsg("to play",50,titles.oy);
+}
+
+fn show_titles() {
+	titles.ty=-105;
+	titles.oy=260;
+	scrn.update=update_titles;
+	scrn.draw=draw_titles;
+}
+
+fn collide(x1, y1, w1, h1, x2, y2, w2, h2) {
+	return x1 + w1 > x2
+			 and x1 < x2 + w2
+			 and y1 + h1 > y2
+			 and y1 < h2 + y2;
+}
+
+fn bomb_trail(b,col,dy,ttl) {
+ if std.rnd.rand() > 0.5	{
+		let s = {};
+		s.x = b.x+7;
+		s.y = b.y+6;
+		s.dx = (std.math.floor(std.rnd.rand()*3) - 1)*0.3 * 1.75;
+		s.dy = -(1 + std.rnd.rand()*4) * dy * 1.75;
+		s.ttl = 15;
+		s.col = col;
+		smoke#push(s);
+	}
+}
+
+fn warp_speed() {
+    wave_timer=wt_max;
+	snd.play_pattern(4);
+}
+
+const WAVES=[
+    [
+        "  0000  ",
+        " 000000 ",
+        "000  000"
+    ],
+    [
+        " 000000 ",
+        "11 11 11",
+        " 000000 ",
+        "  0  0  "
+    ],
+    [
+        "10000001",
+        " 100001 ",
+        " 100001 ",
+        " 1 11 1 ",
+    ],
+    [
+        " 1 11 1 ",
+        "        ",
+        "11 11 11",
+        "        ",
+        "00 00 00"
+    ],
+    [
+        "  2  2  ",
+        " 000000 ",
+        "10000001",
+        " 111111 ",
+    ],
+    [
+        "   22   ",
+        "1      1",
+        "011  110",
+        " 001100 ",
+        "   00   ",
+    ],
+    [
+        "11111111",
+        " 1    1 ",
+        "33333333",
+    ],
+    [
+        "1 1 1 1 ",
+        " 1 1 1 1",
+        "1 1 1 1 ",
+        " 1 1 1 1"
+    ],
+    [
+        "2  22  2",
+        "00000000",
+        "00000000",
+        "00000000",
+        "00000000",
+    ],
+    [
+        " 11  11 ",
+        "11111111",
+        "11111111",
+        "  3333  ",
+    ],
+    [
+        "00000000",
+        "01100110",
+        "01100110",
+        "00000000",
+    ],
+    [
+        "22000022",
+        "  2002  ",
+        "   00   ",
+        "11100111",
+    ],
+    [
+        "11111111",
+        "10011001",
+        "10011001",
+        "11111111",
+    ],
+    [
+        "12211221",
+        "1  11  1",
+        "        ",
+        "  3333  ",
+    ],
+    [
+        "  4  4  ",
+        "00000000",
+        "10000001",
+        " 100001 ",
+    ],
+    [
+        "  4  4  ",
+        "11111111",
+        "11111111",
+        "00111100",
+    ],
+    [
+        "   22   ",
+        "24444442",
+        "11111111",
+        "11111111",
+    ],
+    [
+        " 114411 ",
+        "  1441  ",
+        "  1111  ",
+        "   11   ",
+        "   11   ",
+    ],
+    [
+        "01111110",
+        "01444410",
+        "01111110",
+        "00000000",
+        "33333333",
+    ],
+    [
+        "44444444",
+        "44444444",
+        "44444444",
+        "11111111",
+    ]
+];
+
+
+fn create_anim(s) {
+	let anim={};
+	anim.s=s;
+	anim.t=0;
+	anim.d=10+std.math.floor(std.rnd.rand()*4);
+	anim.i=1;
+	return anim;
+}
+
+fn au_bomb(this) {
+    this.x+=1.75*std.math.sin(this.y*0.1*2*PI);
+    this.y+=1.75;
+    bomb_trail(this,8,0.3,15);
+}
+
+fn drop_bomb(a) {
+    let b = {};
+    b.x=a.x;
+    b.y=a.y;
+    b.sprite=10;
+    b.update=au_bomb;
+    b.shield=1;
+    b.hurt=0;
+    b.scr=10;
+    b.ty=nil;
+    b.draw=nil;
+    b.to_remove=false;
+    b.anim=nil;
+    b.kill=nil;
+    als#push(b);
+    snd.play_pattern(3);
+}
+
+fn au_zigzag(this) {
+	let t = (viper.now() + this.id * 2.1) * 0.03;
+	this.x += std.math.sin(t * 10*2*PI) * 0.1 * 1.75;
+
+	if std.math.sin(t*20*2*PI)>0 {
+		this.y += 0.1* 1.75;
+	    bomb_trail(this,3,0.4,25);
+	}
+
+	if this.y>p1.y-18 {
+		this.y+=5;
+    } else {
+		this.fire_time-=1;
+		if this.fire_time<=0 {
+			drop_bomb(this);
+			this.fire_time=1000;
+		}
+	}
+}
+
+
+fn ak_drop_bomb(this) {
+	if not als#is_empty() and std.rnd.rand()*20<8 {
+		drop_bomb(this);
+	}
+}
+
+
+fn au_lissajous(this) {
+	let b=2;
+    let t = (this.t + this.id * 0.4) * 0.08;
+	this.x = (30 + b * 10) * std.math.sin(2*PI*(t * 3 + b * 3 + 0.5))* 1.75 + 112;
+	this.y = (this.t*2 + (b * 10) * std.math.sin(t * b * 2*2*PI) + 30)  * 1.75;
+	this.t += 1/60;
+}
+
+fn ad_pe_laser(this) {
+	let offx=(std.rnd.rand()*3-1)* 1.75;
+	spr(27,this.x+offx,this.y,1,1);
+
+	let x=this.x+6+offx;
+	let y1=this.y+14;
+	let y2=this.ly;
+
+	let delta=this.timer;
+
+	if delta>80 {
+		line(x,y1,x,y2,8);
+		line(x+1,y1,x+1,y2,8);
+    } else {
+		line(x-1,y1,x-1,y2,14);
+		line(x,y1,x,y2,7);
+		line(x+1,y1,x+1,y2,7);
+		line(x+2,y1,x+2,y2,14);
+	}
+}
+
+
+fn can_hit_ship(p) {
+	return p.inv<=0 and not  p.dead;
+}
+
+fn ship_hit(p) {
+	if p.shield>0 {
+        snd.play_pattern(10);
+        p.shield-=1;
+        p.shield_timer=10;
+        flash_screen(5,8);
+    } else {
+        explode(p.x+7,p.y,16,7);
+        explode(p.x+7,p.y,9,10);
+        add_smoke(p.x+7,p.y,5,5);
+        p.dead=true;
+        p.dead_timer=200;
+        p.f_elapsed=0;
+        snd.play_pattern(5);
+        snd.play_pattern(6);
+	}
+}
+
+fn au_pinkeye(this) {
+	let t1 = (viper.now()+this.id*74);
+	if this.state==0 {
+		if this.y>p1.y-18 {
+			this.y+=6;
+		} else if this.y>8 and std.math.floor(t1)%13==0 {
+			this.state=1;
+        } else {
+			let t = (viper.now() + this.id * 2.1) * 0.03;
+			this.x+=(std.math.sin(2*PI*t * 10) * 0.1)* 1.75;
+			if std.math.sin(2*PI*t*20)>0 {
+				this.y += 0.175;
+			}
+		}
+	} else if this.state==1 {
+		this.ly=this.y+10;
+		this.draw=ad_pe_laser;
+		this.timer=100;
+		this.state=2;
+		snd.play_pattern(7);
+	} else if this.state==2 {
+		if can_hit_ship(p1) and collide(p1.x+2,p1.y+7,7,14, this.x,this.y,1,this.ly-this.y) {
+            ship_hit(p1);
+		}
+
+		this.y-=0.1;
+		if this.ly<224 {
+			this.ly+=10;
+			add_smoke(this.x,this.ly-7,5,1);
+			add_smoke(this.x,this.ly,2,10);
+        } else {
+			add_smoke(this.x,this.ly,2,10);
+		}
+
+		this.timer-=1;
+		if this.timer<=0 {
+			this.state=0;
+			this.draw=nil;
+	        //snd.play_pattern(-1,2);
+		}
+	}
+}
+
+
+fn au_golden(this) {
+	let t = (viper.now() + this.id * 2.1) * 0.03;
+	this.x += std.math.sin(2*PI*t * 10) * 0.1* 1.75;
+
+	if std.math.sin(2*PI*t*20)>0 {
+		this.y += 0.175;
+	    bomb_trail(this,9,0.4,25);
+	}
+
+	if this.y>p1.y-18 {
+		this.y+=5;
+    } else {
+		this.fire_time-=1;
+		if this.fire_time<=0 {
+			let trg={};
+			trg.x=p1.x;
+			trg.y=p1.y;
+			let m=create_missile(this.x+7,this.y+7,trg);
+			m.hurt=0;
+			m.shield=1;
+			m.tcol=10;
+			m.scr=50;
+			als#push(m);
+			this.fire_time=1000;
+		}
+	}
+}
+
+fn next_wave() {
+	wave+=1;
+	bonus=100;
+	wave_score=0;
+
+	if wave>=5 {
+		p1.twin_lasers=true;
+	}
+
+	let i=1;
+    let WAVE=WAVES[wave % max_wave];
+	for sy in 0..|WAVE#count() {
+        let LINE=WAVE[sy];
+		for sx in 0..7 {
+			let c=LINE#char_at(sx);
+			if c != " " {
+				let a={};
+				a.id=i;
+				a.hurt=0;
+				a.x=sx*25+20;
+				a.ty=sy*25+20;
+                a.kill=nil;
+
+				if c=="0" {
+					a.sprite=3;
+					a.shield=1;
+					a.anim=create_anim([3,19]);
+					a.update=au_zigzag;
+					a.fire_time=std.rnd.rand()*800;
+					a.scr=50;
+				} else if c=="1" {
+					a.sprite=4;
+					a.shield=2;
+					a.anim=create_anim([4,20]);
+					a.update=au_zigzag;
+					a.kill=ak_drop_bomb;
+					a.fire_time=std.rnd.rand()*800;
+					a.scr=100;
+				} else if c=="3" {
+					a.sprite=8;
+					a.shield=4;
+					a.anim=create_anim([8,24]);
+					a.update=au_lissajous;
+					a.t=(a.ty-60)/2;
+					a.update();
+					a.ty=a.y;
+					a.scr=150;
+				} else if c=="2" {
+					a.sprite=11;
+					a.shield=6;
+					a.state=0;
+					a.update=au_pinkeye;
+					a.scr=200;
+                    a.anim=nil;
+				} else if c=="4" {
+					a.sprite=21;
+					a.shield=8;
+					a.update=au_golden;
+					a.fire_time=std.rnd.rand()*800;
+					a.scr=250;
+                    a.anim=nil;
+				}
+                a.draw=nil;
+                a.to_remove=false;
+				a.y=a.ty-224-std.math.abs(a.x-112)*10-((224-a.ty));
+				als#push(a);
+				i+=1;
+			}
+		}
+	}
+}
+
+fn calc_bonus() {
+    let s=wave_score*(bonus*0.01);
+	return std.math.floor(s*0.1)*5;
+}
+
+
+fn anim_update(a) {
+	a.t+=1;
+	if a.t>a.d {
+		a.t=0;
+		a.i = (a.i+1) % a.s#count();
+	}
+	return a.s[a.i];
+}
+
+fn update_game(this) {
+	if not  p1.dead {
+	    trail(p1);
+
+		let pty=178;
+		if p1.y>pty {
+			p1.y -= (p1.y - pty)*0.1;
+			if p1.y<pty+1 p1.y=pty;
+
+        } else {
+			p1.dx*=0.82;
+
+			if inp.right(controller) and p1.dx < 7 p1.dx+=0.8;
+			if inp.left(controller) and p1.dx > -7 p1.dx-=0.8;
+			if inp.pad_button(controller,0) fire_laser(p1);
+			if inp.pad_button_pressed(controller,1) fire_missile(p1);
+
+			p1.x+=p1.dx;
+			if p1.x>210 {
+				p1.x=210;
+            } else if p1.x<0 {
+				p1.x=0;
+			}
+
+		    if p1.f_elapsed > 0 {
+ 			    p1.f_elapsed+=1;
+ 			    if p1.f_elapsed>10 {
+ 				    p1.f_elapsed=0;
+ 			    }
+ 		    }
+		}
+
+		if p1.shield_timer>0 {
+			p1.shield_timer-=1;
+		}
+
+		if p1.inv>0 p1.inv-=1;
+    } else {
+ 	    if p1.dead_timer == 0 {
+ 		    if p1.lives>0 {
+	 		    new_life(p1);
+            } else {
+                if inp.pad_button(controller,0) {
+                    show_titles();
+                }
+	 	    }
+        } else {
+ 		    p1.dead_timer-=1;
+ 		    if p1.dead_timer > 120 and std.rnd.rand()*15<2 {
+ 		        let ex=p1.x+std.rnd.rand()*14;
+ 		        let ey=p1.y+std.rnd.rand()*14;
+                explode(ex,ey,7+std.rnd.rand()*7,10);
+                add_smoke(ex,ey,5,5);
+                shake=p1.dead_timer-120;
+ 		    }
+ 	    }
+	}
+
+    let to_remove=[];
+    for i in 0..|lrs#count() {
+        let l=lrs[i];
+        if not  l.to_remove {
+            if l.update!=nil {
+                l.update();
+            } else {
+                l.y-=10;
+                if l.y < 0 {
+                    let ey=l.y + std.rnd.rand()*35;
+                    explode(l.x+7,ey,5,9);
+                    add_smoke(l.x+7,ey-4,2,5);
+                    l.to_remove=true;
+                }
+            }
+        }
+        if l.to_remove to_remove#push(i);
+	}
+    for i in to_remove step -1 lrs#remove(i);
+
+    to_remove#clear();
+    for i in 0..|powerups#count() {
+        let pu=powerups[i];
+        if collide(pu.x, pu.y, 14, 14, p1.x, p1.y, 14, 28) {
+            pu.action();
+            to_remove#push(i);
+            flash_screen(10,14);
+            snd.play_pattern(9);
+            explode(pu.x+7,pu.y+7,15,7);
+        } else {
+            pu.y+=1.2;
+            pu.x+=1.75 * std.math.sin(pu.y*0.1*2*PI);
+            bomb_trail(pu,4,0.4,25);
+
+            if pu.y>224 {
+                to_remove#push(i);
+            }
+        }
+    }
+    for i in to_remove step -1 powerups#remove(i);
+
+	if als#is_empty() and wave_timer<0 {
+		warp_speed();
+	}
+
+	if wave_timer==0 {
+		//snd.play_pattern(-1,3);
+		next_wave();
+
+		wave_timer=-1;
+		warp=0;
+	} else if wave_timer>0 {
+     	wave_timer-=1;
+ 	    if wave_timer<40 {
+ 		    warp-=0.5;
+ 	    } else if wave_timer>wt_max-40 {
+ 		    warp+=0.5;
+ 	    }
+
+		if bonus>0 {
+			if wave_timer%2==0 {
+				let pre=calc_bonus();
+				bonus-=2;
+				if bonus<0 bonus=0;
+				let post=calc_bonus();
+
+				add_score(pre-post);
+			}
+		}
+	}
+
+    let can_hit=can_hit_ship(p1);
+
+    to_remove#clear();
+	for i in 0..|als#count() {
+        let a=als[i];
+        if not  a.to_remove {
+            if a.anim!=nil {
+                a.sprite=anim_update(a.anim);
+            }
+
+            let coly=p1.y+7;
+            if p1.shield>0 coly-=18;
+
+            if a.ty!=nil {
+                bomb_trail(a,1,0.1,20);
+
+                let dy=a.ty-a.y;
+                a.y+=dy*0.05;
+                if a.y>=a.ty-1 {
+                    a.y=a.ty;
+                    a.ty=nil;
+                }
+            } else {
+                a.update();
+                if a.y>224 {
+                    a.to_remove=true;
+                } else if can_hit and collide(a.x, a.y, 14, 14, p1.x, coly, 14, 21) {
+                    kill_alien(a,1);
+                    ship_hit(p1);
+                }
+            }
+
+            for l in lrs {
+                if collide(l.x + 7, l.y, 4, 4, a.x, a.y, 14, 14) {
+                    if l.explode!=nil {
+                        l.explode(l);
+                    } else {
+                        kill_alien(a,1);
+                    }
+                    l.to_remove=true;
+                }
+            }
+
+            if a.hurt>0 a.hurt-=1;
+        }
+        if a.to_remove to_remove#push( i);
+	}
+    for i in to_remove step -1 als#remove(i);
+
+    to_remove#clear();
+	for i in 0..|exp#count() {
+        let e=exp[i];
+		e.ttl-=1;
+		if e.ttl <= 0 {
+			to_remove#push(i);
+		}
+	}
+    for i in to_remove step -1 exp#remove(i);
+
+    to_remove#clear();
+	for i in 0..|smoke#count() {
+        let s=smoke[i];
+		s.ttl-=1;
+		s.x+=s.dx;
+		s.y+=s.dy;
+		if s.ttl <= 0 {
+			to_remove#push(i);
+		}
+	}
+    for i in to_remove step -1 smoke#remove(i);
+
+	if pu_drop_timer>0 pu_drop_timer-=1;
+
+	if xlife_timer>0 xlife_timer-=1;
+
+	if warp==0 and bonus>0 {
+		bonus-=0.1;
+		if bonus<0 bonus=0;
+	}
+
+	update_stars();
+}
+
+fn clear_screen(f) {
+	if f==nil or f.timer<0 {
+        rectfill(0,0,223,223,0);
+    } else {
+	    rectfill(0,0,223,223,f.col);
+		f.timer-=1;
+	}
+}
+
+fn ppad(n,l,x,y,col) {
+    let v = std.math.abs(n);
+	if v == 0 {
+		_print("0000000",x,y,8);
+	} else {
+		let s = std.str.format1("%1",v);
+		l -= s#len();
+		for i in 1..l {
+			_print("0",x,y,8);
+			x+=8;
+		}
+		_print(s,x,y,col);
+	}
+}
+
+fn draw_ui() {
+	if ui_y<1 {
+		ui_y += (1-ui_y)*0.06;
+		if ui_y>0.5 ui_y=1;
+	}
+
+	_print("score",92,ui_y,12);
+	ppad(p1.score,7,85,ui_y+14,7);
+
+	_print("lives",8,ui_y,12);
+	let ly=ui_y+14;
+	let lx=24-p1.lives*2.5;
+	for i in 1..p1.lives {
+		if i==p1.lives and xlife_timer>0 {
+			if xlife_timer%8<4 {
+				sprc(22,lx,ly,1,1,8);
+			}
+        } else {
+			spr(22,lx,ly,1,1);
+		}
+		lx+=8;
+	}
+
+	_print("wave",192,ui_y,12);
+    let swav=std.str.format1("%1",wave);
+	if wave<10 {
+		_print("0",200,ui_y+14,8);
+		_print(swav,208,ui_y+14,7);
+    } else {
+		_print(swav,200,ui_y+14,7);
+	}
+
+	if bonus>=20 or bonus%2<1 {
+		let bw=54;
+		let bx1=112-bw*0.5;
+		line(bx1,ui_y+10,bx1+bw,ui_y+10,1);
+
+		if bonus>0 {
+			let cols=[8,9,10,7];
+			let col=cols[std.math.floor(bonus/25)];
+			let bx2=bx1+std.math.floor(bw*bonus*0.01);
+			line(bx1,ui_y+10,bx2,ui_y+10,col);
+		}
+	}
+
+	let my=224-16;
+	for i in 1..p1.missiles {
+		let x=(ui_y*i)+i*8;
+		spr(6,x,my,1,1);
+	}
+
+	let sx=210;
+	for i in 1..p1.shield {
+		let x=(-ui_y*i)+sx-i*8;
+		spr(7,x,my,1,1);
+	}
+}
+
+fn draw_banner(msg,timer,tmax,col) {
+	let buffer=50;
+	let banh=7;
+
+    let d = timer < 22+buffer ? timer-buffer : tmax-timer-buffer;
+
+	if d>0 {
+		let h=std.math.min(banh,(d-16)*0.75);
+
+		if d<16 {
+			line(0,112,d*7,112,8);
+			line(223,112,223-d*7,112,col);
+        } else {
+			rectfill(0,112-h,223,112+h,col);
+			rect(-1,112-h-2,224,112+h+2,7);
+		}
+
+		if h>=2 {
+			let x1=(100-(timer*0.5))*1.75;
+			_print(msg,x1,108,7);
+		}
+	}
+}
+
+fn draw_game(this) {
+	clear_screen(flash);
+	draw_stars();
+	for s in smoke {
+		circfill(s.x, s.y, s.ttl * 0.2, s.col);
+	}
+
+    for l in lrs {
+		spr(l.sprite, l.x, l.y,1,1);
+    }
+
+    let py = p1.y;
+    if p1.f_elapsed>0 and p1.f_elapsed<5 {
+		spr(9, p1.x, p1.y-7,1,1);
+    }
+
+	if not  p1.dead and (p1.inv<=0 or p1.inv%6<3) {
+		if p1.shield_timer>0 {
+			let y=py+2+p1.shield_timer*2;
+			let r=p1.shield_timer+15;
+			circfill(p1.x+4,y-2,r,7);
+			circfill(p1.x+4,y,r,2);
+			circfill(p1.x+4,y+10,r*1.15,0);
+			sprc(1, p1.x, py, 1, 2, 8);
+        } else {
+			spr(1, p1.x, py, 1, 2);
+		}
+    }
+
+    let t=viper.now();
+	for a in als {
+		if a.draw==nil {
+			if a.hurt>0 {
+				let f=1+a.hurt/10;
+				let w=8*f;
+				let h=8*f;
+				let x=a.x-(w-8)*0.5;
+				let y=a.y-(h-8)*0.5;
+				ssprc(a.sprite,x,y,w,h);
+            } else {
+				spr(a.sprite, a.x, a.y, 1, 1);
+			}
+        } else {
+			a.draw();
+		}
+	}
+
+    for pu in powerups {
+ 	    spr(pu.sprite,pu.x,pu.y,1,1);
+	}
+
+	for e in exp {
+		circfill(e.x, e.y, e.ttl * 2, e.col);
+	}
+
+	draw_ui();
+
+	if warp>0 {
+		let b=calc_bonus();
+
+		if bonus>0 {
+			printc(std.str.format1("+%1",b),31,7);
+		}
+
+		let nw=wave+1;
+		draw_banner(std.str.format1("wave %1",nw),wave_timer,wt_max,8);
+	}
+
+	if (shake > 0) {
+		camera(std.rnd.rand()*4 - 2, std.rnd.rand()*4 - 2);
+		shake-=1;
+    } else {
+		camera(0,0);
+	}
+    if p1.dead and p1.lives <= 0 {
+        waggle(32,42,52,10,2);
+        printc("the galaxy",105,12);
+        printc("is safe once more..",113,12);
+        draw_pressmsg("in shame",57,128);
+
+        printc("(c) joe trewin",150,7);
+        printc("http://fistfulofsquid.com",158,7);
+        printc("@joeyspacerocks",166,7);
+        printc("viper port: jice",182,7);
+    }
+}
+
+fn new_game() {
+	scrn.update=update_game;
+	scrn.draw=draw_game;
+
+    shake=0;
+	ui_y=-35;
+
+	p1.score=0;
+	p1.lives=4;
+	p1.dead=false;
+	p1.dead_timer=-1;
+	p1.missiles=3;
+	p1.twin_lasers=false;
+	p1.max_shields=2;
+    p1.dead=false;
+
+	new_life(p1);
+	p1.y=1000;
+
+	als#clear();
+
+	wave=0;
+	warp_speed();
+}
+
+
+fn create_stars() {
+	for i in 1..20 {
+		let s = {};
+		s.x = std.rnd.rand()*223;
+		s.y = std.rnd.rand()*223;
+		s.dy = 0.5 + std.rnd.rand();
+		if s.dy>1.45 s.dy=4;
+        s.col = s.dy < 1.2 ? 1 : 7;
+		stars#push(s);
+	}
+}
+
+fn init_music() {
+	for sfx in SFX {
+		snd.new_pattern(sfx);
+	}
+	snd.new_instrument(INST_TRIANGLE);
+	snd.new_instrument(INST_TILTED);
+	snd.new_instrument(INST_SAW);
+	snd.new_instrument(INST_SQUARE);
+	snd.new_instrument(INST_PULSE);
+	snd.new_instrument(INST_ORGAN);
+	snd.new_instrument(INST_NOISE);
+	snd.new_instrument(INST_PHASER);
+}
+
+fn init() {
+    inp.set_neutral_zone(0.2);
+    gfx.set_layer_size(LAYER_SPRITE, SPRITESHEET_SIZE, SPRITESHEET_SIZE);
+    gfx.set_active_layer(LAYER_SPRITE);
+    gfx.load_img("sprites", "carts/tsi/tsi.png");
+    gfx.set_active_layer(0);
+    gfx.set_sprite_layer(LAYER_SPRITE);
+    gfx.set_scanline(gfx.SCANLINE_HARD);
+    gfx.activate_font(LAYER_SPRITE, 0.0, 139.0, 128.0, 48.0, 8.0, 8.0,
+        "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~¤!\"#$%&'()*+,-./0123456789:;<=>?");
+	create_blobs();
+	create_stars();
+	show_titles();
+	init_music();
+}
+
+fn update() {
+    scrn.update();
+}
+fn render() {
+    scrn.draw();
+    // screen border masks
+    gfx.rectangle(0,0,gfx.SCREEN_WIDTH,Y_OFFSET, 0,0,0);
+    gfx.rectangle(0,Y_OFFSET,X_OFFSET,SCREEN_SIZE, 0,0,0);
+    gfx.rectangle(X_OFFSET+SCREEN_SIZE,Y_OFFSET,gfx.SCREEN_WIDTH-X_OFFSET-SCREEN_SIZE,SCREEN_SIZE, 0,0,0);
+    gfx.rectangle(0,Y_OFFSET+SCREEN_SIZE,gfx.SCREEN_WIDTH,gfx.SCREEN_HEIGHT-SCREEN_SIZE-Y_OFFSET, 0,0,0);
+}
+
+INST_TRIANGLE = "INST OVERTONE 1.0 TRIANGLE 1.0 METALIZER 0.85 NAM triangle";
+INST_TILTED = "INST OVERTONE 1.0 TRIANGLE 0.5 SAW 0.1 NAM tilted";
+INST_SAW = "INST OVERTONE 1.0 SAW 1.0 ULTRASAW 1.0 NAM saw";
+INST_SQUARE = "INST OVERTONE 1.0 SQUARE 0.5 NAM square";
+INST_PULSE = "INST OVERTONE 1.0 SQUARE 0.5 PULSE 0.5 TRIANGLE 1.0 METALIZER 1.0 OVERTONE_RATIO 0.5 NAM pulse";
+INST_ORGAN = "INST OVERTONE 0.5 TRIANGLE 0.75 NAM organ";
+INST_NOISE = "INST NOISE 1.0 NOISE_COLOR 0.2 NAM noise";
+INST_PHASER = "INST OVERTONE 0.5 METALIZER 1.0 TRIANGLE 0.7 NAM phaser";
+
+SFX=[
+	"PAT 1 G.4070 F#4070 D#4070 C.4070 A.3070 F#3070 F.3070 D.3070 C.3070 A#2070 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 ",
+	"PAT 2 F#4640 G#4650 G#4650 G#4650 G.4660 D.4660 A#3650 A#3650 A#3640 A#3640 A#3640 B.4640 F#3640 F.3650 D#3650 D.3650 F#2640 F.2640 A#2650 D.2640 A.2630 G#2630 B.1630 F#2620 F.2620 A.1610 D#2610 F#1600 C.2600 F.1600 A.1600 G#1600 ",
+	"PAT 3 A.5640 A.5640 A.5640 A.5650 D#4650 A.5660 A.5660 G#5650 E.5640 C.5640 A.4640 C.4640 E.3640 C#3650 G#2650 F.3650 F.3650 D#2650 C.2650 A#1660 D.2650 A#1650 G.3640 D.2630 A#1630 C.2620 D.2620 E.2620 A.2610 D.3610 F#3610 C.4600 ",
+	"PAT 2 A#4350 B.4360 F.5360 C#5350 E.5350 B.4350 A.4350 F#5350 G.5350 G#5350 D.4350 C.4350 A.3340 G#3340 B.2330 C#3340 A.3350 E.3350 E.3360 D.3360 C.3350 A.3340 C#3330 G#2330 C#3320 F#2320 E.4320 E.2320 D#3320 A.4310 F.3310 C#2310 ",
+	"PAT 6 G#1570 A.1570 B.1570 C#2570 E.2570 F#2570 G#2570 A#2570 C.3570 C#3570 D#3570 F.3570 G#3570 B.3570 D.4570 F.4570 G.4570 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 C.1000 G.5500 C.1000 C.1000 C.1000 ",
+	"PAT 3 E.4670 G.4670 C.5670 F.3670 C.3670 A#4670 D.5670 C.5670 F.4670 D#4650 C#3650 G#2650 B.3650 F#3660 F.3670 D#3670 G#2670 F#2660 A.2640 C.3640 D#3650 E.3640 E.3640 C#3640 B.2640 G#2640 F#2630 E.2620 D.2620 C.2620 C.2610 C#2610 ",
+	"PAT 3 G#2070 A#2070 C#3070 F.3070 G#3070 C#4070 F#4070 A.1070 C#2070 F#2070 C.3070 F.3070 A#3070 D.4070 D#4070 B.1070 D#2070 A#2070 G.3070 C#4070 D#4070 A.2170 B.1060 E.2050 G#2040 D#3040 G#3030 C#4030 D.4030 C.2130 B.1120 A.1110 ",
+	"PAT 2 B.1770 C.2770 C#2770 D.2770 D#2770 E.2770 E.2770 D#2770 D.2770 C#2770 C#2770 C#2770 D#2770 E.2770 F.2770 G.2770 A#2770 C.3770 C#3770 D#3770 G.3770 A.3770 F.3770 B.2770 F#2770 E.2770 E.2770 D#2770 D#2770 D#2770 D#2770 F.2770 ",
+	"PAT 6 G#3770 D.4770 D#4760 B.3760 B.3750 G#3750 A.3750 D#4750 D#4740 G#3740 B.2740 B.2740 C#3740 F#3740 A#2730 C.3730 C.3730 G.2730 C#3720 C#3720 D.3720 G.2710 G.2720 D#3720 E.3720 D.3710 E.3710 C#2710 C.2700 A#1700 A.1700 A.1700 ",
+	"PAT 5 A#1770 A.3770 A#4770 A.5770 B.1770 B.3770 A#3770 D.2770 F.4770 E.2770 C#4770 C#4770 G.2770 A#4770 A.2760 E.4760 E.4760 C.3750 C#3750 G#4750 G#5740 E.3740 A#4740 A#4730 A.3730 G#5730 C.4720 C#5720 D#4720 E.4710 F#5710 A#5710 ",
+	"PAT 1 G.1070 B.1070 E.2070 F#2070 A#2070 C.3070 C#3070 C#3070 C#3070 B.2070 B.2070 A#2070 A.2070 G#2070 G#2070 G.2070 G.2070 G.2070 F#2070 F.2070 F.2070 E.2070 D#2060 D#2050 D.2050 D.2040 D.2040 D#2030 E.2030 F.2010 F.2010 F.2010 ",
+	"PAT 3 A.3575 F#4575 A.4575 A.4575 C#4575 B.2575 G#2575 C#3575 E.3575 G.3575 A#3575 A#3575 F#3575 B.2575 A.2565 G#2565 G#2565 A#2555 D.3555 D.3555 C#3545 A.2545 E.2545 D.2535 C.2535 F.2535 F#2525 D#2525 A#1525 C#2505 E.2505 A#1505 ",
+];

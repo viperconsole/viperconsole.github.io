@@ -1,0 +1,18 @@
+config:
+  cartpath: carts
+
+categories:
+  - sport
+  - platform
+  - shooter
+
+carts:
+  - name: celeste
+    category: platform
+    path: celeste.lua
+  - name: they started it
+    category: shooter
+    path: tsi.obe
+  - name: viper tennis
+    category: sport
+    path: tennis.lua
