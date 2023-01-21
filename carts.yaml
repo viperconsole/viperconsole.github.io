@@ -8,6 +8,6 @@ carts:
   - name: they started it
     tags: [shooter]
     source: tsi.obe
-  - name: viper tennis
+  - name: pico8 tennis
     tags: [sport]
     source: tennis.lua
