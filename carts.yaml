@@ -3,13 +3,13 @@ config:
 
 carts:
   - name: celeste
-    tags: [platform]
+    tags: [platform,pico8]
     source: celeste.lua
   - name: they started it
-    tags: [shooter]
+    tags: [shooter,pico8]
     source: tsi.obe
   - name: pico8 tennis
-    tags: [sport]
+    tags: [sport,pico8]
     source: tennis.lua
   - name: cryon
     tags: [shooter,alpha]
