@@ -11,3 +11,9 @@ carts:
   - name: pico8 tennis
     tags: [sport]
     source: tennis.lua
+  - name: cryon
+    tags: [shooter,alpha]
+    source: cryon.lua
+  - name: tcod
+    tags: [rpg,alpha]
+    source: tcod.lua
