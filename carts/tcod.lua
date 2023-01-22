@@ -5,11 +5,8 @@ LAYER_GROUND_SPRITE=6
 SPRITESHEET_SIZE=512
 GROUND_TILE_SIZE=32
 
-KEY_RIGHT = "KeyD"
-KEY_LEFT = "KeyA"
-KEY_UP = "KeyW"
-KEY_DOWN = "KeyS"
-KEY_JUMP = "Space"
+BUTTON_JUMP = 0
+BUTTON_HIT = 2
 MOUSE_HIT = 0
 
 ANIM_IDLE = 1
@@ -136,39 +133,43 @@ end
 
 function update_hero(this)
     local can_interrupt = anims[this.anim].interruptible
-    if inp.key_pressed(KEY_JUMP) and can_interrupt then
+    if (inp.pad_button_pressed(0,BUTTON_JUMP) or inp.pad_button_pressed(1,BUTTON_JUMP)) and can_interrupt then
         set_anim(this, ANIM_JUMP)
         can_interrupt = false
     end
-    if inp.mouse_button_pressed(MOUSE_HIT) and can_interrupt then
+    if (inp.pad_button_pressed(0,BUTTON_HIT) or inp.pad_button_pressed(1,BUTTON_HIT))  and can_interrupt then
         set_anim(this, ANIM_HIT)
         can_interrupt = false
     end
-    if inp.key(KEY_RIGHT) then
+    local right = math.max(inp.right(0),inp.right(1))
+    local left = math.max(inp.left(0),inp.left(1))
+    if right > 0.0 then
         if can_interrupt then
             set_anim(this, ANIM_WALK)
         end
         this.flip = false
-        this.dx = 1
-    elseif inp.key(KEY_LEFT) then
+        this.dx = right
+    elseif left > 0.0 then
         if can_interrupt then
             set_anim(this, ANIM_WALK)
         end
         this.flip = true
-        this.dx = -1
+        this.dx = -left
     else
         this.dx = 0
     end
-    if inp.key(KEY_UP) then
+    local up = math.max(inp.up(0),inp.up(1))
+    local down = math.max(inp.down(0),inp.down(1))
+    if up > 0.0 then
         if can_interrupt then
             set_anim(this, ANIM_WALK)
         end
-        this.dy = -1
-    elseif inp.key(KEY_DOWN) then
+        this.dy = -up
+    elseif down > 0.0 then
         if can_interrupt then
             set_anim(this, ANIM_WALK)
         end
-        this.dy = 1
+        this.dy = down
     else
         this.dy = 0
     end

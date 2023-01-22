@@ -1,5 +1,5 @@
 -- ~celeste~
--- matt thorson + noel berry
+-- maddy thorson + noel berry
 
 -- Viper / Oberon conversion
 -- jice
@@ -15,6 +15,8 @@ SPEED_COEF = SPRITE_SIZE / 8 + 0.5
 CLOUD_COUNT = 16
 PARTICLE_COUNT = 24
 TILE_2_OBJ = {}
+JUMP_BUTTON = 0
+DASH_BUTTON = 2
 controller=-1
 
 got_fruit={}
@@ -449,12 +451,14 @@ Player = {
 		if pause_player then
 			return
 		end
-		local input = inp.right(controller) > 0.9 and 1 or (inp.left(controller) > 0.9 and -1 or 0)
+        local right = inp.right(controller)
+        local left = inp.left(controller)
+		local input = right > 0 and right or (left > 0 and -left or 0)
 		if spike_at(obj.x+obj.hitbox.x,obj.y+obj.hitbox.y,obj.hitbox.w,obj.hitbox.h,obj.speed.x,obj.speed.y) then
 			obj.to_remove=true
 			kill_player(obj)
 		end
-		obj.down = inp.down(controller) > 0.9
+		obj.down = inp.down(controller) > 0.1
 		update_hair(obj,obj.hflip and -1 or 1,obj.down)
 		-- bottom death
 		if obj.y > SCREEN_SIZE then
@@ -468,7 +472,7 @@ Player = {
 			create_object(Smoke, obj.x, obj.y+SPRITE_SIZE/2)
 		end
 		-- jump
-		key_jump=inp.pad_button(controller,1)
+		key_jump=inp.pad_button(controller,JUMP_BUTTON)
 		jump = key_jump and not  obj.p_jump
 		obj.p_jump = key_jump
 		if jump then
@@ -477,7 +481,7 @@ Player = {
 			obj.jbuffer = obj.jbuffer - 1
 		end
 		-- dash
-		key_dash = inp.pad_button(controller,0)
+		key_dash = inp.pad_button(controller,DASH_BUTTON)
 		dash = key_dash and not  obj.p_dash
 		obj.p_dash = key_dash
 		if on_ground then
@@ -556,7 +560,8 @@ Player = {
 				obj.dash_time = 4
 				has_dashed = true
 				obj.dash_effect_time = 10
-				v_input=inp.up(controller) > 0.9 and -1 or (obj.down and 1 or 0)
+                local up=inp.up(controller)
+				v_input=up > 0.0 and -up or (obj.down and 1 or 0)
 				if input ~= 0 then
 					if v_input ~= 0 then
 						obj.speed.x=input*d_half*SPEED_COEF
@@ -1427,7 +1432,7 @@ function update()
 	if is_title() then
 		if not  start_game then
             for i=0,7 do
-                if inp.pad_button(i,0) or inp.pad_button(i,1) then
+                if inp.pad_button(i,JUMP_BUTTON) or inp.pad_button(i,DASH_BUTTON) then
                     controller=i
                 end
             end
@@ -1602,7 +1607,7 @@ function render()
 	-- credits
 	if is_title() then
 		cel_print("press x/c", SCREEN_SIZE/2-24, SCREEN_SIZE*70/128,5)
-		cel_print("Matt Thorson", SCREEN_SIZE/2-36, SCREEN_SIZE*80/128,5)
+		cel_print("Maddy Thorson", SCREEN_SIZE/2-39, SCREEN_SIZE*80/128,5)
 		cel_print("Noel Berry", SCREEN_SIZE/2-28, SCREEN_SIZE*90/128,5)
 		cel_print("viper port", SCREEN_SIZE/2-28, SCREEN_SIZE*110/128,5)
 		cel_print("jice", SCREEN_SIZE/2-4, SCREEN_SIZE*120/128,5)
