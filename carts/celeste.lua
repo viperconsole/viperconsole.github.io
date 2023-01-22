@@ -453,6 +453,12 @@ Player = {
 		end
         local right = inp.right(controller)
         local left = inp.left(controller)
+        if right > 0.6 then
+            right = 1
+        end
+        if left > 0.6 then
+            left = 1
+        end
 		local input = right > 0 and right or (left > 0 and -left or 0)
 		if spike_at(obj.x+obj.hitbox.x,obj.y+obj.hitbox.y,obj.hitbox.w,obj.hitbox.h,obj.speed.x,obj.speed.y) then
 			obj.to_remove=true
@@ -561,6 +567,9 @@ Player = {
 				has_dashed = true
 				obj.dash_effect_time = 10
                 local up=inp.up(controller)
+                if up > 0.6 then
+                    up = 1
+                end
 				v_input=up > 0.0 and -up or (obj.down and 1 or 0)
 				if input ~= 0 then
 					if v_input ~= 0 then
