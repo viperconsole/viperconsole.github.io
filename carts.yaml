@@ -7,7 +7,7 @@ carts:
     source: celeste.lua
   - name: they started it
     tags: [shooter,pico8]
-    source: tsi.obe
+    source: tsi.lua
   - name: pico8 tennis
     tags: [sport,pico8]
     source: tennis.lua
