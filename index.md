@@ -20,16 +20,29 @@
 
 ## <a name="h1"></a>1. Language
 
-Viper uses its own scripting language.
+Viper uses lua as scripting language.
 
 The following functions are called by the console :
 
-* `fn init()` : called once during the cartridge boot.
+* `function init()` : called once during the cartridge boot.
     * this is where images should be loaded with `gfx.load_img`
-* `fn update()` : called 60 times per second
-    * this is where you should update your variables
-* `fn render()` : called every frame
-    * render what can change every frame
+* `function update()` : called 60 times per second
+    * this is where you should update your variables and anything that is time dependant
+* `function render()` : called every frame
+    * render one game frame. framerate might vary from one computer to another
+
+Those functions are available globally:
+* `atan2(dx,dy)` : arc tangent between -PI and PI
+* `noise1(x)` : 1D simplex noise
+* `noise2(x,y)` : 2D simplex noise
+* `noise3(x,y,z)` : 3D simplex noise
+* `fbm1(x)` : 1D fractional brownian motion
+* `fbm2(x,y)` : 2D fractional brownian motion
+* `fbm3(x,y,z)` : 3D fractional brownian motion
+* `ease_in_cubic(t,value,delta,duration)` : cubic tweening function. t goes from 0 to duration, result from value to value+delta
+* `ease_out_cubic(t,value,delta,duration)` : cubic tweening function. t goes from 0 to duration, result from value to value+delta
+* `ease_in_out_cubic(t,value,delta,duration)` : cubic tweening function. t goes from 0 to duration, result from value to value+delta
+* `print(message)` : display a debug screen on stdout(native) or js console (web)
 
 Three interfaces are exposed by the viper console :
 
@@ -44,6 +57,8 @@ Each API might expose values and methods.
 ### <a name="h2.1"></a>2.1. Architecture
 
 The viper screen size is 384x224 pixels. You can get those values with `gfx.SCREEN_WIDTH` and `gfx.SCREEN_HEIGHT`. The graphics engine can display on screen any number of transparent layers. Viper doesn't use alpha blending, but a transparent key color that can be changed with `gfx.set_transparent_color(r,g,b)` (default is pure black).
+
+All colors are expressed with float component between 0.0 and 1.0. All coordinates are floats but for a pixel perfect result, you should truncate them to integers. But smooth movement can be achieved using float coordinates.
 
 Each layer can be resized with `gfx.set_layer_size(id, w, h)` and moved with `gfx.set_layer_offset(id,x,y)`.
 You can hide and show layers with `gfx.show_layer(id)` and `gfx.hide_layer(id)`. By default, only one layer (layer 0) is displayed.
@@ -79,11 +94,11 @@ You can draw on any layer by activating it with `gfx.set_active_layer(id)`.
 
     * local file : `'myimage.png'`
     * remote file : `'http://someserver.com/myimage.png'`
-    * data URL : `'data:image/png; ...'`
+    * TODO data URL : `'data:image/png; ...'`
 
     TODO To convert an image into data url, simply drag and drop it on the console screen.
 
-    TODO If resource_name is not an empty string `""`, this image can be overriden by the player by running the console with res parameters. This makes it easy for users to mod the game graphics.
+    If resource_name is not an empty string `""`, this image can be overriden by the player by running the console with res parameters. This makes it easy for users to mod the game graphics by replacing a named resource with another image.
 
 * `set_layer_offset(id, x, y)`
     * set a layer scrolling offset.
@@ -96,9 +111,8 @@ You can draw on any layer by activating it with `gfx.set_active_layer(id)`.
 * `clear(r,g,b)`
     * fill the active layer with the color `r,g,b`
 
-TODO
-* `pixel(x,y, r,g,b)`
-    * set color of pixel `x,y`
+* TODO `pixel(x,y, r,g,b)`
+    * set color of pixel `x,y`. For now, use the `rectangle` function with a 1x1 size
 
 * `line(x1,y1, x2,y2, r,g,b)`
     * draw a line
@@ -146,72 +160,167 @@ Source and destination cannot be the same layer.
 TODO
 
 ## <a name="h3"></a>3. Sound API (snd)
-***in beta***
+The viper has 6 channels that each can play stereo sound at 48kHz with float32 samples.
 
 ### <a name="h3.1"></a>3.1. Instrument API
-***in beta***
+You can create any number of instruments that produce sound.
+Instrument can either use additive synthesis by using various oscillators and read samples from .wav files.
 
-Instrument properties:
+Oscillator instrument properties:
 
 * oscillator parameters
-    * `overtone` : amount of overtone
-    * `overtoneRatio` : 0 = octave below, 1 = fifth above
-    * `sawGain` : amount of sawtooth waveform (0.0-1.0)
-    * `ultrasaw` : amount of ultrasaw in the saw waveform (0.0-1.0)
-    * `squareGain` : amount of square waveform (0.0-1.0)
-    * `pulseWidth` : width of the square pulse : 0 = half period, 1 = 90% period
-    * `triangleGain` : amount of triangle waveform (0.0-1.0)
-    * `metalizer` : amount of metalizer in the triangle waveform (0.0-1.0)
-    * `noiseGain` : amount of noise (0.0-1.0)
+    * `OVERTONE` : amount of overtone
+    * `OVERTONE_RATIO` : 0 = octave below, 1 = fifth above
+    * `SAW` : amount of sawtooth waveform (0.0-1.0)
+    * `ULTRASAW` : amount of ultrasaw in the saw waveform (0.0-1.0)
+    * `SQUARE` : amount of square waveform (0.0-1.0)
+    * `PULSE` : width of the square pulse should be in `]0..1[` interval
+    * `TRIANGLE` : amount of triangle waveform (0.0-1.0)
+    * `METALIZER` : amount of metalizer in the triangle waveform (0.0-1.0)
+    * `NOISE` : amount of noise (0.0-1.0)
+    * `NOISE_COLOR` : from white (0.0) to pink (1.0) noise
 * filter parameters
-    * `filterType` : type of filter (`LOWPASS`, `BANDPASS`, `HIGHPASS`)
-    * `distoLevel` : amount of distortion (0-200)
-    * `filterGain`: lowshelf filter boost in Db (-40, 40)
-    * `filterCutOffFreq`: upper limit of frequencies getting a boost (0-8000)
+    * `FILTER_BAND` : type of filter (`LOWPASS`, `BANDPASS`, `HIGHPASS`, `NOTCH`)
+    * `FILTER_DISTO` : amount of distortion (0-200)
+    * `FILTER_GAIN`: lowshelf filter boost in Db (-40, 40)
+    * `FILTER_CUTOFF`: upper limit of frequencies getting a boost (0-8000)
 * lfo parameters
-    * `lfoAmount` : amplitude of the lfo waveform (0-1)
-    * `lfoRate` : frequency of the lfo waveform (0-8000)
-    * `lfoShape`: type of waveform (`SAWTOOTH`, `SQUARE`, `TRIANGLE`)
-        * Example :
-        * `myInstrument.lfoShape = snd.SQUARE`
-    * `lfoPitch` : whether the lfo affects the notes pitch (0 or 1)
-    * `lfoFilter`: whether the lfo affects the filter cutoff (0 or 1)
-    * `lfoPulse`: whether the lfo affects the pulse width (0 or 1)
-    * `lfoMetalizer`: whether the lfo affects the metalizer amount (0 or 1)
-    * `lfoOvertone`: whether the lfo affects the overtone amount (0 or 1)
-    * `lfoUltrasaw`: whether the lfo affects the ultrasaw amount (0 or 1)
-* general parameters
-    * `pitch` : frequency of the note (0-8000)
-    * `masterGain` : general volume (0-1)
-    * `panning` : left/right speaker balance (-1 to 1)
-* methods
-    * `start([when])` : start playing the note in `when` seconds (default : now)
-    * `stop([when])` : stop playing the note in `when` seconds (default : now)
+    * `LFO_AMOUNT` : amplitude of the lfo waveform (0-1)
+    * `LFO_RATE` : frequency of the lfo waveform (0-8000)
+    * `LFO_SHAPE`: type of waveform (`SAW`, `SQUARE`, `TRIANGLE`)
+    * `LFO_PITCH` : whether the lfo affects the notes pitch (0 or 1)
+    * `LFO_FILTER`: whether the lfo affects the filter cutoff (0 or 1)
+    * `LFO_PULSE`: whether the lfo affects the pulse width (0 or 1)
+    * `LFO_METALIZER`: whether the lfo affects the metalizer amount (0 or 1)
+    * `LFO_OVERTONE`: whether the lfo affects the overtone amount (0 or 1)
+    * `LFO_ULTRASAW`: whether the lfo affects the ultrasaw amount (0 or 1)
+* envelop parameters
+    * `ATTACK` : duration of attack phase
+    * `DECAY` : duration of decay phase
+    * `SUSTAIN` : duration of sustain phase
+    * `RELEASE` : duration of release phase
 
-* `newInstrument()` : return a new instrument
+   By default, envelop is altering the note volume. But it can also be used to alter other parameters :
 
+    * `ENV_AMOUNT` : scale the effect of the envelop on the parameter
+    * `ENV_PITCH` : amount of envelop altering the note pitch
+    * `ENV_FILTER` : amount of envelop altering the note pitch
+    * `ENV_METALIZER` : amount of envelop altering the metalizer parameter of the oscillator
+    * `ENV_OVERTONE` : amount of envelop altering the overtone parameter of the oscillator
+    * `ENV_PULSE` : amount of envelop altering the pulse width of the oscillator
+    * `ENV_ULTRASAW` : amount of envelop altering the utrasaw parameter of the oscillator
+
+Sample instrument properties :
+
+* base parameters
+   * `FILE` : path to the .wav file
+   * `FREQ` : base frequency of the sound in the file
+
+*  looping
+   * `LOOP_START` : sample index where to start the loop
+   * `LOOP_END` : sample index where to end the loop
+
+* envelop
+   * `ATTACK` : duration of attack phase
+   * `DECAY` : duration of decay phase
+   * `SUSTAIN` : duration of sustain phase
+   * `RELEASE` : duration of release phase
+
+* `newInstrument(description)` : create a new instrument, return a numerical id for the instrument that can be used in the song patterns (the first is 0 then it is incremented for each new instrument).
+
+   For oscillator instruments, the description starts with the `INST` keyword followed with a list of parameters. It should end with the `NAM` parameter with the instrument name.
+   Example:
+
+   ```
+    triangle_id = snd.new_instrument("INST OVERTONE 1.0 TRIANGLE 1.0 METALIZER 0.85 NAM triangle")
+    pulse_id = snd.new_instrument("INST OVERTONE 1.0 SQUARE 0.5 PULSE 0.5 TRIANGLE 1.0 METALIZER 1.0 OVERTONE_RATIO 0.5 NAM pulse")
+   ```
+
+   For sample instruments, the description starts with the `SAMPLE`keywords followed with a list of parameters.
+   Example :
+
+   ```
+   snare_id = snd.new_instrument("SAMPLE FILE musics/samples/snare.wav FREQ 17000")
+   ```
+
+* `set_instrument(id, new_description)` : update the parameters of instrument id from a new description
+* `play_note(frequency, volume, instrument_id, channel)` : start playing a note on a channel (between 0 and 5)
+* `stop_note(channel)` : mute the channel
 
 ### <a name="h3.2"></a>3.2. Pattern API
-***to be implemented***
+A pattern is a list of notes that plays at a specific rate.
+
+* `new_pattern(description)` : register a new pattern and returns its id (0, then incremented for each new pattern).
+
+The description starts with the `PAT` keyword followed by the notes duration (or speed at which the pattern plays the notes). The duration is divided by 120. For example :
+* 01 => each note duration is 1/120 second
+* 02 => each note duration is 1/60 second
+* 04 => each note duration is 1/30 second
+
+Then it's followed by a list of notes.
+Example :
+
+```
+new_pattern("PAT 02 F.2070 G.2070 D.3070 C.4070")
+```
+
+The note format is [note] [octave] [instrument_id] [volume] [fx] with :
+* note : C. C# D. D# E. F. F# G. G# A. A# B.
+* octave : between 0 and 8
+* volume : hexadecimal between 1 (lowest) and F (highest)
+* fx : special sound effect between 0 and 5 :
+   * 0 : no effect
+   * 1 : slide
+   * 2 : vibrato
+   * 3 : drop
+   * 4 : fade in
+   * 5 : fade out
+
+You can add a silence by filling the note format with 6 dots : `......`
+Example :
+
+```
+new_pattern("PAT 16 C#3915 ...... ...... C#3915 D#3835")
+```
+
+* `set_pattern(id, new_description)` : update a pattern
+* `play_pattern(id)` : play the pattern on any free channel
 
 ### <a name="h3.3"></a>3.3. Song API
-***to be implemented***
+A song is an ordered list of patterns to play on one or several of the 6 available channels.
+
+* `new_music(desc)` : create a new music from a description. return an id (0, then incremented for each new music)
+
+The description is a multi-line string.
+* The first line contains the song's name using the `NAM` parameter.
+* The second line contain the list of patterns used by the song using the `PATLIST`parameter (you can select only a part of all the patterns created).
+* The last line contain the actual sequence of patterns. Each sequence display which pattern to play on each channel. Unused channels contains a dot.
+
+Example :
+```
+MUSIC_TITLE = [[NAM title screen
+PATLIST 56 57 58 59 60
+SEQ 024... 134...]]
+new_music(MUSIC_TITLE)
+```
+
+Here the song is named "title screen". It uses 5 patterns number 56, 57, 58, 59 and 60.
+* The first sequence plays pattern 0 (56) on channel 1, 2 (58) on channel 2, 4 (60) on channel 3.
+* The second sequence plays pattern 1 (57) on channel 1, 3 (59) on channel 2, 4 (60) on channel 3.
+* The last 3 channels are not used and can be used to play other sound effects (using the `play_pattern` function while the music is playing.
+
+* `play_music(id, channel_mask)` : play a music. You can mute certain channels using a bitmask.
+
+For example with the previous song, if you want to play all 3 channels, you use the binary mask 111 = 7. This would result in the total song to be played as in the description :
+
+`SEQ 024... 134...`
+
+But you can mute for example the third channel by using the binary mask 11 = 3. The result would be the same as this descrition :
+
+`SEQ 02.... 13....`
 
 ### <a name="h3.4"></a>3.4. Midi API
-***in beta***
-
-* `midiDevices()` : returns an array of device names. Mainly used to check if there's a midi device connected
-* `midiNote(note, channel)` : return velocity (0-127) of midi `note` (note between 21 (A0) and 108 (C8)).
-    * `channel` : midi channel (0-15). Use 16 to catch events for all channels.
-    * Return -1 when the key is released, 0 else.
-    * Example :
-    * frame 1 : midiNote(0) == 127    : note 0 was pressed this frame with full velocity
-    * frame 2 : midiNote(0) == 0      : note is still pressed
-    * frame 3 : midiNote(0) == 0      : note is still pressed
-    * frame 4 : midiNote(0) == -1     : note was released this frame
-    * frame 5 : midiNote(0) == 0      : note is still released
-
-* `pitchWheel(num, channel)` : return the value of pitch wheel `num` for `channel`
+TODO
 
 ## <a name="h4"></a>4. Input API (inp)
 
