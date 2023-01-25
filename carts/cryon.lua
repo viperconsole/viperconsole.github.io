@@ -152,31 +152,53 @@ function planet.generate(PALETTE)
     local mn = 1000
     local mx = -1000
     -- generate planet texture
+    local t = elapsed()
     for y = 0, tex_height - 1 do
         local a1 = asin(1 - y / tex_height * 2)
         local yrad = abs(cos(a1))
         local fy = 3 * y / tex_height
         for x = 0, tex_width - 1 do
             local angle = x * const.PI2 / tex_width
-            local fx = fbm3((cos(angle) + 1) * yrad, (sin(angle) + 1) * yrad, fy)
+            local tx = (cos(angle) + 1) * yrad
+            local ty = (sin(angle) + 1) * yrad
+            local fx = fbm3(tx, ty, fy)
             table.insert(tex, fx)
             mn = min(fx, mn)
             mx = max(fx, mx)
         end
     end
+    print("generate planet texture: " .. (elapsed() - t) .. "s")
+    t = elapsed()
     local i = 1
     local norm_coef = (numcol + 1) / (mx - mn)
     -- render texture on layer LAYER_PLANET_TEXTURE
+    local pix_x = {}
+    local pix_y = {}
+    local pix_r = {}
+    local pix_g = {}
+    local pix_b = {}
     for y = 0, tex_height - 1 do
         for x = 0, tex_width - 1 do
-            local coef = clamp((tex[i] - mn) * norm_coef, 0, numcol)
-            local rcoef = coef - flr(coef)
-            local col = rcoef > 0 and clerp(rcoef, cols[flr(coef + 1)], cols[flr(coef + 2)]) or
-                            PALETTE[cols[flr(coef + 1)]]
-            gfx.rectangle(x, y, 1, 1, col.r, col.g, col.b)
+            local ux = x
+            local uy = y
+            if (x + y) % 2 == 0 then
+                ux = (ux + 1) % tex_width
+                uy = (uy + 1) % tex_height
+            end
+            local coef = clamp((tex[ux + uy * tex_width + 1] - mn) * norm_coef, 0, numcol)
+            local col = PALETTE[cols[flr(coef + 1)]]
+            table.insert(pix_x, x)
+            table.insert(pix_y, y)
+            table.insert(pix_r, col.r)
+            table.insert(pix_g, col.g)
+            table.insert(pix_b, col.b)
             i = i + 1
         end
     end
+    gfx.pixels(pix_x, pix_y, pix_r, pix_g, pix_b)
+
+    print("render texture on layer: " .. (elapsed() - t) .. "s")
+    t = elapsed()
     local p = {
         typ = const.E_PLANET,
         x = px,
@@ -187,6 +209,7 @@ function planet.generate(PALETTE)
         tex_height = tex_height
     }
     compute_spans(p)
+    print("compute spans: " .. (elapsed() - t) .. "s")
     gfx.set_active_layer(const.LAYER_BACKGROUND)
     p.render = planet_render
     p.update = planet_update
@@ -490,7 +513,6 @@ function init_title()
     local pb = PALETTE[11].b - bb
     local wcoef = 2 / gfx.SCREEN_WIDTH
     local hcoef = 2 / gfx.SCREEN_HEIGHT
-    print("render bkgnd");
     for x = 0, gfx.SCREEN_WIDTH // 2 do
         for y = 0, gfx.SCREEN_HEIGHT // 2 do
             local coef = clamp(fbm2(x * wcoef, y * hcoef), 0, 1)
@@ -539,11 +561,11 @@ function init()
     table.insert(g_screen.sector.entities, gen_random_ship())
     g_screen.gui = {}
     build_title_ui(g_screen.gui)
-    init_title()
     gfx.show_layer(const.LAYER_STARS)
     gfx.set_layer_operation(const.LAYER_STARS, gfx.LAYEROP_ADD)
     gfx.show_layer(const.LAYER_ENTITIES)
     gfx.show_layer(const.LAYER_GUI)
+    init_title()
     gfx.set_mouse_cursor(const.LAYER_SPRITES, 0, 36, 6, 6)
     gfx.set_active_layer(const.LAYER_BACKGROUND)
 end
