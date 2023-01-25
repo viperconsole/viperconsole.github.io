@@ -43,6 +43,7 @@ Those functions are available globally:
 * `ease_out_cubic(t,value,delta,duration)` : cubic tweening function. t goes from 0 to duration, result from value to value+delta
 * `ease_in_out_cubic(t,value,delta,duration)` : cubic tweening function. t goes from 0 to duration, result from value to value+delta
 * `print(message)` : display a debug screen on stdout(native) or js console (web)
+* `elapsed()` : floating point number of seconds elapsed since the game started
 
 Three interfaces are exposed by the viper console :
 
@@ -80,6 +81,9 @@ Example :
 `gfx.set_layer_operation(1, gfx.LAYEROP_ADD)`
 
 You can draw on any layer by activating it with `gfx.set_active_layer(id)`.
+
+You can get the number of frames rendered during the last second with :
+`gfx.fps()`
 
 ### <a name="h2.2"></a>2.2. Drawing API
 

@@ -523,7 +523,7 @@ function draw_stars()
 end
 
 function waggle(s, x, y, sx, sy)
-    local t = snd.elapsed() * 1.6
+    local t = elapsed() * 1.6
 
     local rx
     local ry
@@ -539,7 +539,7 @@ function waggle(s, x, y, sx, sy)
 end
 
 function draw_pressmsg(s, x, y)
-    local c = (math.sin(snd.elapsed() * 2 * PI * 0.8) + 1) * 7 + 1
+    local c = (math.sin(elapsed() * 2 * PI * 0.8) + 1) * 7 + 1
     _print("press X " .. s, x, y, c)
     _print("press   " .. s, x, y, 14)
 end
@@ -633,7 +633,7 @@ function drop_bomb(a)
 end
 
 function au_zigzag(this)
-    local t = (snd.elapsed() + this.id * 2.1) * 0.03
+    local t = (elapsed() + this.id * 2.1) * 0.03
     this.x = this.x + math.sin(t * 10 * 2 * PI) * 0.1 * 1.75
 
     if math.sin(t * 20 * 2 * PI) > 0 then
@@ -710,14 +710,14 @@ function ship_hit(p)
 end
 
 function au_pinkeye(this)
-    local t1 = (snd.elapsed() + this.id * 74)
+    local t1 = (elapsed() + this.id * 74)
     if this.state == 0 then
         if this.y > p1.y - 18 then
             this.y = this.y + 6
         elseif this.y > 8 and math.floor(t1) % 13 == 0 then
             this.state = 1
         else
-            local t = (snd.elapsed() + this.id * 2.1) * 0.03
+            local t = (elapsed() + this.id * 2.1) * 0.03
             this.x = this.x + (math.sin(2 * PI * t * 10) * 0.1) * 1.75
             if math.sin(2 * PI * t * 20) > 0 then
                 this.y = this.y + 0.175
@@ -753,7 +753,7 @@ function au_pinkeye(this)
 end
 
 function au_golden(this)
-    local t = (snd.elapsed() + this.id * 2.1) * 0.03
+    local t = (elapsed() + this.id * 2.1) * 0.03
     this.x = this.x + math.sin(2 * PI * t * 10) * 0.1 * 1.75
 
     if math.sin(2 * PI * t * 20) > 0 then
@@ -1243,7 +1243,7 @@ function draw_game()
         end
     end
 
-    local t = snd.elapsed()
+    local t = elapsed()
     for _, a in pairs(als) do
         if a.draw == nil then
             if a.hurt > 0 then
@@ -1358,7 +1358,7 @@ function init()
     inp.set_neutral_zone(0.2)
     gfx.set_layer_size(LAYER_SPRITE, SPRITESHEET_SIZE, SPRITESHEET_SIZE)
     gfx.set_active_layer(LAYER_SPRITE)
-    gfx.load_img("sprites", "carts/tsi/tsi.png")
+    gfx.load_img("sprites", "tsi/tsi.png")
     gfx.set_active_layer(0)
     gfx.set_sprite_layer(LAYER_SPRITE)
     gfx.set_scanline(gfx.SCANLINE_HARD)
