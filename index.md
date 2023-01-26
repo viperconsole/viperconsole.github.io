@@ -115,8 +115,21 @@ You can get the number of frames rendered during the last second with :
 * `clear(r,g,b)`
     * fill the active layer with the color `r,g,b`
 
-* TODO `pixel(x,y, r,g,b)`
-    * set color of pixel `x,y`. For now, use the `rectangle` function with a 1x1 size
+* `blit_pixels(x,y, width, rgb)`
+    * set pixel colors on current layer.
+    * x,y is the position on the layer
+    * width is the width of the sprite
+    * rgb is an array of colors with format rgb24 (0xRRGGBB). You can use `gfx.to_rgb24(r,g,b)` to get this value
+
+    Example :
+
+    `gfx.blit_pixels(0,0,1,{255})` would blit a single blue pixel at position 0,0 (255 = 0x0000FF => r=0,g=0,b=1)
+
+    Another way to write it :
+
+    `gfx.blit_pixels(0,0,1,{gfx.to_rgb24(0,0,1)})`
+
+    Note that this function is far slower than the `gfx.blit` function which is fully running on the GPU.
 
 * `line(x1,y1, x2,y2, r,g,b)`
     * draw a line
@@ -140,8 +153,12 @@ You can get the number of frames rendered during the last second with :
     * if charset is not set, the ascii table is expected.
     * The console is preloaded with a default font that contains the ascii table as 8x8 characters. You can reset to the default font with  `gfx.activate_font(gfx.SYSTEM_LAYER, 0,0,512,32, 8,8, "")`
 
-* `gfx_print(text, x,y, r,g,b)`
-    * print the text at position `x,y`
+* `print(text, x,y, r,g,b)`
+    * print the text at position `x,y` using currently activated font
+
+    Example
+
+    `gfx.print("hello", 0,0, 1,0,0)`
 
 ### <a name="h2.4"></a>2.4. Sprite API
 

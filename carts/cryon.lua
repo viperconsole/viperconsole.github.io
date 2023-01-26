@@ -172,11 +172,7 @@ function planet.generate(PALETTE)
     local i = 1
     local norm_coef = (numcol + 1) / (mx - mn)
     -- render texture on layer LAYER_PLANET_TEXTURE
-    local pix_x = {}
-    local pix_y = {}
-    local pix_r = {}
-    local pix_g = {}
-    local pix_b = {}
+    local rgb = {}
     for y = 0, tex_height - 1 do
         for x = 0, tex_width - 1 do
             local ux = x
@@ -187,15 +183,13 @@ function planet.generate(PALETTE)
             end
             local coef = clamp((tex[ux + uy * tex_width + 1] - mn) * norm_coef, 0, numcol)
             local col = PALETTE[cols[flr(coef + 1)]]
-            table.insert(pix_x, x)
-            table.insert(pix_y, y)
-            table.insert(pix_r, col.r)
-            table.insert(pix_g, col.g)
-            table.insert(pix_b, col.b)
+            table.insert(rgb, gfx.to_rgb24(col.r, col.g, col.b))
             i = i + 1
         end
     end
-    gfx.pixels(pix_x, pix_y, pix_r, pix_g, pix_b)
+    print("build texture data: " .. (elapsed() - t) .. "s")
+    t = elapsed()
+    gfx.blit_pixels(0, 0, tex_width, rgb)
 
     print("render texture on layer: " .. (elapsed() - t) .. "s")
     t = elapsed()
@@ -558,13 +552,13 @@ function init()
     local seed = flr(elapsed() * 10000000)
     print(string.format("sector seed %d", seed))
     g_screen.sector = sector.generate(seed, PALETTE, planet)
-    table.insert(g_screen.sector.entities, gen_random_ship())
     g_screen.gui = {}
     build_title_ui(g_screen.gui)
     gfx.show_layer(const.LAYER_STARS)
     gfx.set_layer_operation(const.LAYER_STARS, gfx.LAYEROP_ADD)
     gfx.show_layer(const.LAYER_ENTITIES)
     gfx.show_layer(const.LAYER_GUI)
+    table.insert(g_screen.sector.entities, gen_random_ship())
     init_title()
     gfx.set_mouse_cursor(const.LAYER_SPRITES, 0, 36, 6, 6)
     gfx.set_active_layer(const.LAYER_BACKGROUND)
