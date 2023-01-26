@@ -125,11 +125,11 @@ function trail.generate()
         typ = const.E_TRAIL,
         x = x,
         y = y,
-        angle = const.PI * 0.5,
+        angle = random() * const.PI2,
         vangle = (random() - 0.5) * 0.01,
-        speed = random(2, 5) * 0.1,
+        speed = random(1, 5) * 0.1,
         seg_length = 0,
-        fade_in = 0.0,
+        fade_in = 0,
         length = random(5, 15),
         trail = {{
             x = x,
@@ -139,16 +139,17 @@ function trail.generate()
         update = trail.update,
         render = trail.render
     }
-    t.fade_in = t.length
+    -- pre-generate the tail
     while #t.trail ~= t.length do
         trail.update(t)
     end
+    t.fade_in = 0
     return t
 end
 
 function trail.update(t)
     t.seg_length = t.seg_length + t.speed
-    t.fade_in = max(0, t.fade_in - 0.003 * t.length)
+    t.fade_in = min(1, t.fade_in + 0.004)
     if t.seg_length > const.TRAIL_SEG_LEN then
         table.insert(t.trail, {
             x = t.x,
@@ -176,13 +177,14 @@ function trail.render(t)
     local y = t.y
     local col = conf.PALETTE[t.color]
     local seg_part = t.seg_length / const.TRAIL_SEG_LEN
-    local col_coef = ease_in_cubic(max(0, #t.trail - 1 - t.fade_in), 0.0, 1.0, #t.trail - 1 + seg_part)
+    local fcoef = ease_in_cubic(t.fade_in, 0, 1, 1)
+    local col_coef = fcoef
     for i = #t.trail, 1, -1 do
         local p = t.trail[i]
         gfx.line(x, y, p.x, p.y, col.r * col_coef, col.g * col_coef, col.b * col_coef)
         x = p.x
         y = p.y
-        col_coef = ease_in_cubic(max(0, i - 1 - t.fade_in), 0.0, 1.0, #t.trail - 1 + seg_part)
+        col_coef = fcoef * ease_in_cubic(i - 1, 0.0, 1.0, #t.trail - 1 + seg_part)
     end
 end
 
@@ -290,6 +292,7 @@ function sector.update(s)
         if e.update ~= nil then
             if e:update() ~= nil then
                 table.remove(s.entities, i)
+                s.trail_count = s.trail_count - 1
                 sector.spawn_trail(s)
             end
         end
@@ -315,25 +318,34 @@ function sector.render(s)
 end
 
 function sector.spawn_trail(s)
-    table.insert(s.entities, trail.generate())
+    local start = s.trail_count == 0 and 1 or 0
+    local count = random(start, 3 - s.trail_count)
+    if count > 0 then
+        for _ = 1, count do
+            table.insert(s.entities, trail.generate())
+            s.trail_count = s.trail_count + 1
+        end
+    end
 end
 
 function sector.generate(seed, planet, light)
     math.randomseed(seed)
     local entities = {}
-    light = {
+    local light = {
         x = random(0, gfx.SCREEN_WIDTH),
         y = 0 -- random(0, gfx.SCREEN_HEIGHT)
     }
     table.insert(entities, planet.generate(light))
-    table.insert(entities, trail.generate())
-    table.insert(entities, trail.generate())
-
-    return {
+    local s = {
         entities = entities,
+        light = light,
+        trail_count = 0,
         update = sector.update,
         render = sector.render
     }
+    sector.spawn_trail(s)
+
+    return s
 end
 
 -- ################################## GUI ##################################
