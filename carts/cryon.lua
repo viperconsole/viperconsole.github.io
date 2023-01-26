@@ -637,7 +637,7 @@ end
 function title_screen.build_ui(g)
     local x = gfx.SCREEN_WIDTH // 2
     table.insert(g,
-        gui.gen_image(0, 186, 104, 38, gfx.SCREEN_WIDTH * 0.5 - 52, gfx.SCREEN_HEIGHT * (1 - 1 / 1.618) - 19))
+        gui.gen_image(0, 152, 208, 72, gfx.SCREEN_WIDTH * 0.5 - 104, gfx.SCREEN_HEIGHT * (1 - 1 / 1.618) - 38))
     table.insert(g, gui.gen_label("v0.1.0", gfx.SCREEN_WIDTH - 2, gfx.SCREEN_HEIGHT - 8, 12, const.ALIGN_RIGHT))
     local y = gfx.SCREEN_HEIGHT / 1.618
     table.insert(g, gui.gen_frame(x - 32, y, 60, 50))
