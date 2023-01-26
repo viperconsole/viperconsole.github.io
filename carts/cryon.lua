@@ -211,7 +211,7 @@ function planet.compute_lut(p, light)
             local r2 = dy2 + dx * dx
             local pixel_data = {}
             if r2 < rad2 then
-                local dith = (x + y) % 2 == 0 and 1 or 0
+                local dith = (x + y) % 2 == 0 and 2 or 0
                 local z = max(1, sqrt(rad2 - r2 * 0.9))
                 local xsphere = (dx + dith) / z
                 local ysphere = (dy + dith) / z
@@ -562,10 +562,12 @@ function title_screen.init()
     local pb = conf.PALETTE[11].b - bb
     local wcoef = 2 / gfx.SCREEN_WIDTH
     local hcoef = 2 / gfx.SCREEN_HEIGHT
-    for x = 0, gfx.SCREEN_WIDTH // 2 do
-        for y = 0, gfx.SCREEN_HEIGHT // 2 do
-            local coef = clamp(fbm2(x * wcoef, y * hcoef), 0, 1)
-            gfx.rectangle(x * 2, y * 2, 2, 2, br + coef * pr, bg + coef * pg, bb + coef * pb)
+    for x = 0, gfx.SCREEN_WIDTH do
+        for y = 0, gfx.SCREEN_HEIGHT do
+            local dith = (x + y) % 2 == 0 and 2 or 0
+            local coef = clamp(fbm2((x + dith) * wcoef, (y + dith) * hcoef), 0, 1)
+            coef = flr(coef * 5) / 5
+            gfx.rectangle(x, y, 1, 1, br + coef * pr, bg + coef * pg, bb + coef * pb)
         end
     end
     gfx.set_active_layer(const.LAYER_STARS)
