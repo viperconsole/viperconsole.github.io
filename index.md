@@ -147,10 +147,13 @@ You can get the number of frames rendered during the last second with :
     * fill a disk
 
 ### <a name="h2.3"></a>2.3. Font drawing API
-* `activate_font(id, x,y, width,height, char_width,char_height, charset)`
-    * define a region of a layer as a bitmap font to use with `gfx.gfx_print`
-    * charset is a string representing the characters in the bitmap font.
-    * if charset is not set, the ascii table is expected.
+* `activate_font(id, x,y,w,h, char_width,char_height, charset, chars_width)`
+    * `x,y,w,h` define a region of a layer as a bitmap font to use with `gfx.print`
+    * `char_width,char_height` if the size of a character in this bitmap (in case of non-monotype font, use the chars_width parameter)
+    * `charset` is a string representing the characters in the bitmap font.
+    * if `charset` is not set, the ascii table order is expected.
+    * `chars_width` is an array containing the width of each character.
+    * if `chars_width` is not set, we assume every character's width is char_width
     * The console is preloaded with a default font that contains the ascii table as 8x8 characters. You can reset to the default font with  `gfx.activate_font(gfx.SYSTEM_LAYER, 0,0,512,32, 8,8, "")`
 
 * `print(text, x,y, r,g,b)`

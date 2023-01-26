@@ -103,6 +103,8 @@ const = {
     E_BUTTON = 4,
     E_SHIP = 5,
     E_TRAIL = 6,
+    E_FRAME = 7,
+    E_IMAGE = 8,
 
     -- text alignment
     ALIGN_CENTER = 0,
@@ -127,7 +129,7 @@ function trail.generate()
         vangle = (random() - 0.5) * 0.01,
         speed = random(2, 5) * 0.1,
         seg_length = 0,
-        fade_in = 6.0,
+        fade_in = 0.0,
         length = random(5, 15),
         trail = {{
             x = x,
@@ -137,6 +139,7 @@ function trail.generate()
         update = trail.update,
         render = trail.render
     }
+    t.fade_in = t.length
     while #t.trail ~= t.length do
         trail.update(t)
     end
@@ -145,7 +148,7 @@ end
 
 function trail.update(t)
     t.seg_length = t.seg_length + t.speed
-    t.fade_in = max(0, t.fade_in - 0.01)
+    t.fade_in = max(0, t.fade_in - 0.003 * t.length)
     if t.seg_length > const.TRAIL_SEG_LEN then
         table.insert(t.trail, {
             x = t.x,
@@ -350,7 +353,7 @@ function gui.render_label(lab)
     end
 end
 
-function gui.render_bkgnd(x, y, len, len2, col)
+function gui.render_button_bkgnd(x, y, len, len2, col)
     gfx.blit(6, 36, 6, 18, x - 6, y - 6, 0, 0, false, false, col, col, col)
     gfx.blit(12, 36, 6, 18, x, y - 6, len, 0, false, false, col, col, col)
     if len2 > 0 then
@@ -362,6 +365,30 @@ function gui.render_bkgnd(x, y, len, len2, col)
     gfx.blit(18, 36, 6, 18, round(x + len + len2), y - 6, 0, 0, false, false, col, col, col)
 end
 
+function gui.gen_frame(x, y, w, h)
+    return {
+        typ = const.E_FRAME,
+        x = x,
+        y = y,
+        w = w,
+        h = h,
+        render = gui.render_frame
+    }
+end
+
+function gui.gen_image(sx, sy, sw, sh, dx, dy)
+    return {
+        typ = const.E_IMAGE,
+        sx = sx,
+        sy = sy,
+        sw = sw,
+        sh = sh,
+        dx = dx,
+        dy = dy,
+        render = gui.render_image
+    }
+end
+
 function gui.gen_label(msg, x, y, col, align)
     return {
         typ = const.E_LABEL,
@@ -370,9 +397,12 @@ function gui.gen_label(msg, x, y, col, align)
         y = flr(y),
         col = col,
         align = align,
-        render = gui.render_label,
-        update = nil
+        render = gui.render_label
     }
+end
+
+function gui.render_image(img)
+    gfx.blit(img.sx, img.sy, img.sw, img.sh, img.dx, img.dy, 0, 0, false, false, 1, 1, 1)
 end
 
 function gui.render_button(this)
@@ -380,12 +410,12 @@ function gui.render_button(this)
     local bx = compute_x(this.x, const.BUTTON_WIDTH, this.align)
     local fcoef = ease_out_cubic(this.focus, 0, 1, 1)
     local col_coef = 0.7 + fcoef * 0.3
-    gui.render_bkgnd(bx, this.y, const.BUTTON_WIDTH, fcoef * 10, col_coef)
+    gui.render_button_bkgnd(bx, this.y, const.BUTTON_WIDTH, fcoef * 10, col_coef)
     local col = conf.PALETTE[6]
     local fcolr = conf.PALETTE[7].r - col.r
     local fcolg = conf.PALETTE[7].g - col.g
     local fcolb = conf.PALETTE[7].b - col.b
-    gfx.print(this.msg, tx, this.y, col.r + fcoef * fcolr, col.g + fcoef * fcolg, col.b + fcoef * fcolb)
+    gfx.print(this.msg, tx, this.y + 1, col.r + fcoef * fcolr, col.g + fcoef * fcolg, col.b + fcoef * fcolb)
 end
 
 function gui.update_button(this)
@@ -399,6 +429,14 @@ function gui.update_button(this)
             this.focus = max(0, this.focus - 1 / 10)
         end
     end
+end
+
+function gui.render_frame(f)
+    gfx.blit(42, 37, 15, 1, f.x, f.y, f.w, 1, false, false, 1, 1, 1)
+    gfx.blit(42, 53, 15, 1, f.x, f.y + f.h - 1, f.w, 1, false, false, 1, 1, 1)
+    gfx.blit(42, 38, 1, 15, f.x, f.y + 1, 1, f.h - 2, false, false, 1, 1, 1)
+    gfx.blit(54, 38, 3, 15, f.x + f.w - 1, f.y + 1, 3, f.h - 2, false, false, 1, 1, 1)
+    gfx.blit(43, 38, 11, 15, f.x + 1, f.y + 1, f.w - 2, f.h - 2, false, false, 1, 1, 1)
 end
 
 function gui.gen_button(msg, x, y, align)
@@ -586,9 +624,11 @@ end
 
 function title_screen.build_ui(g)
     local x = gfx.SCREEN_WIDTH // 2
-    table.insert(g, gui.gen_label("Cryon", x, gfx.SCREEN_HEIGHT * (1 - 1 / 1.618), 7, const.ALIGN_CENTER))
+    table.insert(g,
+        gui.gen_image(0, 186, 104, 38, gfx.SCREEN_WIDTH * 0.5 - 52, gfx.SCREEN_HEIGHT * (1 - 1 / 1.618) - 19))
     table.insert(g, gui.gen_label("v0.1.0", gfx.SCREEN_WIDTH - 2, gfx.SCREEN_HEIGHT - 8, 12, const.ALIGN_RIGHT))
     local y = gfx.SCREEN_HEIGHT / 1.618
+    table.insert(g, gui.gen_frame(x - 32, y, 60, 50))
     table.insert(g, gui.gen_button("New game", x, y, const.ALIGN_CENTER))
     y = y + 20
     table.insert(g, gui.gen_button("Options", x, y, const.ALIGN_CENTER))
@@ -603,7 +643,10 @@ function init()
     gfx.load_img("sprites", "cryon/cryon_spr.png")
     gfx.set_sprite_layer(const.LAYER_SPRITES)
     gfx.activate_font(const.LAYER_SPRITES, 0, 0, 96, 36, 6, 6,
-        " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~")
+        " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+        {3, 1, 3, 5, 5, 5, 4, 1, 2, 2, 3, 3, 1, 3, 1, 3, 5, 1, 5, 5, 5, 5, 5, 5, 5, 5, 1, 1, 3, 3, 3, 5, 5, 5, 5, 5, 5,
+         5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 3, 3, 3, 3, 5, 2, 5, 5, 5, 5, 5, 5, 5, 5, 1,
+         3, 4, 3, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 5, 5, 2, 1, 2, 4})
     gfx.set_scanline(gfx.SCANLINE_HARD)
     g_screen.render = nil
     local seed = flr(elapsed() * 10000000)
