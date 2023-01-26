@@ -4,6 +4,7 @@ sqrt = math.sqrt
 atan2 = math.atan
 max = math.max
 min = math.min
+
 clamp = function(v, mi, ma)
     return v < mi and mi or (v > ma and ma or v)
 end
@@ -33,6 +34,9 @@ g_screen = {}
 -- ################################## CONSTANTS ##################################
 
 local const = {
+    LIGHT_THRESHOLD1 = 0.5,
+    LIGHT_THRESHOLD2 = 0.75,
+
     LAYER_BACKGROUND = 0,
     LAYER_STARS = 1,
     LAYER_ENTITIES = 2,
@@ -61,153 +65,90 @@ local const = {
 -- ################################## PLANETS ##################################
 
 local planet = {}
-function planet_render(this)
-    gfx.set_sprite_layer(const.LAYER_PLANET_TEXTURE)
-    local tex_size = this.tex_width
-    for _, span in pairs(this.spans) do
-        local tx = span.tx + this.rot
-        local tlen = span.tlen
-        local sx = span.x
-        local slen = span.len
-        if tx >= tex_size then
-            tx = tx - tex_size
-        elseif tx + tlen > tex_size then
-            local len1 = tex_size - 1 - tx
-            local slen1 = round(slen * len1 / tlen)
-            gfx.blit(tx, span.ty, len1, 1, sx, span.y, slen1, 1, false, false, 1, 1, 1)
-            tx = 0
-            slen = slen - slen1
-            sx = sx + slen1
-            tlen = tlen - len1
-        end
-        gfx.blit(tx, span.ty, tlen, 1, sx, span.y, slen, 1, false, false, 1, 1, 1)
-    end
-    -- display planet texture
-    -- gfx.blit(0,0,tex_size,tex_size, gfx.SCREEN_WIDTH-tex_size, gfx.SCREEN_HEIGHT-this.tex_height,0,0,false,false,1,1,1)
-
-    gfx.set_sprite_layer(const.LAYER_SPRITES)
-end
 
 function planet_update(this)
-    this.rot = (this.rot + 0.01) % (this.tex_width)
+    this.rot = this.rot + 0.0001
 end
 
 function compute_spans(p)
-    local i = 0
-    local rad = p.radius
-    local starty = round(max(0, p.y - rad))
-    local endy = round(min(gfx.SCREEN_HEIGHT - 1, p.y + rad))
-    local inv_rad = 1.0 / rad
-    local inv_pi = 1.0 / const.PI
-    local tex_size_x = p.tex_width
-    local tex_size_y = p.tex_height
-    p.spans = {}
-    for y = starty, endy do
-        local s = (y - p.y) * inv_rad
-        local v = clamp(0.5 + asin(s) * inv_pi, 0, 1)
-        local square_sin = s * s
-        local cos2d = sqrt(1 - square_sin)
-        local span_half_len = cos2d * rad
-        local startx = round(max(0, p.x - span_half_len))
-        local endx = round(min(gfx.SCREEN_WIDTH - 1, startx + 2 * span_half_len))
-        local start_cos = (p.x - startx) * inv_rad
-        local start_z = sqrt(max(0, 1 - square_sin - start_cos * start_cos))
-        local start_u = atan2(start_z, start_cos) * inv_pi
-        local span_start = startx
-        for _, x in pairs({0.05, 0.25, 0.75, 0.95, 1.0}) do
-            local curx = round(min(endx, x * span_half_len * 2 - span_half_len + p.x))
-            if curx > span_start and curx <= endx then
-                local end_cos = (p.x - curx) * inv_rad
-                local end_z = sqrt(max(0, 1 - square_sin - end_cos * end_cos))
-                local end_u = atan2(end_z, end_cos) * inv_pi
-                local span = {
-                    x = span_start,
-                    y = y,
-                    len = curx - span_start + 1,
-                    tx = round(start_u * tex_size_x / 2),
-                    ty = round(v * tex_size_y),
-                    tlen = round(abs(end_u - start_u) * tex_size_x / 2)
-                }
-                table.insert(p.spans, span)
-                span_start = curx
-                start_u = end_u
-                if span_start > endx then
-                    break
-                end
-            end
-        end
-    end
 end
 
 function planet.generate(PALETTE)
-    local px = random(0, gfx.SCREEN_WIDTH)
-    local py = random(0, gfx.SCREEN_HEIGHT)
     local radius = random(gfx.SCREEN_HEIGHT // 3, gfx.SCREEN_HEIGHT // 2)
-    local cols = {7, 6, 5, 12, 11, 4}
-    local numcol = #cols - 1
-    local tex_width = min(gfx.SCREEN_WIDTH, flr(const.PI2 * radius))
-    local tex_height = min(gfx.SCREEN_HEIGHT, radius * 2)
-    gfx.set_active_layer(const.LAYER_PLANET_TEXTURE)
-    local tex = {}
-    local mn = 1000
-    local mx = -1000
-    -- generate planet texture
-    local t = elapsed()
-    for y = 0, tex_height - 1 do
-        local a1 = asin(1 - y / tex_height * 2)
-        local yrad = abs(cos(a1))
-        local fy = 3 * y / tex_height
-        for x = 0, tex_width - 1 do
-            local angle = x * const.PI2 / tex_width
-            local tx = (cos(angle) + 1) * yrad
-            local ty = (sin(angle) + 1) * yrad
-            local fx = fbm3(tx, ty, fy)
-            table.insert(tex, fx)
-            mn = min(fx, mn)
-            mx = max(fx, mx)
-        end
-    end
-    print("generate planet texture: " .. (elapsed() - t) .. "s")
-    t = elapsed()
-    local i = 1
-    local norm_coef = (numcol + 1) / (mx - mn)
-    -- render texture on layer LAYER_PLANET_TEXTURE
-    local rgb = {}
-    for y = 0, tex_height - 1 do
-        for x = 0, tex_width - 1 do
-            local ux = x
-            local uy = y
-            if (x + y) % 2 == 0 then
-                ux = (ux + 1) % tex_width
-                uy = (uy + 1) % tex_height
-            end
-            local coef = clamp((tex[ux + uy * tex_width + 1] - mn) * norm_coef, 0, numcol)
-            local col = PALETTE[cols[flr(coef + 1)]]
-            table.insert(rgb, gfx.to_rgb24(col.r, col.g, col.b))
-            i = i + 1
-        end
-    end
-    print("build texture data: " .. (elapsed() - t) .. "s")
-    t = elapsed()
-    gfx.blit_pixels(0, 0, tex_width, rgb)
-
-    print("render texture on layer: " .. (elapsed() - t) .. "s")
     t = elapsed()
     local p = {
         typ = const.E_PLANET,
-        x = px,
-        y = py,
+        x = random(0, gfx.SCREEN_WIDTH),
+        y = random(0, gfx.SCREEN_HEIGHT),
         radius = radius,
         rot = 0,
-        tex_width = tex_width,
-        tex_height = tex_height
+        tex_width = min(gfx.SCREEN_WIDTH, flr(const.PI2 * radius)),
+        tex_height = min(gfx.SCREEN_HEIGHT, radius * 2)
     }
     compute_spans(p)
     print("compute spans: " .. (elapsed() - t) .. "s")
-    gfx.set_active_layer(const.LAYER_BACKGROUND)
     p.render = planet_render
     p.update = planet_update
     return p
+end
+
+function distance(x0, y0, x1, y1)
+    return sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0))
+end
+
+function smoothstep(a, b, x)
+    local t = clamp((x - a) / (b - a), 0, 1)
+    return t * t * (3 - 2 * t)
+end
+
+function planet_render(this)
+    local x0 = this.x - this.radius
+    local y0 = this.y - this.radius
+    local x1 = this.x + this.radius
+    local y1 = this.y + this.radius
+    local xstart = max(x0, 0)
+    local xend = min(x1, gfx.SCREEN_WIDTH - 1)
+    local ystart = max(y0, 0)
+    local yend = min(y1, gfx.SCREEN_HEIGHT - 1)
+    local rad2 = this.radius * this.radius
+    local sprite = {}
+    local cols = {7, 6, 5, 12, 11, 4}
+    local light = {
+        x = 0,
+        y = 0
+    } -- TODO
+    local lightdist = distance(light.x, light.y, this.x, this.y)
+    local minlight = max(1, lightdist - this.radius)
+    local lightdiv = 1 / (lightdist + this.radius - minlight)
+    for y = ystart, yend do
+        local dy = y - this.y
+        local dy2 = dy * dy
+        for x = xstart, xend do
+            local dx = x - this.x
+            local r2 = dy2 + dx * dx
+            if r2 < rad2 then
+                local dith = (x + y) % 2 == 0 and 1 or 0
+                local z = max(1, sqrt(rad2 - r2 * 0.9))
+                local xsphere = (dx + dith) / z
+                local ysphere = (dy + dith) / z
+                local d_light = 1 - (distance(x + dith, y + dith, light.x, light.y) - minlight) * lightdiv
+                -- d_light = smoothstep(-0.3, 1.2, 1 - d_light)
+                local tex = clamp((fbm2(xsphere + this.rot, ysphere + 20) + 1) * 0.5, 0, 1)
+                local color = tex ^ 0.8 * 6
+                color = clamp(color, 1, 6)
+                d_light = clamp(flr(d_light * 2) / 2 + 0.5, 0, 1)
+                local c = PALETTE[cols[flr(color)]]
+                -- local c = PALETTE[cols[clamp(flr(d_light * 10.0), 1, 6)]]
+                local r = max(1 / 255, c.r * d_light)
+                local g = max(1 / 255, c.g * d_light)
+                local b = max(1 / 255, c.b * d_light)
+                table.insert(sprite, gfx.to_rgb24(r, g, b))
+            else
+                table.insert(sprite, 0)
+            end
+        end
+    end
+    gfx.blit_pixels(xstart, ystart, xend - xstart + 1, sprite)
 end
 
 -- ################################## SECTOR ##################################
