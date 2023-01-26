@@ -25,6 +25,53 @@ function col(r, g, b)
     }
 end
 
+function distance(x0, y0, x1, y1)
+    return sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0))
+end
+function compute_x(x, len, align)
+    if align == const.ALIGN_CENTER then
+        return flr(x - len * 0.5)
+    elseif align == const.ALIGN_RIGHT then
+        return flr(x - len)
+    else
+        return x
+    end
+end
+
+function gprint(msg, x, y, col)
+    gfx.print(msg, x, y, conf.PALETTE[col].r, conf.PALETTE[col].g, conf.PALETTE[col].b)
+end
+
+function gprint_center(msg, x, y, col)
+    gprint(msg, flr(x - #msg * 3), y, col)
+end
+
+function gprint_right(msg, x, y, col)
+    gprint(msg, flr(x - #msg * 6), y, col)
+end
+
+function clerp(coef, c1, c2)
+    local p1 = conf.PALETTE[c1]
+    local p2 = conf.PALETTE[c2]
+    return {
+        r = p1.r + coef * (p2.r - p1.r),
+        g = p1.g + coef * (p2.g - p1.g),
+        b = p1.b + coef * (p2.b - p1.b)
+    }
+end
+
+function inside(px, py, x, y, w, h)
+    return px >= x and py >= y and px < x + w and py < y + h
+end
+
+timer = {
+    t = elapsed()
+}
+function timer.step(msg)
+    print(msg .. ": " .. string.format("%.2f", elapsed() - timer.t) .. " s")
+    timer.t = elapsed()
+end
+
 -- ################################## GLOBALS ##################################
 
 g_mouse_x = 0
@@ -33,7 +80,7 @@ g_screen = {}
 
 -- ################################## CONSTANTS ##################################
 
-local const = {
+const = {
     LIGHT_THRESHOLD1 = 0.5,
     LIGHT_THRESHOLD2 = 0.75,
 
@@ -63,19 +110,61 @@ local const = {
 }
 
 -- ################################## PLANETS ##################################
-
-local planet = {}
-
-function planet_update(this)
+planet = {}
+function planet.update(this)
     this.rot = this.rot + 0.0001
 end
 
-function compute_spans(p)
+function planet.compute_lut(p, light)
+    local x0 = p.x - p.radius
+    local y0 = p.y - p.radius
+    local x1 = p.x + p.radius
+    local y1 = p.y + p.radius
+    local xstart = max(x0, 0)
+    local xend = min(x1, gfx.SCREEN_WIDTH - 1)
+    local ystart = max(y0, 0)
+    local yend = min(y1, gfx.SCREEN_HEIGHT - 1)
+    local rad2 = p.radius * p.radius
+    local lightdist = distance(light.x, light.y, p.x, p.y)
+    local minlight = max(1, lightdist - p.radius)
+    local lightdiv = 1 / (lightdist + p.radius - minlight)
+    local data = {}
+    for y = ystart, yend do
+        local dy = y - p.y
+        local dy2 = dy * dy
+        for x = xstart, xend do
+            local dx = x - p.x
+            local r2 = dy2 + dx * dx
+            local pixel_data = {}
+            if r2 < rad2 then
+                local dith = (x + y) % 2 == 0 and 1 or 0
+                local z = max(1, sqrt(rad2 - r2 * 0.9))
+                local xsphere = (dx + dith) / z
+                local ysphere = (dy + dith) / z
+                local d_light = 1 - (distance(x + dith, y + dith, light.x, light.y) - minlight) * lightdiv
+                d_light = clamp(flr(d_light * 2) / 2 + 0.5, 0, 1)
+                pixel_data.xsphere = xsphere
+                pixel_data.ysphere = ysphere
+                pixel_data.light = d_light
+                pixel_data.black = false
+            else
+                pixel_data.black = true
+            end
+            table.insert(data, pixel_data)
+        end
+    end
+    p.lut = {
+        xstart = xstart,
+        xend = xend,
+        ystart = ystart,
+        yend = yend,
+        rad2 = rad2,
+        pixel_data = data
+    }
 end
 
-function planet.generate(PALETTE)
+function planet.generate(light)
     local radius = random(gfx.SCREEN_HEIGHT // 3, gfx.SCREEN_HEIGHT // 2)
-    t = elapsed()
     local p = {
         typ = const.E_PLANET,
         x = random(0, gfx.SCREEN_WIDTH),
@@ -85,77 +174,40 @@ function planet.generate(PALETTE)
         tex_width = min(gfx.SCREEN_WIDTH, flr(const.PI2 * radius)),
         tex_height = min(gfx.SCREEN_HEIGHT, radius * 2)
     }
-    compute_spans(p)
-    print("compute spans: " .. (elapsed() - t) .. "s")
-    p.render = planet_render
-    p.update = planet_update
+    planet.compute_lut(p, light)
+    p.render = planet.render
+    p.update = planet.update
     return p
 end
 
-function distance(x0, y0, x1, y1)
-    return sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0))
-end
-
-function smoothstep(a, b, x)
-    local t = clamp((x - a) / (b - a), 0, 1)
-    return t * t * (3 - 2 * t)
-end
-
-function planet_render(this)
-    local x0 = this.x - this.radius
-    local y0 = this.y - this.radius
-    local x1 = this.x + this.radius
-    local y1 = this.y + this.radius
-    local xstart = max(x0, 0)
-    local xend = min(x1, gfx.SCREEN_WIDTH - 1)
-    local ystart = max(y0, 0)
-    local yend = min(y1, gfx.SCREEN_HEIGHT - 1)
-    local rad2 = this.radius * this.radius
+function planet.render(this)
     local sprite = {}
     local cols = {7, 6, 5, 12, 11, 4}
-    local light = {
-        x = 0,
-        y = 0
-    } -- TODO
-    local lightdist = distance(light.x, light.y, this.x, this.y)
-    local minlight = max(1, lightdist - this.radius)
-    local lightdiv = 1 / (lightdist + this.radius - minlight)
-    for y = ystart, yend do
-        local dy = y - this.y
-        local dy2 = dy * dy
-        for x = xstart, xend do
-            local dx = x - this.x
-            local r2 = dy2 + dx * dx
-            if r2 < rad2 then
-                local dith = (x + y) % 2 == 0 and 1 or 0
-                local z = max(1, sqrt(rad2 - r2 * 0.9))
-                local xsphere = (dx + dith) / z
-                local ysphere = (dy + dith) / z
-                local d_light = 1 - (distance(x + dith, y + dith, light.x, light.y) - minlight) * lightdiv
-                -- d_light = smoothstep(-0.3, 1.2, 1 - d_light)
-                local tex = clamp((fbm2(xsphere + this.rot, ysphere + 20) + 1) * 0.5, 0, 1)
+    local i = 1
+    for y = this.lut.ystart, this.lut.yend do
+        for x = this.lut.xstart, this.lut.xend do
+            local pix = this.lut.pixel_data[i]
+            if pix.black then
+                table.insert(sprite, 0)
+            else
+                local tex = clamp((fbm2(pix.xsphere * 0.3 + this.rot, pix.ysphere * 0.3 + 20) + 1) * 0.5, 0, 1)
                 local color = tex ^ 0.8 * 6
                 color = clamp(color, 1, 6)
-                d_light = clamp(flr(d_light * 2) / 2 + 0.5, 0, 1)
-                local c = PALETTE[cols[flr(color)]]
-                -- local c = PALETTE[cols[clamp(flr(d_light * 10.0), 1, 6)]]
-                local r = max(1 / 255, c.r * d_light)
-                local g = max(1 / 255, c.g * d_light)
-                local b = max(1 / 255, c.b * d_light)
+                local c = conf.PALETTE[cols[flr(color)]]
+                local r = max(1 / 255, c.r * pix.light)
+                local g = max(1 / 255, c.g * pix.light)
+                local b = max(1 / 255, c.b * pix.light)
                 table.insert(sprite, gfx.to_rgb24(r, g, b))
-            else
-                table.insert(sprite, 0)
             end
+            i = i + 1
         end
     end
-    gfx.blit_pixels(xstart, ystart, xend - xstart + 1, sprite)
+    gfx.blit_pixels(this.lut.xstart, this.lut.ystart, this.lut.xend - this.lut.xstart + 1, sprite)
 end
 
 -- ################################## SECTOR ##################################
-
-local sector = {}
-
-local function update_sector(s)
+sector = {}
+function sector.update(s)
     for _, e in pairs(s.entities) do
         if e.update ~= nil then
             e:update()
@@ -163,29 +215,33 @@ local function update_sector(s)
     end
 end
 
-local function render_sector(s)
+function sector.render(s)
     gfx.set_active_layer(const.LAYER_ENTITIES)
     for _, e in pairs(s.entities) do
         e:render()
     end
 end
 
-function sector.generate(seed, PALETTE, planet)
+function sector.generate(seed, planet, light)
     math.randomseed(seed)
     local entities = {}
-    table.insert(entities, planet.generate(PALETTE))
+    light = {
+        x = random(0, gfx.SCREEN_WIDTH),
+        y = 0 -- random(0, gfx.SCREEN_HEIGHT)
+    }
+    table.insert(entities, planet.generate(light))
     return {
         entities = entities,
-        update = update_sector,
-        render = render_sector
+        update = sector.update,
+        render = sector.render
     }
 end
 
 -- ################################## GUI ##################################
 
-local gui = {}
+gui = {}
 
-function render_label(lab)
+function gui.render_label(lab)
     if lab.align == const.ALIGN_CENTER then
         gprint_center(lab.msg, lab.x + 1, lab.y + 1, 3)
         gprint_center(lab.msg, lab.x, lab.y, lab.col)
@@ -198,7 +254,7 @@ function render_label(lab)
     end
 end
 
-function render_bkgnd(x, y, len, len2, col)
+function gui.render_bkgnd(x, y, len, len2, col)
     gfx.blit(6, 36, 6, 18, x - 6, y - 6, 0, 0, false, false, col, col, col)
     gfx.blit(12, 36, 6, 18, x, y - 6, len, 0, false, false, col, col, col)
     if len2 > 0 then
@@ -218,25 +274,25 @@ function gui.gen_label(msg, x, y, col, align)
         y = flr(y),
         col = col,
         align = align,
-        render = render_label,
-        update = no_update
+        render = gui.render_label,
+        update = nil
     }
 end
 
-function render_button(this)
+function gui.render_button(this)
     local tx = compute_x(this.x, #this.msg * 6, this.align)
     local bx = compute_x(this.x, const.BUTTON_WIDTH, this.align)
     local fcoef = ease_out_cubic(this.focus, 0, 1, 1)
     local col_coef = 0.7 + fcoef * 0.3
-    render_bkgnd(bx, this.y, const.BUTTON_WIDTH, fcoef * 10, col_coef)
-    local col = PALETTE[6]
-    local fcolr = PALETTE[7].r - col.r
-    local fcolg = PALETTE[7].g - col.g
-    local fcolb = PALETTE[7].b - col.b
+    gui.render_bkgnd(bx, this.y, const.BUTTON_WIDTH, fcoef * 10, col_coef)
+    local col = conf.PALETTE[6]
+    local fcolr = conf.PALETTE[7].r - col.r
+    local fcolg = conf.PALETTE[7].g - col.g
+    local fcolb = conf.PALETTE[7].b - col.b
     gfx.print(this.msg, tx, this.y, col.r + fcoef * fcolr, col.g + fcoef * fcolg, col.b + fcoef * fcolb)
 end
 
-function update_button(this)
+function gui.update_button(this)
     local tx = compute_x(this.x, const.BUTTON_WIDTH, this.align)
     if inside(g_mouse_x, g_mouse_y, tx - 6, this.y - 6, const.BUTTON_WIDTH + 12, 18) then
         if this.focus < 1.0 then
@@ -259,142 +315,103 @@ function gui.gen_button(msg, x, y, align)
         focus = 0.0,
         pressed = false,
         col = 5,
-        render = render_button,
-        update = update_button
+        render = gui.render_button,
+        update = gui.update_button
     }
 end
 
 -- ################################## CONFIGURATION  ##################################
+conf = {
+    ENGINES = {{
+        x = 0,
+        y = 19,
+        w = 1,
+        h = 2,
+        class = 0,
+        spd = 1,
+        man = 1,
+        cost = 1
+    }, {
+        x = 1,
+        y = 19,
+        w = 1,
+        h = 2,
+        class = 0,
+        spd = 2,
+        man = 1,
+        cost = 2
+    }, {
+        x = 2,
+        y = 19,
+        w = 2,
+        h = 2,
+        class = 0,
+        spd = 1,
+        man = 2,
+        cost = 2
+    }},
 
-ENGINES = {{
-    x = 0,
-    y = 19,
-    w = 1,
-    h = 2,
-    class = 0,
-    spd = 1,
-    man = 1,
-    cost = 1
-}, {
-    x = 1,
-    y = 19,
-    w = 1,
-    h = 2,
-    class = 0,
-    spd = 2,
-    man = 1,
-    cost = 2
-}, {
-    x = 2,
-    y = 19,
-    w = 2,
-    h = 2,
-    class = 0,
-    spd = 1,
-    man = 2,
-    cost = 2
-}}
+    SHIELDS = {{
+        x = 0,
+        y = 18,
+        w = 1,
+        h = 1,
+        class = 0,
+        lif = 1,
+        rel = 1,
+        cost = 1
+    }, {
+        x = 1,
+        y = 18,
+        w = 1,
+        h = 1,
+        class = 0,
+        lif = 1,
+        rel = 2,
+        cost = 2
+    }, {
+        x = 2,
+        y = 18,
+        w = 2,
+        h = 1,
+        class = 0,
+        lif = 2,
+        rel = 1,
+        cost = 2
+    }},
 
-SHIELDS = {{
-    x = 0,
-    y = 18,
-    w = 1,
-    h = 1,
-    class = 0,
-    lif = 1,
-    rel = 1,
-    cost = 1
-}, {
-    x = 1,
-    y = 18,
-    w = 1,
-    h = 1,
-    class = 0,
-    lif = 1,
-    rel = 2,
-    cost = 2
-}, {
-    x = 2,
-    y = 18,
-    w = 2,
-    h = 1,
-    class = 0,
-    lif = 2,
-    rel = 1,
-    cost = 2
-}}
-
-HULLS = {{
-    x = 96,
-    y = 0,
-    w = 37,
-    h = 33,
-    class = 0
-}}
-
--- NA16 color palette by Nauris
-PALETTE = {col(0, 0, 0), col(140, 143, 174), col(88, 69, 99), col(62, 33, 55), col(154, 99, 72), col(215, 155, 125),
-           col(245, 237, 186), col(192, 199, 65), col(100, 125, 52), col(228, 148, 58), col(157, 48, 59),
-           col(210, 100, 113), col(112, 55, 127), col(126, 196, 193), col(52, 133, 157), col(23, 67, 75),
-           col(31, 14, 28), col(255, 255, 255)}
-
-function compute_x(x, len, align)
-    if align == const.ALIGN_CENTER then
-        return flr(x - len * 0.5)
-    elseif align == const.ALIGN_RIGHT then
-        return flr(x - len)
-    else
-        return x
-    end
-end
-
-function gprint(msg, x, y, col)
-    gfx.print(msg, x, y, PALETTE[col].r, PALETTE[col].g, PALETTE[col].b)
-end
-
-function gprint_center(msg, x, y, col)
-    gprint(msg, flr(x - #msg * 3), y, col)
-end
-
-function gprint_right(msg, x, y, col)
-    gprint(msg, flr(x - #msg * 6), y, col)
-end
-
-function clerp(coef, c1, c2)
-    local p1 = PALETTE[c1]
-    local p2 = PALETTE[c2]
-    return {
-        r = p1.r + coef * (p2.r - p1.r),
-        g = p1.g + coef * (p2.g - p1.g),
-        b = p1.b + coef * (p2.b - p1.b)
-    }
-end
-
-function inside(px, py, x, y, w, h)
-    return px >= x and py >= y and px < x + w and py < y + h
-end
-
-function no_update(this)
-end
-
-function no_render(this)
-end
+    HULLS = {{
+        x = 96,
+        y = 0,
+        w = 37,
+        h = 33,
+        class = 0
+    }},
+    -- NA16 color palette by Nauris
+    PALETTE = {col(0, 0, 0), col(140, 143, 174), col(88, 69, 99), col(62, 33, 55), col(154, 99, 72), col(215, 155, 125),
+               col(245, 237, 186), col(192, 199, 65), col(100, 125, 52), col(228, 148, 58), col(157, 48, 59),
+               col(210, 100, 113), col(112, 55, 127), col(126, 196, 193), col(52, 133, 157), col(23, 67, 75),
+               col(31, 14, 28), col(255, 255, 255)},
+    COL_WHITE = 18
+}
 
 -- ################################## SHIP ##################################
-function update_player_ship(this)
+
+ship = {}
+function ship.update_player(this)
 end
 
-function render_ship(this)
+function ship.render(this)
     gfx.set_sprite_layer(const.LAYER_SHIP_MODELS)
     gfx.blit(this.sx, this.sy, this.sw, this.sh, flr(this.x - this.sw / 2), flr(this.y), 0, 0, false, false, 1, 1, 1)
     gfx.set_sprite_layer(const.LAYER_SPRITES)
 end
 
-function gen_ship(hull_num, engine_num, shield_num, x, y)
+function ship.generate(hull_num, engine_num, shield_num, x, y)
     gfx.set_active_layer(const.LAYER_SHIP_MODELS)
-    local hull = HULLS[hull_num]
-    local engine = ENGINES[engine_num]
-    local shield = SHIELDS[shield_num]
+    local hull = conf.HULLS[hull_num]
+    local engine = conf.ENGINES[engine_num]
+    local shield = conf.SHIELDS[shield_num]
     local w = hull.w * 6
     local h = hull.h * 6
     gfx.rectangle(0, 0, w, h, 0, 0, 0)
@@ -415,37 +432,38 @@ function gen_ship(hull_num, engine_num, shield_num, x, y)
         man = engine.man,
         lif = shield.lif,
         rel = shield.rel,
-        render = render_ship,
-        update = update_player_ship
+        render = ship.render,
+        update = ship.update_player
     }
 end
 
-function gen_random_ship()
-    local h = random(1, #HULLS)
-    local e = random(1, #ENGINES)
-    local s = random(1, #SHIELDS)
-    return gen_ship(h, e, s, gfx.SCREEN_WIDTH / 3, gfx.SCREEN_HEIGHT * 0.8)
+function ship.generate_random()
+    local h = random(1, #conf.HULLS)
+    local e = random(1, #conf.ENGINES)
+    local s = random(1, #conf.SHIELDS)
+    return ship.generate(h, e, s, gfx.SCREEN_WIDTH / 3, gfx.SCREEN_HEIGHT * 0.8)
 end
 
 -- ################################## STARFIELD ##################################
 
-function gen_starfield()
+starfield = {}
+function starfield.generate()
 end
 
 -- ################################## TITLE SCREEN ##################################
-
-function init_title()
+title_screen = {}
+function title_screen.init()
     gfx.set_active_layer(const.LAYER_BACKGROUND)
     local br = 31 / 255
     local bg = 14 / 255
     local bb = 28 / 255
-    local sr = PALETTE[7].r - br
-    local sg = PALETTE[7].g - bg
-    local sb = PALETTE[7].b - bb
+    local sr = conf.PALETTE[7].r - br
+    local sg = conf.PALETTE[7].g - bg
+    local sb = conf.PALETTE[7].b - bb
     gfx.clear(br, bg, bb)
-    local pr = PALETTE[11].r - br
-    local pg = PALETTE[11].g - bg
-    local pb = PALETTE[11].b - bb
+    local pr = conf.PALETTE[11].r - br
+    local pg = conf.PALETTE[11].g - bg
+    local pb = conf.PALETTE[11].b - bb
     local wcoef = 2 / gfx.SCREEN_WIDTH
     local hcoef = 2 / gfx.SCREEN_HEIGHT
     for x = 0, gfx.SCREEN_WIDTH // 2 do
@@ -468,10 +486,10 @@ function init_title()
     end
 end
 
-function build_title_ui(g)
+function title_screen.build_ui(g)
     local x = gfx.SCREEN_WIDTH // 2
     table.insert(g, gui.gen_label("Cryon", x, gfx.SCREEN_HEIGHT * (1 - 1 / 1.618), 7, const.ALIGN_CENTER))
-    table.insert(g, gui.gen_label("0.1.0", gfx.SCREEN_WIDTH - 2, gfx.SCREEN_HEIGHT - 8, 12, const.ALIGN_RIGHT))
+    table.insert(g, gui.gen_label("v0.1.0", gfx.SCREEN_WIDTH - 2, gfx.SCREEN_HEIGHT - 8, 12, const.ALIGN_RIGHT))
     local y = gfx.SCREEN_HEIGHT / 1.618
     table.insert(g, gui.gen_button("New game", x, y, const.ALIGN_CENTER))
     y = y + 20
@@ -489,18 +507,19 @@ function init()
     gfx.activate_font(const.LAYER_SPRITES, 0, 0, 96, 36, 6, 6,
         " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~")
     gfx.set_scanline(gfx.SCANLINE_HARD)
-    g_screen.render = no_render
+    g_screen.render = nil
     local seed = flr(elapsed() * 10000000)
+    seed = 95669 -- TODO REMOVE
     print(string.format("sector seed %d", seed))
-    g_screen.sector = sector.generate(seed, PALETTE, planet)
+    g_screen.sector = sector.generate(seed, planet)
     g_screen.gui = {}
-    build_title_ui(g_screen.gui)
+    title_screen.build_ui(g_screen.gui)
     gfx.show_layer(const.LAYER_STARS)
     gfx.set_layer_operation(const.LAYER_STARS, gfx.LAYEROP_ADD)
     gfx.show_layer(const.LAYER_ENTITIES)
     gfx.show_layer(const.LAYER_GUI)
-    table.insert(g_screen.sector.entities, gen_random_ship())
-    init_title()
+    table.insert(g_screen.sector.entities, ship.generate_random())
+    title_screen.init()
     gfx.set_mouse_cursor(const.LAYER_SPRITES, 0, 36, 6, 6)
     gfx.set_active_layer(const.LAYER_BACKGROUND)
 end
@@ -510,7 +529,9 @@ function update()
     g_mouse_y = inp.mouse_y()
     g_screen.sector:update()
     for _, g in pairs(g_screen.gui) do
-        g:update()
+        if g.update ~= nil then
+            g:update()
+        end
     end
 end
 
@@ -520,8 +541,13 @@ function render()
     gfx.set_active_layer(const.LAYER_GUI)
     gfx.clear(0, 0, 0)
     for _, g in pairs(g_screen.gui) do
-        g:render()
+        if g.render ~= nil then
+            g:render()
+        end
     end
-    g_screen.render()
-    gfx.print("" .. gfx.fps() .. " fps", 0, gfx.SCREEN_HEIGHT - 8, 1, 1, 1)
+    if g_screen.render ~= nil then
+        g_screen.render()
+    end
+    gprint_right("" .. string.format("%d", gfx.fps()) .. " fps", gfx.SCREEN_WIDTH - 1, gfx.SCREEN_HEIGHT - 15,
+        conf.COL_WHITE)
 end
