@@ -87,9 +87,9 @@ const = {
     LAYER_BACKGROUND = 0,
     LAYER_STARS = 1,
     LAYER_ENTITIES = 2,
-    LAYER_GUI = 3,
-    LAYER_SHIP_MODELS = 4,
-    LAYER_PLANET_TEXTURE = 5,
+    LAYER_TRAILS = 3,
+    LAYER_GUI = 4,
+    LAYER_SHIP_MODELS = 5,
     LAYER_SPRITES = 6,
 
     PI = math.pi,
@@ -102,12 +102,86 @@ const = {
     E_LABEL = 3,
     E_BUTTON = 4,
     E_SHIP = 5,
+    E_TRAIL = 6,
 
     -- text alignment
     ALIGN_CENTER = 0,
     ALIGN_RIGHT = 1,
-    ALIGN_LEFT = 2
+    ALIGN_LEFT = 2,
+
+    -- trail conf
+    TRAIL_SEG_LEN = 5
 }
+
+-- ################################## TRAILS ##################################
+trail = {}
+
+function trail.generate()
+    local x = random(0, gfx.SCREEN_WIDTH)
+    local y = gfx.SCREEN_HEIGHT * 0.5
+    local t = {
+        typ = const.E_TRAIL,
+        x = x,
+        y = y,
+        angle = const.PI * 0.5,
+        vangle = (random() - 0.5) * 0.01,
+        speed = random(2, 5) * 0.1,
+        seg_length = 0,
+        fade_in = 6.0,
+        length = random(5, 15),
+        trail = {{
+            x = x,
+            y = y
+        }},
+        color = random(1, 18),
+        update = trail.update,
+        render = trail.render
+    }
+    while #t.trail ~= t.length do
+        trail.update(t)
+    end
+    return t
+end
+
+function trail.update(t)
+    t.seg_length = t.seg_length + t.speed
+    t.fade_in = max(0, t.fade_in - 0.01)
+    if t.seg_length > const.TRAIL_SEG_LEN then
+        table.insert(t.trail, {
+            x = t.x,
+            y = t.y
+        })
+        if #t.trail > t.length then
+            table.remove(t.trail, 1)
+        end
+        t.seg_length = 0
+        if random(0, 100) < 10 then
+            t.vangle = (random() - 0.5) * 0.01
+        end
+        if t.x < -const.TRAIL_SEG_LEN * t.length or t.x > gfx.SCREEN_WIDTH + const.TRAIL_SEG_LEN * t.length or t.y <
+            -const.TRAIL_SEG_LEN * t.length or t.y > gfx.SCREEN_WIDTH + const.TRAIL_SEG_LEN * t.length then
+            return true
+        end
+    end
+    t.x = t.x + cos(t.angle) * t.speed
+    t.y = t.y + sin(t.angle) * t.speed
+    t.angle = t.angle + t.vangle
+end
+
+function trail.render(t)
+    local x = t.x
+    local y = t.y
+    local col = conf.PALETTE[t.color]
+    local seg_part = t.seg_length / const.TRAIL_SEG_LEN
+    local col_coef = ease_in_cubic(max(0, #t.trail - 1 - t.fade_in), 0.0, 1.0, #t.trail - 1 + seg_part)
+    for i = #t.trail, 1, -1 do
+        local p = t.trail[i]
+        gfx.line(x, y, p.x, p.y, col.r * col_coef, col.g * col_coef, col.b * col_coef)
+        x = p.x
+        y = p.y
+        col_coef = ease_in_cubic(max(0, i - 1 - t.fade_in), 0.0, 1.0, #t.trail - 1 + seg_part)
+    end
+end
 
 -- ################################## PLANETS ##################################
 planet = {}
@@ -208,18 +282,37 @@ end
 -- ################################## SECTOR ##################################
 sector = {}
 function sector.update(s)
-    for _, e in pairs(s.entities) do
+    for i = #s.entities, 1, -1 do
+        local e = s.entities[i]
         if e.update ~= nil then
-            e:update()
+            if e:update() ~= nil then
+                table.remove(s.entities, i)
+                sector.spawn_trail(s)
+            end
         end
     end
 end
 
 function sector.render(s)
+    gfx.set_active_layer(const.LAYER_TRAILS)
+    gfx.clear(0, 0, 0)
     gfx.set_active_layer(const.LAYER_ENTITIES)
+    gfx.clear(0, 0, 0)
     for _, e in pairs(s.entities) do
-        e:render()
+        if e.render ~= nil then
+            if e.typ == const.E_TRAIL then
+                gfx.set_active_layer(const.LAYER_TRAILS)
+            end
+            e:render()
+            if e.typ == const.E_TRAIL then
+                gfx.set_active_layer(const.LAYER_ENTITIES)
+            end
+        end
     end
+end
+
+function sector.spawn_trail(s)
+    table.insert(s.entities, trail.generate())
 end
 
 function sector.generate(seed, planet, light)
@@ -230,6 +323,9 @@ function sector.generate(seed, planet, light)
         y = 0 -- random(0, gfx.SCREEN_HEIGHT)
     }
     table.insert(entities, planet.generate(light))
+    table.insert(entities, trail.generate())
+    table.insert(entities, trail.generate())
+
     return {
         entities = entities,
         update = sector.update,
@@ -509,13 +605,14 @@ function init()
     gfx.set_scanline(gfx.SCANLINE_HARD)
     g_screen.render = nil
     local seed = flr(elapsed() * 10000000)
-    seed = 95669 -- TODO REMOVE
     print(string.format("sector seed %d", seed))
     g_screen.sector = sector.generate(seed, planet)
     g_screen.gui = {}
     title_screen.build_ui(g_screen.gui)
     gfx.show_layer(const.LAYER_STARS)
     gfx.set_layer_operation(const.LAYER_STARS, gfx.LAYEROP_ADD)
+    gfx.show_layer(const.LAYER_TRAILS)
+    gfx.set_layer_operation(const.LAYER_TRAILS, gfx.LAYEROP_ADD)
     gfx.show_layer(const.LAYER_ENTITIES)
     gfx.show_layer(const.LAYER_GUI)
     table.insert(g_screen.sector.entities, ship.generate_random())
