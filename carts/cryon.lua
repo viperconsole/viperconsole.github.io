@@ -106,6 +106,11 @@ const = {
     E_FRAME = 7,
     E_IMAGE = 8,
 
+    -- gui events
+    EVT_NEWGAME = 1,
+    EVT_OPTION = 2,
+    EVT_QUIT = 3,
+
     -- text alignment
     ALIGN_CENTER = 0,
     ALIGN_RIGHT = 1,
@@ -118,7 +123,7 @@ const = {
 -- ################################## TRAILS ##################################
 trail = {}
 
-function trail.generate()
+function trail.new()
     local x = random(0, gfx.SCREEN_WIDTH)
     local y = gfx.SCREEN_HEIGHT * 0.5
     local t = {
@@ -242,7 +247,7 @@ function planet.compute_lut(p, light)
     }
 end
 
-function planet.generate(light)
+function planet.new(light)
     local radius = random(gfx.SCREEN_HEIGHT // 3, gfx.SCREEN_HEIGHT // 2)
     local p = {
         typ = const.E_PLANET,
@@ -322,20 +327,20 @@ function sector.spawn_trail(s)
     local count = random(start, 3 - s.trail_count)
     if count > 0 then
         for _ = 1, count do
-            table.insert(s.entities, trail.generate())
+            table.insert(s.entities, trail.new())
             s.trail_count = s.trail_count + 1
         end
     end
 end
 
-function sector.generate(seed, planet, light)
+function sector.new(seed, planet, light)
     math.randomseed(seed)
     local entities = {}
     local light = {
         x = random(0, gfx.SCREEN_WIDTH),
         y = 0 -- random(0, gfx.SCREEN_HEIGHT)
     }
-    table.insert(entities, planet.generate(light))
+    table.insert(entities, planet.new(light))
     local s = {
         entities = entities,
         light = light,
@@ -436,6 +441,9 @@ function gui.update_button(this)
         if this.focus < 1.0 then
             this.focus = min(1, this.focus + 1 / 20)
         end
+        if inp.pad_button_pressed(0, 0) or inp.pad_button_pressed(1, 0) or inp.mouse_button_pressed(inp.MOUSE_LEFT) then
+            return this.evt
+        end
     else
         if this.focus > 0.0 then
             this.focus = max(0, this.focus - 1 / 10)
@@ -451,7 +459,7 @@ function gui.render_frame(f)
     gfx.blit(43, 38, 11, 15, f.x + 1, f.y + 1, f.w - 2, f.h - 2, false, false, 1, 1, 1)
 end
 
-function gui.gen_button(msg, x, y, align)
+function gui.gen_button(msg, x, y, align, evt)
     return {
         typ = const.E_BUTTON,
         msg = msg,
@@ -462,7 +470,8 @@ function gui.gen_button(msg, x, y, align)
         pressed = false,
         col = 5,
         render = gui.render_button,
-        update = gui.update_button
+        update = gui.update_button,
+        evt = evt
     }
 end
 
@@ -533,6 +542,12 @@ conf = {
         h = 33,
         class = 0
     }},
+    SPRITE = {
+        x = 0,
+        y = 55,
+        w = 57,
+        h = 30
+    },
     -- NA16 color palette by Nauris
     PALETTE = {col(0, 0, 0), col(140, 143, 174), col(88, 69, 99), col(62, 33, 55), col(154, 99, 72), col(215, 155, 125),
                col(245, 237, 186), col(192, 199, 65), col(100, 125, 52), col(228, 148, 58), col(157, 48, 59),
@@ -548,12 +563,14 @@ function ship.update_player(this)
 end
 
 function ship.render(this)
-    gfx.set_sprite_layer(const.LAYER_SHIP_MODELS)
-    gfx.blit(this.sx, this.sy, this.sw, this.sh, flr(this.x - this.sw / 2), flr(this.y), 0, 0, false, false, 1, 1, 1)
-    gfx.set_sprite_layer(const.LAYER_SPRITES)
+    -- gfx.set_sprite_layer(const.LAYER_SHIP_MODELS)
+    -- gfx.blit(this.sx, this.sy, this.sw, this.sh, flr(this.x - this.sw / 2), flr(this.y), 0, 0, false, false, 1, 1, 1)
+    -- gfx.set_sprite_layer(const.LAYER_SPRITES)
+    gfx.blit(conf.SPRITE.x, conf.SPRITE.y, conf.SPRITE.w, conf.SPRITE.h, flr(this.x - this.sw / 2), flr(this.y), 0, 0,
+        false, false, 1, 1, 1, elapsed() * 0.3)
 end
 
-function ship.generate(hull_num, engine_num, shield_num, x, y)
+function ship.new(hull_num, engine_num, shield_num, x, y)
     gfx.set_active_layer(const.LAYER_SHIP_MODELS)
     local hull = conf.HULLS[hull_num]
     local engine = conf.ENGINES[engine_num]
@@ -587,18 +604,62 @@ function ship.generate_random()
     local h = random(1, #conf.HULLS)
     local e = random(1, #conf.ENGINES)
     local s = random(1, #conf.SHIELDS)
-    return ship.generate(h, e, s, gfx.SCREEN_WIDTH / 3, gfx.SCREEN_HEIGHT * 0.8)
+    return ship.new(h, e, s, gfx.SCREEN_WIDTH / 3, gfx.SCREEN_HEIGHT * 0.8)
 end
 
 -- ################################## STARFIELD ##################################
 
 starfield = {}
-function starfield.generate()
+function starfield.new()
+end
+-- ################################## SCREEN ##################################
+screen = {}
+
+function screen.new()
+    return {
+        render = screen.render,
+        update = screen.update,
+        entities = {},
+        gui = {}
+    }
+end
+
+function screen.update(this)
+    for _, e in pairs(this.entities) do
+        if e.update ~= nil then
+            e:update()
+        end
+    end
+    for _, g in pairs(this.gui) do
+        if g.update ~= nil then
+            local evt = g:update()
+            if evt ~= nil then
+                -- TODO
+            end
+        end
+    end
+end
+
+function screen.render(this)
+    gfx.set_active_layer(const.LAYER_BACKGROUND)
+    for _, e in pairs(this.entities) do
+        if e.render ~= nil then
+            e:render()
+        end
+    end
+    gfx.set_active_layer(const.LAYER_GUI)
+    gfx.clear(0, 0, 0)
+    for _, g in pairs(this.gui) do
+        if g.render ~= nil then
+            g:render()
+        end
+    end
 end
 
 -- ################################## TITLE SCREEN ##################################
-title_screen = {}
-function title_screen.init()
+
+screen_title = {}
+function screen_title.init()
     gfx.set_active_layer(const.LAYER_BACKGROUND)
     local br = 31 / 255
     local bg = 14 / 255
@@ -612,6 +673,7 @@ function title_screen.init()
     local pb = conf.PALETTE[11].b - bb
     local wcoef = 2 / gfx.SCREEN_WIDTH
     local hcoef = 2 / gfx.SCREEN_HEIGHT
+    -- background nebula
     for x = 0, gfx.SCREEN_WIDTH do
         for y = 0, gfx.SCREEN_HEIGHT do
             local dith = (x + y) % 2 == 0 and 2 or 0
@@ -621,6 +683,7 @@ function title_screen.init()
         end
     end
     gfx.set_active_layer(const.LAYER_STARS)
+    -- starfield
     for i = 0, gfx.SCREEN_WIDTH * gfx.SCREEN_HEIGHT // 10 do
         local x = random()
         local y = random()
@@ -634,18 +697,18 @@ function title_screen.init()
     end
 end
 
-function title_screen.build_ui(g)
+function screen_title.build_ui(g)
     local x = gfx.SCREEN_WIDTH // 2
     table.insert(g,
         gui.gen_image(0, 152, 208, 72, gfx.SCREEN_WIDTH * 0.5 - 104, gfx.SCREEN_HEIGHT * (1 - 1 / 1.618) - 38))
     table.insert(g, gui.gen_label("v0.1.0", gfx.SCREEN_WIDTH - 2, gfx.SCREEN_HEIGHT - 8, 12, const.ALIGN_RIGHT))
     local y = gfx.SCREEN_HEIGHT / 1.618
     table.insert(g, gui.gen_frame(x - 32, y, 60, 50))
-    table.insert(g, gui.gen_button("New game", x, y, const.ALIGN_CENTER))
+    table.insert(g, gui.gen_button("New game", x, y, const.ALIGN_CENTER, const.EVT_NEWGAME))
     y = y + 20
-    table.insert(g, gui.gen_button("Options", x, y, const.ALIGN_CENTER))
+    table.insert(g, gui.gen_button("Options", x, y, const.ALIGN_CENTER, const.EVT_OPTION))
     y = y + 20
-    table.insert(g, gui.gen_button("Quit", x, y, const.ALIGN_CENTER))
+    table.insert(g, gui.gen_button("Quit", x, y, const.ALIGN_CENTER, const.EVT_QUIT))
 end
 
 -- ################################## MAIN LOOP ##################################
@@ -660,20 +723,19 @@ function init()
          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 3, 3, 3, 3, 5, 2, 5, 5, 5, 5, 5, 5, 5, 5, 1,
          3, 4, 3, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 5, 5, 2, 1, 2, 4})
     gfx.set_scanline(gfx.SCANLINE_HARD)
-    g_screen.render = nil
+    g_screen = screen.new()
     local seed = flr(elapsed() * 10000000)
     print(string.format("sector seed %d", seed))
-    g_screen.sector = sector.generate(seed, planet)
-    g_screen.gui = {}
-    title_screen.build_ui(g_screen.gui)
+    table.insert(g_screen.entities, sector.new(seed, planet))
+    table.insert(g_screen.entities, ship.generate_random())
+    screen_title.build_ui(g_screen.gui)
     gfx.show_layer(const.LAYER_STARS)
     gfx.set_layer_operation(const.LAYER_STARS, gfx.LAYEROP_ADD)
     gfx.show_layer(const.LAYER_TRAILS)
     gfx.set_layer_operation(const.LAYER_TRAILS, gfx.LAYEROP_ADD)
     gfx.show_layer(const.LAYER_ENTITIES)
     gfx.show_layer(const.LAYER_GUI)
-    table.insert(g_screen.sector.entities, ship.generate_random())
-    title_screen.init()
+    screen_title.init()
     gfx.set_mouse_cursor(const.LAYER_SPRITES, 0, 36, 6, 6)
     gfx.set_active_layer(const.LAYER_BACKGROUND)
 end
@@ -681,27 +743,11 @@ end
 function update()
     g_mouse_x = inp.mouse_x()
     g_mouse_y = inp.mouse_y()
-    g_screen.sector:update()
-    for _, g in pairs(g_screen.gui) do
-        if g.update ~= nil then
-            g:update()
-        end
-    end
+    g_screen:update()
 end
 
 function render()
-    gfx.set_active_layer(const.LAYER_BACKGROUND)
-    g_screen.sector:render()
-    gfx.set_active_layer(const.LAYER_GUI)
-    gfx.clear(0, 0, 0)
-    for _, g in pairs(g_screen.gui) do
-        if g.render ~= nil then
-            g:render()
-        end
-    end
-    if g_screen.render ~= nil then
-        g_screen.render()
-    end
+    g_screen:render()
     gprint_right("" .. string.format("%d", gfx.fps()) .. " fps", gfx.SCREEN_WIDTH - 1, gfx.SCREEN_HEIGHT - 15,
         conf.COL_WHITE)
 end

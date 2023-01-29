@@ -5,12 +5,18 @@ carts:
   - name: celeste
     tags: [platform,pico8]
     source: celeste.lua
-  - name: they started it
+  - name: They Started It
     tags: [shooter,pico8]
     source: tsi.lua
-  - name: pico8 tennis
+  - name: pico8 Tennis
     tags: [sport,pico8]
     source: tennis.lua
+  - name: Witch Loves Bullets
+    tags: [shooter,pico8]
+    source: witch.lua
+  - name: PicoRacer 2048
+    tags: [racing, pico8]
+    source: picoracer.lua
   - name: cryon
     tags: [shooter,alpha]
     source: cryon.lua

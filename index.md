@@ -66,7 +66,7 @@ You can hide and show layers with `gfx.show_layer(id)` and `gfx.hide_layer(id)`.
 
 The console renders the layers in increasing id order (first layer 0, then 1 on top of it and so on).
 
-Layers can be used to overlay graphics on screen or store bitmap fonts/sprite sheets offscreen. You can copy an image from a layer to another with `gfx.set_sprite_layer(id)`, `gfx.set_active_layer(id)` and `gfx.blit(sx,sy,sw,sh, dx,dy,dw,dh, hflip, vflip, r,g,b)`. You can load an image in the current active layer with `gfx.load_img(resource_name, filepath)`.
+Layers can be used to overlay graphics on screen or store bitmap fonts/sprite sheets offscreen. You can copy an image from a layer to another with `gfx.set_sprite_layer(id)`, `gfx.set_active_layer(id)` and `gfx.blit(sx,sy,sw,sh, dx,dy,dw,dh, hflip, vflip, r,g,b, angle)`. You can load an image in the current active layer with `gfx.load_img(resource_name, filepath)`.
 
 Each visible layer applies a color operation between its color and the underlying color :
 
@@ -171,7 +171,7 @@ Source and destination cannot be the same layer.
 * `set_sprite_layer(id)`
     * define the current source for sprite blitting operations
 
-* `blit(sx,sy,sw,sh, dx,dy,dw,dh, hflip,vflip, r,g,b)`
+* `blit(sx,sy,sw,sh, dx,dy,dw,dh, hflip,vflip, r,g,b, angle)`
     * blit a rectangular zone from the current sprite layer to the active layer
     * `sx,sy` : top left pixel position in the spritesheet
     * `sw,sh` : rectangular zone size in the spritesheet in pixels
@@ -179,6 +179,7 @@ Source and destination cannot be the same layer.
     * `dw,dh` : destination size in pixel (if 0,0, uses the source size). The sprite will be stretched to fill dw,dh
     * `hflip, vflip` : whether to flip the sprite horizontally or vertically
     * `r,g,b` : multiply the sprite colors with this color
+    * `angle` : an optional rotation angle in radians
 
 ### <a name="h2.5"></a>2.5. Tile map
 TODO
@@ -369,6 +370,12 @@ List of button values :
 Functions :
 
 * `mouse_button(num)` : return true if mouse button num is pressed.
+
+    You can use any button number or the predefined constants :
+    * `inp.MOUSE_LEFT`
+    * `inp.MOUSE_MIDDLE`
+    * `inp.MOUSE_RIGHT`
+
 * `mouse_button_pressed(num)` : return true if mouse button num was pressed during last frame
 * `mouse_button_released(num)` : return true if mouse button num was released during last frame
 * `mouse_x()`: return the mouse horizontal position in pixels
