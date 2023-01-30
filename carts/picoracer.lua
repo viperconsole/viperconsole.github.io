@@ -5,20 +5,64 @@
 
 X_OFFSET = 80
 Y_OFFSET = 0
+cam_pos = {
+    x=0,
+    y=0
+}
+function camera(x,y)
+    cam_pos.x=x or 0
+    cam_pos.y=y or 0
+end
 function btn(num,player)
-    return inp.pad_button(player or 0, num)
+    if num == 0 then
+        return inp.left(player or 0)
+    elseif num == 1 then
+        return inp.right(player or 0)
+    elseif num == 2 then
+        return inp.up(player or 0)
+    elseif num == 3 then
+        return inp.down(player or 0)
+    elseif num == 4 then
+        return inp.pad_button(player or 0,0)
+    elseif num == 5 then
+        return inp.pad_button(player or 0,1)
+    end
 end
 function btnp(num,player)
-    return inp.pad_button_pressed(player or 0, num)
+    if num == 0 then
+        return inp.left_pressed(player or 0)
+    elseif num == 1 then
+        return inp.right_pressed(player or 0)
+    elseif num == 2 then
+        return inp.up_pressed(player or 0)
+    elseif num == 3 then
+        return inp.down_pressed(player or 0)
+    elseif num == 4 then
+        return inp.pad_button_pressed(player or 0,0)
+    elseif num == 5 then
+        return inp.pad_button_pressed(player or 0,1)
+    end
 end
 function cls()
-    gfx.clear(0,0,0)
+    gfx.clear(0,0,1/255)
 end
 function sspr(x, y, w, h, dx, dy, dw, dh, hflip, vflip)
     gfx.blit(x, y, w, h, dx + X_OFFSET,dy + Y_OFFSET,dw or 0,dh or 0, hflip or false,vflip or false,1,1,1)
 end
-cos=math.cos
-sin=math.sin
+cos= function(v)
+    return math.cos(v*2*math.pi)
+end
+sin=function(v)
+    return math.sin(-v*2*math.pi)
+end
+rnd=function(n)
+    return math.random()*n
+end
+abs=math.abs
+sqrt=math.sqrt
+flr=math.floor
+min=math.min
+max=math.max
 col = function(r, g, b)
     return {
         r = r / 255,
@@ -31,12 +75,27 @@ PAL = {col(0, 0, 1), col(29, 43, 83), col(126, 37, 83), col(0, 135, 81), col(171
        col(194, 195, 199), col(255, 241, 232), col(255, 0, 77), col(255, 163, 0), col(255, 236, 39), col(0, 228, 54),
        col(41, 173, 255), col(131, 118, 156), col(255, 119, 168), col(255, 204, 170)}
 function line(x1, y1, x2, y2, col)
-    gfx.line(x1 + X_OFFSET, y1 + Y_OFFSET, x2 + X_OFFSET, y2 + Y_OFFSET, PAL[col + 1].r, PAL[col + 1].g, PAL[col + 1].b)
+    local c=flr(col)
+    gfx.line(x1 + X_OFFSET-cam_pos.x, y1 + Y_OFFSET-cam_pos.y, x2 + X_OFFSET-cam_pos.x, y2 + Y_OFFSET-cam_pos.y, PAL[c].r, PAL[c].g, PAL[c].b)
+end
+function circfill(x,y,r,pal)
+    local col=PAL[flr(pal)]
+    local x = x + X_OFFSET
+    local y = y + Y_OFFSET
+    gfx.disk(x-cam_pos.x,y-cam_pos.y,r,col.r,col.g,col.b)
+end
+function rectfill(x0,y0,x1,y1,pal)
+    local col=PAL[flr(pal)]
+    local x0 = x0 + X_OFFSET - cam_pos.x
+    local x1 = x1 + X_OFFSET - cam_pos.x
+    local y0 = y0 + Y_OFFSET - cam_pos.y
+    local y1 = y1 + Y_OFFSET - cam_pos.y
+    gfx.rectangle(x0, y0, x1-x0+1, y1-y0+1, col.r,col.g,col.b)
 end
 function mid(x,y,z)
-    if (x < y and y < z) or (z < y and y < x) then
+    if (x <= y and y <= z) or (z <= y and y <= x) then
         return y
-    elseif (y < x and x < z) or (z < x and x < y) then
+    elseif (y <= x and x <= z) or (z <= x and x <= y) then
             return x
     else
         return z
@@ -45,6 +104,9 @@ end
 function gprint(msg, px, py, col)
     local c = math.floor(col + 1)
     gfx.print(msg, math.floor(px + X_OFFSET), math.floor(py + Y_OFFSET), PAL[c].r, PAL[c].g, PAL[c].b)
+end
+function sfx(n)
+    snd.play_pattern(n)
 end
 
 TILEMAP = {}
@@ -56,19 +118,19 @@ boost_warning_thresh = 30
 boost_critical_thresh = 15
 
 cars = {{
-    name = "easy",
+    name = "Easy",
     maxacc = 1.5,
-    steer = 0.0425,
+    steer = 0.0225,
     accsqr = 0.1
 }, {
-    name = "medium",
+    name = "Medium",
     maxacc = 2,
-    steer = 0.0325,
+    steer = 0.0185,
     accsqr = 0.15
 }, {
-    name = "hard",
+    name = "Hard",
     maxacc = 2.5,
-    steer = 0.0225,
+    steer = 0.0165,
     accsqr = 0.2
 }}
 
@@ -158,7 +220,7 @@ function create_car(race)
     car.pos = copyv(get_vec_from_vecmap(car.current_segment))
     function car:get_poly()
         return fmap(car_verts, function(i)
-            return rotate_point(vecadd(self.pos, i), angle, self.pos)
+            return rotate_point(vecadd(self.pos, i), self.angle, self.pos)
         end)
     end
     function car:update()
@@ -214,19 +276,19 @@ function create_car(race)
                 self.cooldown = 25
                 accel = accel * 0.5
                 if self.is_player then
-                    sfx(sfx_boost_cooldown, 0)
+                    sfx(sfx_boost_cooldown)
                     sc1 = sfx_boost_cooldown
                 end
             elseif self.is_player and (not (sc1 == sfx_booster and sc1timer > 0)) and sc1 ~= 39 and self.boost <=
                 boost_critical_thresh then
-                sfx(39, 0)
+                sfx(39)
                 sc1 = 39
             elseif self.is_player and (not (sc1 == sfx_booster and sc1timer > 0)) and sc1 ~= 37 and self.boost <=
                 boost_warning_thresh then
-                sfx(37, 0) -- start warning
+                sfx(37) -- start warning
                 sc1 = 37
             elseif self.is_player and (not (sc1 == sfx_booster and sc1timer > 0)) and sc1 ~= 36 and sc1 ~= 37 then
-                sfx(36, 0)
+                sfx(36)
                 sc1 = 36
             end
         else
@@ -235,7 +297,7 @@ function create_car(race)
                 self.cooldown = self.cooldown - 0.25
                 self.cooldown = max(self.cooldown, 0)
                 if self.is_player and self.cooldown == 0 then
-                    sfx(34, 0) -- restore power
+                    sfx(34) -- restore power
                     sc1 = 34
                 end
                 self.boost = self.boost + 0.125
@@ -247,7 +309,7 @@ function create_car(race)
                 (sc1 == 37 or sc1 == 39 or sc1 == 36 or ((sc1 == 38 or sc1 == 40) and self.collision <= 0) or
                     (sc1 == 34 and self.boost > 10)) then
                 -- engine noise
-                sfx(35, 0)
+                sfx(35)
                 sc1 = 35
             end
         end
@@ -310,7 +372,7 @@ function create_car(race)
                     end
                     vel = vecsub(vel, scalev(rv, pen))
                     accel = accel * (1.0 - (pen / 10))
-                    add(particles, {
+                    table.insert(particles, {
                         x = point.x,
                         y = point.y,
                         xv = -rv.x + (rnd(2) - 1) / 2,
@@ -320,10 +382,10 @@ function create_car(race)
                     self.collision = self.collision + pen
                     if self.is_player then
                         if pen > 2 then
-                            sfx(38, 0)
+                            sfx(38)
                             sc1 = 38
                         else
-                            sfx(40, 0)
+                            sfx(40)
                             sc1 = 40
                         end
                     end
@@ -332,7 +394,7 @@ function create_car(race)
         end
         -- check for boosters under us
         -- if current_segment then
-        --	for b in all(boosters) do
+        --	for _,b in pairs(boosters) do
         --		if b.segment <= current_segment+1 and b.segment >= current_segment-1 then
         --			local bx = b.x
         --			local by = b.y
@@ -344,7 +406,7 @@ function create_car(race)
         --				xv*=1.25
         --				yv*=1.25
         --				if self.is_player then
-        --					sfx(sfx_booster,0)
+        --					sfx(sfx_booster)
         --					sc1=sfx_booster
         --					sc1timer=10
         --				end
@@ -418,8 +480,19 @@ end
 
 function init()
     car_verts = {vec(-4, -3), vec(4, 0), vec(-4, 3)}
-    gfx.activate_font(gfx.SYSTEM_LAYER, 0,0,512,32, 8,8, "")
+	for _,sfx in pairs(SFX) do
+		snd.new_pattern(sfx)
+	end
+	snd.new_instrument(INST_TRIANGLE)
+	snd.new_instrument(INST_TILTED)
+	snd.new_instrument(INST_SAW)
+	snd.new_instrument(INST_SQUARE)
+	snd.new_instrument(INST_PULSE)
+	snd.new_instrument(INST_ORGAN)
+	snd.new_instrument(INST_NOISE)
+	snd.new_instrument(INST_PHASER)
     gfx.set_active_layer(1)
+    gfx.set_layer_size(1,224,224)
     gfx.load_img("picoracer","picoracer/picoracer.png")
     gfx.set_active_layer(0)
     gfx.set_sprite_layer(1)
@@ -429,7 +502,6 @@ function init()
 end
 
 function render()
-    gfx.print("xouxuo",0,0,1,1,1)
     game_mode:draw()
 end
 
@@ -442,7 +514,7 @@ end
 intro = {}
 frame = 0
 
-game_modes = {"race vs ai", "time attack", "track editor"}
+game_modes = {"Race vs AI", "Time Attack", "Track Editor"}
 
 function intro:init()
     -- music(0)
@@ -507,33 +579,32 @@ function intro:update()
 end
 
 difficulty_names = {
-    [0] = "berlin",
-    "vancouver",
-    "melbourne",
-    "detroit",
-    "jakarta",
-    "wellington",
-    "hanoi",
-    "osaka"
+    [0] = "Berlin",
+    "Vancouver",
+    "Melbourne",
+    "Detroit",
+    "Jakarta",
+    "Wellington",
+    "Hanoi",
+    "Osaka"
 }
 
 function intro:draw()
     cls()
-    sspr(0, 20, 128, 128, 0, 0)
-    draw_minimap(40, 50, 0.025, 6)
-gfx.print("coucou",0,0,1,1,1)
-    printr("z - accel", 127, 40, 6)
-    printr("x - brake", 127, 48, 6)
-    printr("up - boost", 127, 56, 6)
-    printr("< > - steer", 127, 64, 6)
-    printr("tab -  menu", 127, 72, 6)
+    sspr(0, 20, 224, 204, 0, 0)
+    draw_minimap(70, 120, 0.04375, 6)
+    printr("x - accel", 223, 60, 6)
+    printr("c - brake", 223, 70, 6)
+    printr("up - boost", 223, 80, 6)
+    printr("< > - steer", 223, 90, 6)
+    printr("tab -  menu", 223, 100, 6)
 
     local c = frame % 16 < 8 and 8 or 9
-    printr("mode", 127, 2, self.option == 1 and c or 9)
-    printr(game_modes[self.game_mode], 127, 8, 6)
-    printr("track", 128, 16, self.option == 2 and c or 9)
-    printr(difficulty_names[difficulty], 128, 22, 6)
-    printr(cars[self.car].name, 128, 30, self.option == 3 and c or 9)
+    printr("Mode", 223, 2, self.option == 1 and c or 9)
+    printr(game_modes[self.game_mode], 223, 12, 6)
+    printr("Track", 224, 22, self.option == 2 and c or 9)
+    printr(difficulty_names[difficulty], 224, 32, 6)
+    printr(cars[self.car].name, 224, 42, self.option == 3 and c or 9)
 end
 
 mapeditor = {}
@@ -677,7 +748,7 @@ function race()
         local lastdir = 0
 
         -- generate map
-        for ms in all(mapsections) do
+        for _,ms in pairs(mapsections) do
             -- read length,curve,width from tiledata
             local length = ms[1]
             local curve = ms[2]
@@ -701,10 +772,10 @@ function race()
 
                 mx = mx + cos(dir) * segment_length
                 my = my + sin(dir) * segment_length
-                add(vecmap, mx)
-                add(vecmap, my)
-                add(vecmap, width)
-                add(vecmap, dir)
+                table.insert(vecmap, mx)
+                table.insert(vecmap, my)
+                table.insert(vecmap, width)
+                table.insert(vecmap, dir)
 
                 mapsize = mapsize + 1
 
@@ -731,13 +802,13 @@ function race()
 
         if self.race_mode == 2 and self.play_replay then
             local replay_car = create_car(self)
-            add(self.objects, replay_car)
+            table.insert(self.objects, replay_car)
             replay_car.color = 1
             self.replay_car = replay_car
         end
 
         local p = create_car(self)
-        add(self.objects, p)
+        table.insert(self.objects, p)
         self.player = p
         p.is_player = true
 
@@ -756,7 +827,7 @@ function race()
                     self.ai:update()
                     oldupdate(self)
                 end
-                add(self.objects, ai_car)
+                table.insert(self.objects, ai_car)
             end
         end
 
@@ -785,9 +856,9 @@ function race()
         local player = self.player
         if player then
             local controls = player.controls
-            controls.left = btn(0)
-            controls.right = btn(1)
-            controls.boost = btn(2)
+            controls.left = btn(0) > 0.1
+            controls.right = btn(1) > 0.1
+            controls.boost = btn(2) > 0.1
             controls.accel = btn(4)
             controls.brake = btn(5)
         end
@@ -823,7 +894,7 @@ function race()
         if player.current_segment == 0 and not self.start_timer and self.race_mode == 2 then
             self.start_timer = true
             self.record_replay = {}
-            add(self.record_replay, {
+            table.insert(self.record_replay, {
                 pos = copyv(player.pos),
                 vel = copyv(player.vel),
                 angle = player.angle,
@@ -840,23 +911,23 @@ function race()
             local c = player.controls
             local v = (c.left and 1 or 0) + (c.right and 2 or 0) + (c.accel and 4 or 0) + (c.brake and 8 or 0) +
                           (c.boost and 16 or 0)
-            add(self.record_replay, v)
+            table.insert(self.record_replay, v)
         end
 
         if self.race_mode == 2 or self.time > 0 then
-            for obj in all(self.objects) do
+            for _,obj in pairs(self.objects) do
                 obj:update()
             end
         end
 
         -- car to car collision
-        for obj in all(self.objects) do
-            for obj2 in all(self.objects) do
+        for _,obj in pairs(self.objects) do
+            for _,obj2 in pairs(self.objects) do
                 if obj ~= obj2 and obj ~= self.replay_car and obj2 ~= self.replay_car then
                     if abs(obj.current_segment - obj2.current_segment) <= 1 then
                         local p1 = obj:get_poly()
                         local p2 = obj2:get_poly()
-                        for point in all(p1) do
+                        for _,point in pairs(p1) do
                             if point_in_polygon(p2, point) then
                                 local rv, p, point = check_collision(p1,
                                     {{p2[2], p2[1]}, {p2[3], p2[2]}, {p2[1], p2[3]}})
@@ -867,7 +938,7 @@ function race()
                                     p = p * 1.5
                                     obj.vel = vecadd(obj.vel, scalev(rv, p))
                                     obj2.vel = vecsub(obj2.vel, scalev(rv, p))
-                                    add(particles, {
+                                    table.insert(particles, {
                                         x = point.x,
                                         y = point.y,
                                         xv = -rv.x + (rnd(2) - 1) / 2,
@@ -878,10 +949,10 @@ function race()
                                     obj2.collision = obj2.collision + flr(p)
                                     if obj.is_player or obj2.is_player then
                                         if p > 2 then
-                                            sfx(38, 0)
+                                            sfx(38)
                                             sc1 = 38
                                         else
-                                            sfx(40, 0)
+                                            sfx(40)
                                             sc1 = 40
                                         end
                                     end
@@ -908,14 +979,15 @@ function race()
         end
 
         -- particles
-        for p in all(particles) do
+        for i=#particles,1,-1 do
+            local p=particles[i]
             p.x = p.x + p.xv
             p.y = p.y + p.yv
             p.xv = p.xv * 0.95
             p.yv = p.yv * 0.95
             p.ttl = p.ttl - 1
             if p.ttl < 0 then
-                del(particles, p)
+                table.remove(particles, i)
             end
         end
 
@@ -1041,27 +1113,27 @@ function race()
             lastv = v
         end
 
-        for b in all(boosters) do
+        for _,b in pairs(boosters) do
             if b.segment >= current_segment - 5 and b.segment <= current_segment + 5 then
                 draw_arrow(b, 8, b.dir, 12)
             end
         end
 
         -- draw objects
-        for obj in all(self.objects) do
+        for _,obj in pairs(self.objects) do
             if abs(obj.current_segment - player.current_segment) <= 10 then
                 if obj.trails then
                     obj:draw_trails()
                 end
             end
         end
-        for obj in all(self.objects) do
+        for _,obj in pairs(self.objects) do
             if abs(obj.current_segment - player.current_segment) <= 10 then
                 obj:draw()
             end
         end
 
-        for p in all(particles) do
+        for _,p in pairs(particles) do
             line(p.x, p.y, p.x - p.xv, p.y - p.yv, p.ttl > 20 and 10 or (p.ttl > 10 and 9 or 8))
         end
 
@@ -1079,7 +1151,7 @@ function race()
         -- get placing
         local placing = 1
         local nplaces = 1
-        for obj in all(self.objects) do
+        for _,obj in pairs(self.objects) do
             if obj ~= player then
                 nplaces = nplaces + 1
                 if obj.current_segment > player.current_segment then
@@ -1130,7 +1202,8 @@ function race()
                 local source = rnd(flr(0x6000 + 8192))
                 local range = flr(rnd(64))
                 local dest = 0x6000 + rnd(8192 - range) - 2
-                memcpy(dest, source, range)
+                -- TODO
+                --memcpy(dest, source, range)
             end
             player.collision = player.collision - 0.1
         end
@@ -1284,8 +1357,8 @@ end
 
 function fmap(objs, func)
     local ret = {}
-    for i in all(objs) do
-        add(ret, func(i))
+    for _,i in pairs(objs) do
+        table.insert(ret, func(i))
     end
     return ret
 end
@@ -1311,7 +1384,7 @@ end
 
 function printr(text, x, y, c)
     local l = #text
-    gprint(text, x - l * 4, y, c)
+    gprint(text, x - l * 8, y, c)
 end
 
 function dot(a, b)
@@ -1465,8 +1538,8 @@ function point_in_polygon(pgon, t)
 end
 
 function check_collision(points, lines)
-    for point in all(points) do
-        for line in all(lines) do
+    for _,point in pairs(points) do
+        for _,line in pairs(lines) do
             if side_of_line(line[1], line[2], point.x, point.y) < 0 then
                 local rvec = get_normal(line[1], line[2])
                 local penetration = distance_from_line(point, line[1], line[2])
@@ -1779,3 +1852,80 @@ TILEMAP = { -- upper
 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136,
 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136,
 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136}
+
+SFX={
+	"PAT 12 D.2343 D.6615 D.6625 D.6615 D.2343 D.6615 D.6625 D.6615 D.2373 D.5603 D.2603 D.6643 D.2373 D.5603 D.6643 D.6643 D.2373 D.5603 D.2603 D.6643 D.2373 D.5603 D.6643 D.6643 D.2373 D.5603 D.5603 D.6643 D.2373 D.2303 D.6643 D.6643",
+	"PAT 24 D.1175 D.1155 D.1125 D.1115 D.2305 D.2305 D.2155 D.2125 F.1175 F.1155 F.1125 F.1115 D.2305 D.2305 A.2155 A.2125 G.2175 G.2155 G.2125 G.2115 G.2105 G.2105 F.2175 F.2155 F.2125 F.2115 D.4605 C.2605 A#2175 A#2155 A#2125 A#2115",
+	"PAT 24 D.2040 D.1040 D.2042 D.1042 D.2040 D.1040 D.2042 D.1042 F.2040 F.1040 F.2042 F.1042 E.2040 E.1040 E.2042 E.1042 G.2040 G.1040 G.2042 G.1042 A.2040 A.1040 A.2042 A.1042 A#2040 A#1040 A#2042 A.2042 D.2040 D.1040 D.2042 D.1042",
+	"PAT 48 D.2547 F.3537 A.2527 G.2517 D.2547 A.3537 F.2527 G.2517 D.2547 A#3537 G.2527 F.2517 D.2547 E.3537 F.2527 A.2517 D.2547 F.3537 A.2527 G.2517 G.2547 E.3537 F.2527 D.2517 D.2547 A.3537 A#2527 F.2517 A.2547 A#3537 D.2527 C.2517",
+	"PAT 24 D.3302 ...... F.3302 ...... D.3302 ...... E.3302 ...... F.3302 ...... D.3302 ...... E.3302 ...... G.3302 ...... D.3302 ...... C.3302 D.3302 C.3302 A.2302 A.3302 C.3302 D.3301 D.3302 F.3302 A.3302 A.3302 G.3301 D.3301 ......",
+	"PAT 12 D.3755 F.3755 A.3755 A#3755 D.3755 F.3755 A.3755 D.4755 D.4755 C.4755 D.4755 F.4755 A.4755 G.4755 A.4755 D.4755 D.4755 D.3755 C.4755 C.3755 E.3755 F.3755 A.3755 G.3755 D.4755 D.3755 D.4755 G.4755 F.4755 A.4755 A#4755 A.4755",
+	"PAT 12 D.4775 D.3775 D.4775 D.3775 D.4775 D.3775 D.4775 D.3775 D.4775 D.3775 D.4775 D.3775 D.4775 D.4775 D.4775 D.4775 E.4775 E.3775 E.4775 E.3775 D.4775 D.3775 D.4775 D.3775 F.4775 G.3775 G.4775 F.3775 D.4775 E.3775 D.4775 C.3775",
+	"PAT 12 D.3775 D.3705 D.2775 F.3705 F.2775 F.3705 F.2775 F.3705 F.3775 ...... F.2775 ...... A.2775 ...... A.2775 ...... A#3775 ...... A.2775 ...... G.2775 ...... F.2775 ...... E.3775 ...... E.2775 ...... D.2775 ...... C.2775 ......",
+	"PAT 24 D.1774 D.1772 D.1772 D.1772 D.1772 D.1772 D.1772 D.1772 D.1022 D.1022 D.1022 D.1022 D.1022 D.1022 D.1022 D.1022 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... C.1004",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 3 D.4170 A#3170 F.3170 C#3170 G#2170 F.2170 D#2170 C.2170 A#1170 G#1170 F#1170 F.1170 E.1170 D#1170 D.1170 C#1170 C#1170 C#1100 C#1100 C#1100 F.1100 F.1100 F.1100 F.1100 F.1100 F.1100 F.1100 E.1100 E.1100 ...... ...... ......",
+	"PAT 3 C#1170 C#1170 D#1170 E.1170 F.1170 F#1170 F#1170 G.1170 A.1170 A#1170 B.1170 C#2170 D#2170 F#2170 A.2170 A#2170 C#3170 D#3170 F.3170 F#3170 A.3170 A#3170 G.3100 G.3100 G.3100 G.3100 G.3100 G.3100 G.3100 G.3100 G.3100 G#3100",
+	"PAT 6 D.2610 D.2610 D.2610 D.2610 D.2610 D.2610 D.2610 D.2610 D.2605 D.2700 D.5000 D.3100 D.3100 D.1700 D.1700 D.1702 D.1702 D.1702 D.1702 D.1702 D.1702 C.1002 C.1002 C.2002 C.2002 C.2002 C.2002 C.1002 C.1002 C.1002 C.1002 C.6002",
+	"PAT 6 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 E.1602 E.1602 E.1702 E.1702 E.1702 E.1702 E.1702 E.1702 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... C.1003",
+	"PAT 6 A.3120 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 D.6600 D.6600 D.6600 D.6600 D.6600 D.6600 D.6600 D.6600 C.6600 C.6600 C.6600 C.6600 C.6600 C.6600 C.6600 C.6600 C.6600 C.1600 C.1600 C.1600 C.1600 C.1600 C.1600 C.1700",
+	"PAT 3 C.6650 G.5650 D#5650 C.5640 E.4630 C#3620 F#2620 G#1610 C#3610 C#1310 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 6 A.3130 A.3620 A.3130 A.3620 A.3620 A.3620 A.3620 A.3620 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... C.6000",
+	"PAT 3 D#6650 C.6610 D#4610 D.2413 F#2600 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 2 G#1600 D.1210 F.1210 A.1220 B.1230 D.2240 F.2240 G.2340 A#2350 G.2250 D#3360 G.3360 C.3260 B.3360 E.4360 E.3260 A.4360 G#5360 D.6360 F#4250 A#3350 G.4340 G.5340 D.6340 C#4300 F#2300 E.2300 D.2300 C#2300 C.4300 B.3300 C#4600",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+}
+
+-- pico8 instruments
+INST_TRIANGLE = "INST OVERTONE 1.0 TRIANGLE 1.0 METALIZER 0.85 NAM triangle"
+INST_TILTED = "INST OVERTONE 1.0 TRIANGLE 0.5 SAW 0.1 NAM tilted"
+INST_SAW = "INST OVERTONE 1.0 SAW 1.0 ULTRASAW 1.0 NAM saw"
+INST_SQUARE = "INST OVERTONE 1.0 SQUARE 0.5 NAM square"
+INST_PULSE = "INST OVERTONE 1.0 SQUARE 0.5 PULSE 0.5 TRIANGLE 1.0 METALIZER 1.0 OVERTONE_RATIO 0.5 NAM pulse"
+INST_ORGAN = "INST OVERTONE 0.5 TRIANGLE 0.75 NAM organ"
+INST_NOISE = "INST NOISE 1.0 NOISE_COLOR 0.2 NAM noise"
+INST_PHASER = "INST OVERTONE 0.5 METALIZER 1.0 TRIANGLE 0.7 NAM phaser"
