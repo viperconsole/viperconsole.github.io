@@ -25,7 +25,7 @@ function btn(num,player)
     elseif num == 4 then
         return inp.pad_button(player or 0,0)
     elseif num == 5 then
-        return inp.pad_button(player or 0,1)
+        return inp.pad_button(player or 0,2)
     end
 end
 function btnp(num,player)
@@ -40,7 +40,7 @@ function btnp(num,player)
     elseif num == 4 then
         return inp.pad_button_pressed(player or 0,0)
     elseif num == 5 then
-        return inp.pad_button_pressed(player or 0,1)
+        return inp.pad_button_pressed(player or 0,2)
     end
 end
 function cls()
@@ -79,7 +79,7 @@ col = function(r, g, b)
     }
 end
 -- pico8 palette
-PAL = {col(0, 0, 1), col(29, 43, 83), col(126, 37, 83), col(0, 135, 81), col(171, 82, 54), col(95, 87, 79),
+PAL = {[0]=col(0, 0, 1), col(29, 43, 83), col(126, 37, 83), col(0, 135, 81), col(171, 82, 54), col(95, 87, 79),
        col(194, 195, 199), col(255, 241, 232), col(255, 0, 77), col(255, 163, 0), col(255, 236, 39), col(0, 228, 54),
        col(41, 173, 255), col(131, 118, 156), col(255, 119, 168), col(255, 204, 170)}
 function line(x1, y1, x2, y2, col)
@@ -112,7 +112,7 @@ function mid(x,y,z)
     end
 end
 function gprint(msg, px, py, col)
-    local c = math.floor(col + 1)
+    local c = math.floor(col)
     gfx.print(msg, math.floor(px + X_OFFSET), math.floor(py + Y_OFFSET), PAL[c].r, PAL[c].g, PAL[c].b)
 end
 function sfx(n)
@@ -233,7 +233,7 @@ function create_car(race)
             return rotate_point(vecadd(self.pos, i), self.angle, self.pos)
         end)
     end
-    function car:update()
+    function car:update(completed)
         local angle = self.angle
         local pos = self.pos
         local vel = self.vel
@@ -315,13 +315,14 @@ function create_car(race)
                 self.boost = self.boost + 0.25
                 self.boost = min(self.boost, 100)
             end
-            if self.is_player and
-                (sc1 == 37 or sc1 == 39 or sc1 == 36 or ((sc1 == 38 or sc1 == 40) and self.collision <= 0) or
-                    (sc1 == 34 and self.boost > 10)) then
+        end
+        if self.is_player and not completed then
+            --and
+            --    (sc1 == 37 or sc1 == 39 or sc1 == 36 or ((sc1 == 38 or sc1 == 40) and self.collision <= 0) or
+            --        (sc1 == 34 and self.boost > 10)) then
                 -- engine noise
-                sfx(35)
-                sc1 = 35
-            end
+            snd.play_note(5+self.speed*2,(0.5+self.accel)*0.5,8,1)
+            sc1 = 35
         end
 
         -- check collisions
@@ -493,6 +494,7 @@ function init()
 	for _,sfx in pairs(SFX) do
 		snd.new_pattern(sfx)
 	end
+    snd.reserve_channel(1) -- reserved for engine sound
 	snd.new_instrument(INST_TRIANGLE)
 	snd.new_instrument(INST_TILTED)
 	snd.new_instrument(INST_SAW)
@@ -501,6 +503,7 @@ function init()
 	snd.new_instrument(INST_ORGAN)
 	snd.new_instrument(INST_NOISE)
 	snd.new_instrument(INST_PHASER)
+    snd.new_instrument(INST_ENGINE)
     gfx.set_active_layer(1)
     gfx.set_layer_size(1,224,224)
     gfx.load_img("picoracer","picoracer/picoracer.png")
@@ -806,7 +809,7 @@ function race()
 
     function race:restart()
         self.completed = false
-        self.time = self.race_mode == 1 and -3 or 0
+        self.time = self.race_mode == 1 and -4 or 0
         self.previous_best = nil
         camera_lastpos = vec()
         self.start_timer = self.race_mode == 1
@@ -897,11 +900,11 @@ function race()
                 local v = replay[self.play_replay_step]
                 if v then
                     local c = self.replay_car.controls
-                    c.left = band(v, 1) ~= 0
-                    c.right = band(v, 2) ~= 0
-                    c.accel = band(v, 4) ~= 0
-                    c.brake = band(v, 8) ~= 0
-                    c.boost = band(v, 16) ~= 0
+                    c.left = (v & 1) ~= 0
+                    c.right = (v & 2) ~= 0
+                    c.accel = (v & 4) ~= 0
+                    c.brake = (v & 8) ~= 0
+                    c.boost = (v & 16) ~= 0
                     self.play_replay_step = self.play_replay_step + 1
                 end
             end
@@ -919,7 +922,14 @@ function race()
             })
         end
         if self.start_timer then
+            local before=flr(self.time)
             self.time = self.time + dt
+            if self.time < 1.0 then
+                local after=flr(self.time)
+                if after ~= before then
+                    sfx(after == 0 and 11 or 10)
+                end
+            end
         end
 
         -- record replay
@@ -932,7 +942,7 @@ function race()
 
         if self.race_mode == 2 or self.time > 0 then
             for _,obj in pairs(self.objects) do
-                obj:update()
+                obj:update(self.completed)
             end
         end
 
@@ -982,6 +992,7 @@ function race()
 
         if player.current_segment == mapsize * 3 then
             -- completed
+            snd.stop_note(1)
             self.completed = true
             self.completed_countdown = 5
             self.start_timer = false
@@ -1209,8 +1220,17 @@ function race()
         if player.wrong_way > 4 then
             gprint("Wrong way!", 72, 104, 8)
         end
+
+        -- starting lights
         if time < 0 then
-            gprint(-flr(time), 60, 20, 8)
+            local count=-flr(time)
+            local lit = 4-count
+            for i=1,lit do
+                gfx.blit(34,0,20,20, 159+i*22,44,0,0,false,false,1,1,1)
+            end
+            for i=lit+1,3 do
+                gfx.blit(14,0,20,20, 159+i*22,44,0,0,false,false,1,1,1)
+            end
         end
         if player.collision > 0 or self.completed then
             -- corrupt screen
@@ -1410,7 +1430,7 @@ end
 function onscreen(p)
     local x = (p.x-camera_pos.x)*224/128 + X_OFFSET
     local y = (p.y-camera_pos.y)*224/128 + Y_OFFSET
-    return x >= -20 and x <= gfx.SCREEN_WIDTH+20  and y >= -20 and y <= gfx.SCREEN_HEIGHT+20
+    return x >= -30 and x <= gfx.SCREEN_WIDTH+30  and y >= -30 and y <= gfx.SCREEN_HEIGHT+30
 end
 
 function length(v)
@@ -1879,6 +1899,8 @@ SFX={
 	"PAT 12 D.3775 D.3705 D.2775 F.3705 F.2775 F.3705 F.2775 F.3705 F.3775 ...... F.2775 ...... A.2775 ...... A.2775 ...... A#3775 ...... A.2775 ...... G.2775 ...... F.2775 ...... E.3775 ...... E.2775 ...... D.2775 ...... C.2775 ......",
 	"PAT 24 D.1774 D.1772 D.1772 D.1772 D.1772 D.1772 D.1772 D.1772 D.1022 D.1022 D.1022 D.1022 D.1022 D.1022 D.1022 D.1022 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... C.1004",
 	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 A.20F5 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+	"PAT 16 A.40F5 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
 	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
 	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
 	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
@@ -1900,17 +1922,15 @@ SFX={
 	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
 	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
 	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-	"PAT 3 D.4170 A#3170 F.3170 C#3170 G#2170 F.2170 D#2170 C.2170 A#1170 G#1170 F#1170 F.1170 E.1170 D#1170 D.1170 C#1170 C#1170 C#1100 C#1100 C#1100 F.1100 F.1100 F.1100 F.1100 F.1100 F.1100 F.1100 E.1100 E.1100 ...... ...... ......",
-	"PAT 3 C#1170 C#1170 D#1170 E.1170 F.1170 F#1170 F#1170 G.1170 A.1170 A#1170 B.1170 C#2170 D#2170 F#2170 A.2170 A#2170 C#3170 D#3170 F.3170 F#3170 A.3170 A#3170 G.3100 G.3100 G.3100 G.3100 G.3100 G.3100 G.3100 G.3100 G.3100 G#3100",
-	"PAT 6 D.2610 D.2610 D.2610 D.2610 D.2610 D.2610 D.2610 D.2610 D.2605 D.2700 D.5000 D.3100 D.3100 D.1700 D.1700 D.1702 D.1702 D.1702 D.1702 D.1702 D.1702 C.1002 C.1002 C.2002 C.2002 C.2002 C.2002 C.1002 C.1002 C.1002 C.1002 C.6002",
-	"PAT 6 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 E.1602 E.1602 E.1702 E.1702 E.1702 E.1702 E.1702 E.1702 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... C.1003",
-	"PAT 6 A.3120 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 D.6600 D.6600 D.6600 D.6600 D.6600 D.6600 D.6600 D.6600 C.6600 C.6600 C.6600 C.6600 C.6600 C.6600 C.6600 C.6600 C.6600 C.1600 C.1600 C.1600 C.1600 C.1600 C.1600 C.1700",
-	"PAT 3 C.6650 G.5650 D#5650 C.5640 E.4630 C#3620 F#2620 G#1610 C#3610 C#1310 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-	"PAT 6 A.3130 A.3620 A.3130 A.3620 A.3620 A.3620 A.3620 A.3620 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... C.6000",
-	"PAT 3 D#6650 C.6610 D#4610 D.2413 F#2600 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-	"PAT 2 G#1600 D.1210 F.1210 A.1220 B.1230 D.2240 F.2240 G.2340 A#2350 G.2250 D#3360 G.3360 C.3260 B.3360 E.4360 E.3260 A.4360 G#5360 D.6360 F#4250 A#3350 G.4340 G.5340 D.6340 C#4300 F#2300 E.2300 D.2300 C#2300 C.4300 B.3300 C#4600",
+	"PAT 3 D.4170 A#3170 F.3170 C#3170 G#2170 F.2170 D#2170 C.2170 A#1170 G#1170 F#1170 F.1170 E.1170 D#1170 D.1170 C#1170 C#1170",
+	"PAT 3 C#1170 C#1170 D#1170 E.1170 F.1170 F#1170 F#1170 G.1170 A.1170 A#1170 B.1170 C#2170 D#2170 F#2170 A.2170 A#2170 C#3170 D#3170 F.3170 F#3170 A.3170 A#3170",
+	"PAT 6 D.2610 D.2610 D.2610 D.2610 D.2610 D.2610 D.2610 D.2610",
+	"PAT 6 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620",
+	"PAT 6 A.3120 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620",
+	"PAT 3 C.6650 G.5650 D#5650 C.5640 E.4630 C#3620 F#2620 G#1610 C#3610 C#1310",
+	"PAT 6 A.3130 A.3620 A.3130 A.3620 A.3620 A.3620 A.3620 A.3620",
+	"PAT 3 D#6650 C.6610 D#4610 D.2413",
+	"PAT 2 G#1600 D.1210 F.1210 A.1220 B.1230 D.2240 F.2240 G.2340 A#2350 G.2250 D#3360 G.3360 C.3260 B.3360 E.4360 E.3260 A.4360 G#5360 D.6360 F#4250 A#3350 G.4340 G.5340 D.6340",
 	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
 	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
 	"PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
@@ -1944,3 +1964,4 @@ INST_PULSE = "INST OVERTONE 1.0 SQUARE 0.5 PULSE 0.5 TRIANGLE 1.0 METALIZER 1.0 
 INST_ORGAN = "INST OVERTONE 0.5 TRIANGLE 0.75 NAM organ"
 INST_NOISE = "INST NOISE 1.0 NOISE_COLOR 0.2 NAM noise"
 INST_PHASER = "INST OVERTONE 0.5 METALIZER 1.0 TRIANGLE 0.7 NAM phaser"
+INST_ENGINE = "INST OVERTONE 1.0 METALIZER 1.0 TRIANGLE 1.0 NAM engine"

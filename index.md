@@ -269,8 +269,10 @@ Sample instrument properties :
    ```
 
 * `set_instrument(id, new_description)` : update the parameters of instrument id from a new description
-* `play_note(frequency, volume, instrument_id, channel)` : start playing a note on a channel (between 0 and 5)
+* `play_note(frequency, volume, instrument_id, [channel])` : start playing a note on a channel (between 0 and 5). If channel is not defined, any free channel will be used.
 * `stop_note(channel)` : mute the channel
+* `reserve_channel(channel)` : mark a channel so that it's not used except if explicitely adressed in play_note, play_pattern or play_music
+* `release_channel(channel)` : release a channel so that it can be used by play_note, play_pattern or play_music when the channel are not specified
 
 ### <a name="h3.2"></a>3.2. Pattern API
 A pattern is a list of notes that plays at a specific rate.
@@ -309,7 +311,7 @@ new_pattern("PAT 16 C#3915 ...... ...... C#3915 D#3835")
 ```
 
 * `set_pattern(id, new_description)` : update a pattern
-* `play_pattern(id)` : play the pattern on any free channel
+* `play_pattern(id, [channel])` : play the pattern on a channel. If channel is not defined, any free channel will be used.
 
 ### <a name="h3.3"></a>3.3. Song API
 A song is an ordered list of patterns to play on one or several of the 6 available channels.
@@ -334,15 +336,9 @@ Here the song is named "title screen". It uses 5 patterns number 56, 57, 58, 59 
 * The second sequence plays pattern 1 (57) on channel 1, 3 (59) on channel 2, 4 (60) on channel 3.
 * The last 3 channels are not used and can be used to play other sound effects (using the `play_pattern` function while the music is playing.
 
-* `play_music(id, channel_mask)` : play a music. You can mute certain channels using a bitmask.
+* `play_music(id, channel_mask)` : play a music. The channel_mask defines the channels to be used to play the music patterns. There must be enough channel to play all the simultaneous patterns in a sequence.
 
-For example with the previous song, if you want to play all 3 channels, you use the binary mask 111 = 7. This would result in the total song to be played as in the description :
-
-`SEQ 024... 134...`
-
-But you can mute for example the third channel by using the binary mask 11 = 3. The result would be the same as this descrition :
-
-`SEQ 02.... 13....`
+For example with the previous song, which requires 3 channels, you can use the binary mask 111 = 7. This would result in the song using the channels 0,1,2.
 
 ### <a name="h3.4"></a>3.4. Midi API
 TODO
