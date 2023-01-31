@@ -81,13 +81,36 @@ end
 -- pico8 palette
 PAL = {[0]=col(0, 0, 1), col(29, 43, 83), col(126, 37, 83), col(0, 135, 81), col(171, 82, 54), col(95, 87, 79),
        col(194, 195, 199), col(255, 241, 232), col(255, 0, 77), col(255, 163, 0), col(255, 236, 39), col(0, 228, 54),
-       col(41, 173, 255), col(131, 118, 156), col(255, 119, 168), col(255, 204, 170)}
+       col(41, 173, 255), col(131, 118, 156), col(255, 119, 168), col(255, 204, 170),
+       col(11,51,16),col(17,29,53),col(66,33,54),col(18,83,89),col(116,47,41),col(73,51,59),col(162,136,121),
+       col(243,239,125),col(190,18,80),col(255,108,36),col(168,231,46),col(9,181,67),col(6,90,181),col(117,70,101),
+       col(255,110,89),col(255,157,129)
+    }
 function line(x1, y1, x2, y2, col)
     local c=flr(col)
     gfx.line((x1-cam_pos.x)*224/128 + X_OFFSET, (y1-cam_pos.y)*224/128 + Y_OFFSET,
         (x2-cam_pos.x)*224/128 + X_OFFSET, (y2-cam_pos.y)*224/128 + Y_OFFSET,
         PAL[c].r, PAL[c].g, PAL[c].b)
 end
+function cam2screen(p)
+    return {
+        x=(p.x-cam_pos.x)*224/128 + X_OFFSET,
+        y= (p.y-cam_pos.y)*224/128 + Y_OFFSET
+    }
+end
+
+function trifill(p1,p2,p3,pal)
+    local col=PAL[flr(pal)]
+    p1=cam2screen(p1)
+    p2=cam2screen(p2)
+    p3=cam2screen(p3)
+    gfx.triangle(p1.x,p1.y,p2.x,p2.y,p3.x,p3.y,col.r,col.g,col.b)
+end
+function quadfill(p1,p2,p3,p4,pal)
+    trifill(p1,p2,p3,pal)
+    trifill(p2,p3,p4,pal)
+end
+
 function circfill(x,y,r,pal)
     local col=PAL[flr(pal)]
     local x = (x-cam_pos.x)*224/128 + X_OFFSET
@@ -449,6 +472,7 @@ function create_car(race)
         local b = v[2]
         local c = v[3]
         local boost = self.boost
+        trifill(a,b,c,color+16)
         linevec(a, b, color)
         linevec(b, c, color)
         linevec(c, a, color)
@@ -1047,8 +1071,15 @@ function race()
             local offset = scalev(diff, v.w)
             up = vecsub(v, offset)
             down = vecadd(v, offset)
-            offset = scalev(diff, v.w - 8)
+            local v1 = get_vec_from_vecmap(seg)
+            local v2 = get_vec_from_vecmap(seg + 1)
+            local curve=abs(v2.dir-v1.dir)*100
+            kerbw = curve >2 and 8 or 0
+            rkerbw = (v2.dir > v1.dir or curve >=4 )and kerbw or 0
+            lkerbw = (v2.dir < v1.dir or curve >=4 )and kerbw or 0
+            offset = scalev(diff, v.w - lkerbw)
             up2 = vecsub(v, offset)
+            offset = scalev(diff, v.w - rkerbw)
             down2 = vecadd(v, offset)
             offset = scalev(diff, v.w + 4)
             up3 = vecsub(v, offset)
@@ -1057,9 +1088,45 @@ function race()
             if lastv then
                 if onscreen(v) or onscreen(lastv) or onscreen(up) or onscreen(down) then
 
-                    -- linevec(lastv,v,15)
-                    -- linevec(vecsub(v,offset),vecadd(v,offset),8)
+                    -- edges
+                    local track_color = (seg < current_segment - 10) and 1 or
+                                            track_colors[flr((seg / (mapsize / 8))) % 8 + 1]
+                    if seg > current_segment + 5 then
+                        -- if it's far ahead, draw it above and scaled for parallax effect
+                        track_color = 1
+                        local segdiff = min((seg - (current_segment + 5)) * 0.01, 1)
+                        displace_line(lastup, up, camera_pos, segdiff, track_color)
+                        displace_line(lastdown, down, camera_pos, segdiff, track_color)
+                    else
+                        -- normal track edges
+                        linevec(lastup, up, track_color)
+                        linevec(lastdown, down, track_color)
 
+                        linevec(lastup3, up3, track_color)
+                        linevec(lastdown3, down3, track_color)
+                    end
+
+                    if seg >= current_segment - 2 and seg < current_segment + 7 then
+                        -- ground
+                        local ground=seg%2==0 and 1 or 17
+                        quadfill(lastup2,lastdown2,up2,down2,ground)
+                        if seg % mapsize == 0 then
+                            linevec(lastup2, lastdown2, time < -1 and 8 or time < 0 and 9 or 11) -- start/end markers
+                        else
+                           linevec(lastup2, lastdown2, 1) -- normal verticals
+                        end
+                        -- kerbs
+                        local middown=scalev(vecadd(down,lastdown),0.5)
+                        local middown2=scalev(vecadd(down2,lastdown2),0.5)
+                        quadfill(down2,down,middown2,middown,7)
+                        quadfill(lastdown,middown,lastdown2,middown2,8)
+                        local midup=scalev(vecadd(up,lastup),0.5)
+                        local midup2=scalev(vecadd(up2,lastup2),0.5)
+                        quadfill(up2,up,midup2,midup,7)
+                        quadfill(midup2,midup,lastup2,lastup,8)
+                        linevec(down2, down, 4)
+                        linevec(up2, up, 4)
+                    end
                     -- inner track
                     local track_color = (seg < current_segment - 10 or seg > current_segment + 10) and 1 or
                                             (seg % 2 == 0 and 13 or 5)
@@ -1099,35 +1166,6 @@ function race()
                                 end
                             end
                         end
-                    end
-
-                    -- edges
-                    local track_color = (seg < current_segment - 10) and 1 or
-                                            track_colors[flr((seg / (mapsize / 8))) % 8 + 1]
-                    if seg > current_segment + 5 then
-                        -- if it's far ahead, draw it above and scaled for parallax effect
-                        track_color = 1
-                        local segdiff = min((seg - (current_segment + 5)) * 0.01, 1)
-                        displace_line(lastup, up, camera_pos, segdiff, track_color)
-                        displace_line(lastdown, down, camera_pos, segdiff, track_color)
-                    else
-                        -- normal track edges
-                        linevec(lastup, up, track_color)
-                        linevec(lastdown, down, track_color)
-
-                        linevec(lastup3, up3, track_color)
-                        linevec(lastdown3, down3, track_color)
-                    end
-
-                    -- diagonals
-                    if seg >= current_segment - 2 and seg < current_segment + 7 then
-                        if seg % mapsize == 0 then
-                            linevec(lastup2, lastdown2, time < -1 and 8 or time < 0 and 9 or 11) -- start/end markers
-                        else
-                            linevec(lastup2, lastdown2, 1) -- normal verticals
-                        end
-                        linevec(lastdown2, down, 4)
-                        linevec(lastup2, up, 4)
                     end
                 end
             end
@@ -1593,11 +1631,10 @@ function lerpv(a, b, t)
 end
 
 function draw_arrow(p, size, dir, col)
-    local v = {rotate_point(vecadd(p, vec(0, -size)), dir, p), rotate_point(vecadd(p, vec(0, size)), dir, p),
-               rotate_point(vecadd(p, vec(size, 0)), dir, p)}
-    for i = 1, 3 do
-        linevec(v[i], v[(i % 3) + 1], col)
-    end
+    local p1=rotate_point(vecadd(p, vec(0, -size)), dir, p)
+    local p2=rotate_point(vecadd(p, vec(0, size)), dir, p)
+    local p3=rotate_point(vecadd(p, vec(size, 0)), dir, p)
+    trifill(p1,p2,p3,col)
 end
 
 TILEMAP = { -- upper
