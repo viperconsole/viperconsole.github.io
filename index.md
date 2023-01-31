@@ -353,6 +353,37 @@ List of key values [here](https://developer.mozilla.org/fr/docs/Web/API/Keyboard
 * `key_pressed(key)` : return true if key was pressed during last frame
 * `key_released(key)` : return true if key was released during last frame
 
+The value for the `key` scan codes are :
+* `inp.KEY_0`..`inp.KEY_9` : upper digits
+* `inp.KEY_A`..`inp.KEY_Z` : letters (this returns KEY_Q when you press A on an AZERTY keyboard)
+* `inp.KEY_F1`..`inp.KEY_F10` : function keys
+
+Arrow keys : (also triggered by numeric keypad if numlock is disabled)
+* `inp.KEY_UP`
+* `inp.KEY_DOWN`
+* `inp.KEY_LEFT`
+* `inp.KEY_RIGHT`
+
+Special keys :
+* `inp.KEY_TAB`
+* `inp.KEY_SPACE`
+* `inp.KEY_BACKSPACE`
+* `inp.KEY_ENTER`
+* `inp.KEY_ESCAPE`
+* `inp.KEY_PRINTSCREEN`
+* `inp.KEY_SCROLLLOCK`
+* `inp.KEY_PAUSE`
+* `inp.KEY_INSERT`
+* `inp.KEY_HOME`
+* `inp.KEY_DELETE`
+* `inp.KEY_END`
+* `inp.KEY_PAGEDOWN`
+* `inp.KEY_PAGEUP`
+* `inp.KEY_CTRL`
+* `inp.KEY_LSHIFT`
+* `inp.KEY_RALT`
+* `inp.KEY_RSHIFT`
+
 ### <a name="h4.2"></a>4.2. Mouse API
 
 List of button values :
@@ -384,6 +415,19 @@ Functions :
 
 * `pad_button(player_num, num)` : return true if button num for player player_num is pressed
 * `pad_button_pressed(player_num, num)` : return true if button num for player player_num was pressed during last frame
+
+    You can use these constants for the num value :
+    * `inp.XBOX360_A`
+    * `inp.XBOX360_B`
+    * `inp.XBOX360_X`
+    * `inp.XBOX360_Y`
+    * `inp.XBOX360_LB`
+    * `inp.XBOX360_RB`
+    * `inp.XBOX360_SELECT`
+    * `inp.XBOX360_START`
+    * `inp.XBOX360_LS`
+    * `inp.XBOX360_RS`
+
 * `pad_axis_x(player_num)` : return the left analog stick horizontal axis value (between -1 and 1) for player player_num
 * `pad_axis_y(player_num)` : return the left analog stick vertical axis value (between -1 and 1) for player player_num
 * `set_neutral_zone(value)` : sets the analog stick neutral zone (between 0 and 1)
