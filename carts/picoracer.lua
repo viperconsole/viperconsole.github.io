@@ -50,10 +50,18 @@ function sspr(x, y, w, h, dx, dy, dw, dh, hflip, vflip)
     gfx.blit(x, y, w, h, dx + X_OFFSET,dy + Y_OFFSET,dw or 0,dh or 0, hflip or false,vflip or false,1,1,1)
 end
 cos= function(v)
-    return math.cos(v*2*math.pi)
+    return math.cos(from_pico_angle(v))
 end
 sin=function(v)
-    return math.sin(-v*2*math.pi)
+    return math.sin(from_pico_angle(v))
+end
+from_pico_angle=function(v)
+    return v < 0.5 and -v*2*math.pi or (1-v)*2*math.pi
+end
+to_pico_angle=function(a)
+    local ra=a/math.pi
+    local picoa= ra < 0 and -ra/2 or 1-ra/2
+    return picoa
 end
 rnd=function(n)
     return math.random()*n
@@ -76,20 +84,22 @@ PAL = {col(0, 0, 1), col(29, 43, 83), col(126, 37, 83), col(0, 135, 81), col(171
        col(41, 173, 255), col(131, 118, 156), col(255, 119, 168), col(255, 204, 170)}
 function line(x1, y1, x2, y2, col)
     local c=flr(col)
-    gfx.line(x1 + X_OFFSET-cam_pos.x, y1 + Y_OFFSET-cam_pos.y, x2 + X_OFFSET-cam_pos.x, y2 + Y_OFFSET-cam_pos.y, PAL[c].r, PAL[c].g, PAL[c].b)
+    gfx.line((x1-cam_pos.x)*224/128 + X_OFFSET, (y1-cam_pos.y)*224/128 + Y_OFFSET,
+        (x2-cam_pos.x)*224/128 + X_OFFSET, (y2-cam_pos.y)*224/128 + Y_OFFSET,
+        PAL[c].r, PAL[c].g, PAL[c].b)
 end
 function circfill(x,y,r,pal)
     local col=PAL[flr(pal)]
-    local x = x + X_OFFSET
-    local y = y + Y_OFFSET
-    gfx.disk(x-cam_pos.x,y-cam_pos.y,r,col.r,col.g,col.b)
+    local x = (x-cam_pos.x)*224/128 + X_OFFSET
+    local y = (y-cam_pos.y)*224/128 + Y_OFFSET
+    gfx.disk(x,y,r*224/128,col.r,col.g,col.b)
 end
 function rectfill(x0,y0,x1,y1,pal)
     local col=PAL[flr(pal)]
-    local x0 = x0 + X_OFFSET - cam_pos.x
-    local x1 = x1 + X_OFFSET - cam_pos.x
-    local y0 = y0 + Y_OFFSET - cam_pos.y
-    local y1 = y1 + Y_OFFSET - cam_pos.y
+    local x0 = x0 + X_OFFSET
+    local x1 = x1 + X_OFFSET
+    local y0 = y0 + Y_OFFSET
+    local y1 = y1 + Y_OFFSET
     gfx.rectangle(x0, y0, x1-x0+1, y1-y0+1, col.r,col.g,col.b)
 end
 function mid(x,y,z)
@@ -164,7 +174,7 @@ function ai_controls(car)
         if t < (mapsize * 3) + 10 then
             local v5 = get_vec_from_vecmap(t)
             if v5 then
-                local a = atan2(v5.x - car.pos.x, v5.y - car.pos.y)
+                local a = to_pico_angle(atan2(v5.y - car.pos.y, v5.x - car.pos.x))
                 local diff = a - car.angle
                 while diff > 0.5 do
                     diff = diff - 1
@@ -592,7 +602,7 @@ difficulty_names = {
 function intro:draw()
     cls()
     sspr(0, 20, 224, 204, 0, 0)
-    draw_minimap(70, 120, 0.04375, 6)
+    draw_minimap(40, 68, 0.025, 6)
     printr("x - accel", 223, 60, 6)
     printr("c - brake", 223, 70, 6)
     printr("up - boost", 223, 80, 6)
@@ -1014,7 +1024,7 @@ function race()
         local current_segment = player.current_segment
         -- draw track
         local lastv
-        for seg = current_segment - 20, current_segment + 20 do
+        for seg = current_segment - 30, current_segment + 30 do
             local v = get_vec_from_vecmap(seg)
             local diff = perpendicular(normalize(lastv and vecsub(v, lastv) or vec(1, 0)))
             local offset = scalev(diff, v.w)
@@ -1163,35 +1173,35 @@ function race()
             player.placing = placing
         end
 
-        gprint((player.placing or '?') .. '/' .. nplaces, 0, 0, 9)
+        gprint((player.placing or '?') .. '/' .. nplaces, 0, 1, 9)
         local lap = flr(player.current_segment / mapsize) + 1
         if lap > 3 then
-            gprint("lap 3/3", 0, 8, 9)
+            gprint("Lap 3/3", 0, 10, 9)
         else
-            gprint("lap " .. lap .. '/3', 0, 8, 9)
+            gprint("Lap " .. lap .. '/3', 0, 10, 9)
         end
-        printr("" .. flr(player.speed * 10), 127, 119, 9)
-        rectfill(128, 123, 128 - 40 * (player.speed / 15), 125, 9)
-        rectfill(128, 126, 128 - 20 * (player.accel), 126, 11)
+        printr("" .. flr(player.speed * 10), 223, 196, 9)
+        rectfill(224, 208, 224 - 70 * (player.speed / 15), 214, 9)
+        rectfill(224, 215, 224 - 35 * (player.accel), 221, 11)
         if player.cooldown > 0 then
-            rectfill(128, 127, 128 - 40 * (player.cooldown / 30), 127, 2)
+            rectfill(224, 222, 224 - 70 * (player.cooldown / 30), 223, 2)
         else
             local c = 8
             if player.boost < boost_warning_thresh then
                 c = player.boost < boost_critical_thresh and (frame % 4 < 2 and 8 or 7) or 8
             end
-            rectfill(128, 127, 128 - (player.boost / 100) * 40, 127, c)
+            rectfill(224, 222, 224 - (player.boost / 100) * 70, 223, c)
         end
 
-        gprint("time: " .. format_time(time > 0 and time or 0), 80, 9, 7)
+        gprint("Time: " .. format_time(time > 0 and time or 0), 224-48, 10, 7)
         if self.best_time then
-            gprint("best: " .. format_time(self.best_time), 80, 3, 7)
+            gprint("Best: " .. format_time(self.best_time), 224-48, 1, 7)
         end
         -- if player.lost_count > 10 and not self.completed then
         --	print("off course",54,60,8)
         -- end
         if player.wrong_way > 4 then
-            gprint("wrong way!", 54, 60, 8)
+            gprint("Wrong way!", 72, 104, 8)
         end
         if time < 0 then
             gprint(-flr(time), 60, 20, 8)
@@ -1288,10 +1298,10 @@ function paused_menu(game)
     function m:draw()
         game:draw()
         rectfill(35, 40, 93, 88, 1)
-        gprint("paused", 40, 44, 7)
-        gprint("continue", 40, 56, selected == 1 and frame % 4 < 2 and 7 or 6)
-        gprint("restart race", 40, 62, selected == 2 and frame % 4 < 2 and 7 or 6)
-        gprint("exit", 40, 70, selected == 3 and frame % 4 < 2 and 7 or 6)
+        gprint("Paused", 40, 44, 7)
+        gprint("Continue", 40, 56, selected == 1 and frame % 4 < 2 and 7 or 6)
+        gprint("Restart race", 40, 62, selected == 2 and frame % 4 < 2 and 7 or 6)
+        gprint("Exit", 40, 70, selected == 3 and frame % 4 < 2 and 7 or 6)
     end
     return m
 end
@@ -1324,17 +1334,17 @@ function completed_menu(game)
     function m:draw()
         game:draw()
         gprint(difficulty_names[difficulty] .. ": " .. cars[intro.car].name, 40, 32, 7)
-        gprint("race complete!", 40, 44, 7)
-        gprint("place: " .. player.placing, 40, 56, 7)
+        gprint("Race complete!", 40, 44, 7)
+        gprint("Place: " .. player.placing, 40, 56, 7)
 
-        gprint("time: " .. format_time(game.time), 35, 70, 7)
-        gprint("best: " .. format_time(game.best_time), 35, 78, game.best_time == game.time and frame % 4 < 2 and 8 or 7)
+        gprint("Time: " .. format_time(game.time), 35, 70, 7)
+        gprint("Best: " .. format_time(game.best_time), 35, 80, game.best_time == game.time and frame % 4 < 2 and 8 or 7)
         if game.previous_best then
-            gprint("previous: " .. format_time(game.previous_best), 30, 86, 7)
+            gprint("Previous: " .. format_time(game.previous_best), 30, 90, 7)
         end
 
-        gprint("retry", 44, 102, self.selected == 1 and frame % 16 < 8 and 8 or 6)
-        gprint("exit", 44, 110, self.selected == 2 and frame % 16 < 8 and 8 or 6)
+        gprint("Retry", 44, 102, self.selected == 1 and frame % 16 < 8 and 8 or 6)
+        gprint("Exit", 44, 112, self.selected == 2 and frame % 16 < 8 and 8 or 6)
     end
     return m
 end
@@ -1392,10 +1402,9 @@ function dot(a, b)
 end
 
 function onscreen(p)
-    local x = p.x
-    local y = p.y
-    local cx, cy = camera_pos.x, camera_pos.y
-    return x >= cx - 20 and x <= cx + 128 + 20 and y >= cy - 20 and y <= cy + 128 + 20
+    local x = (p.x-camera_pos.x)*224/128 + X_OFFSET
+    local y = (p.y-camera_pos.y)*224/128 + Y_OFFSET
+    return x >= -20 and x <= gfx.SCREEN_WIDTH+20  and y >= -20 and y <= gfx.SCREEN_HEIGHT+20
 end
 
 function length(v)
