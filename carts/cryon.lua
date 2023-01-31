@@ -1,7 +1,6 @@
 -- ################################## UTILITIES ##################################
 flr = math.floor
 sqrt = math.sqrt
-atan2 = math.atan
 max = math.max
 min = math.min
 

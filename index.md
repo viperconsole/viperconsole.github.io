@@ -32,7 +32,7 @@ The following functions are called by the console :
     * render one game frame. framerate might vary from one computer to another
 
 Those functions are available globally:
-* `atan2(dx,dy)` : arc tangent between -PI and PI
+* `atan2(dy,dx)` : arc tangent between -PI and PI
 * `noise1(x)` : 1D simplex noise
 * `noise2(x,y)` : 2D simplex noise
 * `noise3(x,y,z)` : 3D simplex noise

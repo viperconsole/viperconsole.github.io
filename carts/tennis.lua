@@ -103,8 +103,8 @@ function rect(x0,y0,x1,y1,pal)
     gfx.line(x0,y1,x0,y0,col.r,col.g,col.b)
 end
 
-function atan2(dx, dy)
-    local r = math.atan(dy,dx)* 0.15915494; -- 1/(2PI)
+function pico_atan2(dx, dy)
+    local r = atan2(dy,dx)* 0.15915494; -- 1/(2PI)
     if r < 0 then
         return -r
     else
@@ -1170,7 +1170,7 @@ function update_player(p)
                     end
                 else
 					normal = v3d_normal(v3d_sub(p.move_to[1],p.pos))
-					p.angle = atan2(-normal.z,normal.x)
+					p.angle = pico_atan2(-normal.z,normal.x)
 				end
 			end
         else
@@ -1208,7 +1208,7 @@ function update_player(p)
             end
         else
 			-- if moving
-			move_angle = atan2(-p.vel.z,p.vel.x)-p.angle+0.125
+			move_angle = pico_atan2(-p.vel.z,p.vel.x)-p.angle+0.125
 			p.leg_anim = anims[math.floor((move_angle < 0 and move_angle+1 or (move_angle >= 1 and move_angle-1 or move_angle)*4))+2]
 		end
 
