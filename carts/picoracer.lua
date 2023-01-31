@@ -515,8 +515,14 @@ function render()
     game_mode:draw()
 end
 
+flipflop=true
 function update()
-    game_mode:update()
+    -- original game updates at 30fps, viper is 60fps
+    -- update only every 2 ticks
+    flipflop=not flipflop
+    if flipflop then
+        game_mode:update()
+    end
 end
 
 -- intro
