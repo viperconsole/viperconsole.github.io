@@ -51,7 +51,8 @@ function btnp(num,player)
 -- TODO
 end
 function cls()
-    gfx.clear(0,0,1/255)
+    local c=PAL[21]
+    gfx.clear(c.r,c.g,c.b)
 end
 function sspr(x, y, w, h, dx, dy, dw, dh, hflip, vflip)
     gfx.blit(x, y, w, h, dx + X_OFFSET,dy + Y_OFFSET,dw or 0,dh or 0, hflip or false,vflip or false,1,1,1)
@@ -536,7 +537,7 @@ function init()
 	snd.new_instrument(INST_PHASER)
     snd.new_instrument(INST_ENGINE)
     gfx.set_active_layer(1)
-    gfx.set_layer_size(1,224,224)
+    gfx.set_layer_size(1,224,259)
     gfx.load_img("picoracer","picoracer/picoracer.png")
     gfx.set_active_layer(0)
     gfx.set_sprite_layer(1)
@@ -547,13 +548,6 @@ end
 
 function render()
     game_mode:draw()
-    local keys="";
-    for i=0,131 do
-        if inp.key(i) then
-            keys=keys..i.." "
-        end
-    end
-    gfx.print(keys,10,10,1,1,1)
 end
 
 flipflop=true
@@ -1249,22 +1243,23 @@ function race()
         else
             gprint("Lap " .. lap .. '/3', 0, 10, 9)
         end
-        printr("" .. flr(player.speed * 10), 223, 196, 9)
-        rectfill(224, 208, 224 - 70 * (player.speed / 15), 214, 9)
-        rectfill(224, 215, 224 - 35 * (player.accel), 221, 11)
+        gfx.blit(0,224,66,35,gfx.SCREEN_WIDTH-66,gfx.SCREEN_HEIGHT-35,0,0,false,false,1,1,1)
+        printc("" .. flr(player.speed * 10), 290, 210, 28)
+        gfx.blit(66,224,25*min(1,player.speed/15),8, gfx.SCREEN_WIDTH-28,gfx.SCREEN_HEIGHT-23,0,0,false,false,1,1,1)
+        gfx.blit(66,232,19*min(1,(player.accel^3)/(1.5^3)),9, gfx.SCREEN_WIDTH-60, gfx.SCREEN_HEIGHT-22,0,0,false,false,1,1,1)
+
         if player.cooldown > 0 then
-            rectfill(224, 222, 224 - 70 * (player.cooldown / 30), 223, 2)
-        else
-            local c = 8
-            if player.boost < boost_warning_thresh then
-                c = player.boost < boost_critical_thresh and (frame % 4 < 2 and 8 or 7) or 8
+            if frame%4< 2 then
+                gfx.blit(66,249,21*(1-player.cooldown/30),4, gfx.SCREEN_WIDTH-61, gfx.SCREEN_HEIGHT-11,0,0,false,false,1,1,1)
             end
-            rectfill(224, 222, 224 - (player.boost / 100) * 70, 223, c)
+        else
+            local spritey=(player.boost < boost_warning_thresh and frame % 4 < 2) and 245 or 241
+            gfx.blit(66,spritey,21*(player.boost/100),4, gfx.SCREEN_WIDTH-61, gfx.SCREEN_HEIGHT-11,0,0,false,false,1,1,1)
         end
 
-        gprint("Time: " .. format_time(time > 0 and time or 0), 224-48, 10, 7)
+        gprint("Time: " .. format_time(time > 0 and time or 0), 302-90, 10, 7)
         if self.best_time then
-            gprint("Best: " .. format_time(self.best_time), 224-48, 1, 7)
+            gprint("Best: " .. format_time(self.best_time), 302-90, 1, 7)
         end
         -- if player.lost_count > 10 and not self.completed then
         --	print("off course",54,60,8)
@@ -1473,6 +1468,11 @@ end
 function printr(text, x, y, c)
     local l = #text
     gprint(text, x - l * 8, y, c)
+end
+
+function printc(text, x, y, c)
+    local l = #text
+    gprint(text, x - l * 4, y, c)
 end
 
 function dot(a, b)
