@@ -440,7 +440,7 @@ function gui.update_button(this)
         if this.focus < 1.0 then
             this.focus = min(1, this.focus + 1 / 20)
         end
-        if inp.pad_button_pressed(0, 0) or inp.pad_button_pressed(1, 0) or inp.mouse_button_pressed(inp.MOUSE_LEFT) then
+        if inp.action1() or inp.mouse_button_pressed(inp.MOUSE_LEFT) then
             return this.evt
         end
     else

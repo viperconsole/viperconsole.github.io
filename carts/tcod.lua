@@ -122,16 +122,16 @@ end
 
 function update_hero(this)
     local can_interrupt = anims[this.anim].interruptible
-    if (inp.pad_button_pressed(0, BUTTON_JUMP) or inp.pad_button_pressed(1, BUTTON_JUMP)) and can_interrupt then
+    if inp.action1() and can_interrupt then
         set_anim(this, ANIM_JUMP)
         can_interrupt = false
     end
-    if (inp.pad_button_pressed(0, BUTTON_HIT) or inp.pad_button_pressed(1, BUTTON_HIT)) and can_interrupt then
+    if inp.action2() and can_interrupt then
         set_anim(this, ANIM_HIT)
         can_interrupt = false
     end
-    local right = math.max(inp.right(0), inp.right(1))
-    local left = math.max(inp.left(0), inp.left(1))
+    local right = inp.right()
+    local left = inp.left()
     if right > 0.0 then
         if can_interrupt then
             set_anim(this, ANIM_WALK)
@@ -147,8 +147,8 @@ function update_hero(this)
     else
         this.dx = 0
     end
-    local up = math.max(inp.up(0), inp.up(1))
-    local down = math.max(inp.down(0), inp.down(1))
+    local up = inp.up()
+    local down = inp.down()
     if up > 0.0 then
         if can_interrupt then
             set_anim(this, ANIM_WALK)

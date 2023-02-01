@@ -17,7 +17,6 @@ PARTICLE_COUNT = 24
 TILE_2_OBJ = {}
 JUMP_BUTTON = 0
 DASH_BUTTON = 2
-controller=-1
 
 got_fruit={}
 frames=0
@@ -451,8 +450,8 @@ Player = {
 		if pause_player then
 			return
 		end
-        local right = inp.right(controller)
-        local left = inp.left(controller)
+        local right = inp.right()
+        local left = inp.left()
         if right > 0.6 then
             right = 1
         end
@@ -464,7 +463,7 @@ Player = {
 			obj.to_remove=true
 			kill_player(obj)
 		end
-		obj.down = inp.down(controller) > 0.1
+		obj.down = inp.down() > 0.1
 		update_hair(obj,obj.hflip and -1 or 1,obj.down)
 		-- bottom death
 		if obj.y > SCREEN_SIZE then
@@ -478,7 +477,7 @@ Player = {
 			create_object(Smoke, obj.x, obj.y+SPRITE_SIZE/2)
 		end
 		-- jump
-		key_jump=inp.pad_button(controller,JUMP_BUTTON)
+		key_jump=inp.action1()
 		jump = key_jump and not  obj.p_jump
 		obj.p_jump = key_jump
 		if jump then
@@ -487,7 +486,7 @@ Player = {
 			obj.jbuffer = obj.jbuffer - 1
 		end
 		-- dash
-		key_dash = inp.pad_button(controller,DASH_BUTTON)
+		key_dash = inp.action2()
 		dash = key_dash and not  obj.p_dash
 		obj.p_dash = key_dash
 		if on_ground then
@@ -566,7 +565,7 @@ Player = {
 				obj.dash_time = 4
 				has_dashed = true
 				obj.dash_effect_time = 10
-                local up=inp.up(controller)
+                local up=inp.up()
                 if up > 0.6 then
                     up = 1
                 end
@@ -613,7 +612,7 @@ Player = {
 			obj.sprite = obj_is_solid(obj, input, 0) and 5 or 3
 		elseif obj.down then
 			obj.sprite=6
-		elseif inp.up(controller) > 0.9 then
+		elseif inp.up() > 0.9 then
 			obj.sprite=7
 		elseif obj.speed.x == 0 or input==0 then
 			obj.sprite=1
@@ -1249,7 +1248,7 @@ end
 
 function init()
 	init_music()
-    inp.set_neutral_zone(0.2)
+    inp.set_ls_neutral_zone(0.2)
 	for i=0,CLOUD_COUNT-1 do
 		clouds[i] = {
 			x= math.random() * SCREEN_SIZE,
@@ -1440,12 +1439,7 @@ function update()
 	-- start game
 	if is_title() then
 		if not  start_game then
-            for i=0,7 do
-                if inp.pad_button(i,JUMP_BUTTON) or inp.pad_button(i,DASH_BUTTON) then
-                    controller=i
-                end
-            end
-            if controller >= 0 then
+            if inp.action1_pressed() or inp.action2_pressed() then
                 start_game_flash=50
                 start_game=true
                 snd.play_music(-1,0)

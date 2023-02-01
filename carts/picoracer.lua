@@ -14,35 +14,37 @@ function camera(x,y)
     cam_pos.y=y or 0
 end
 function inp_brake()
-    return inp.pad_button(1, inp.XBOX360_X) or inp.key(inp.KEY_C)
+    -- controller X or keyboard C
+    return inp.action2()
 end
 function inp_accel()
-    return inp.pad_button(1,inp.XBOX360_A) or inp.key(inp.KEY_X)
+    -- controller A or keyboard X
+    return inp.action1()
 end
 inp_action1=inp_accel
 function inp_boost()
     return inp.pad_button(1,inp.XBOX360_RB) or inp.key(inp.KEY_UP)
 end
 function inp_up_pressed()
-    return inp.key_pressed(inp.KEY_UP) or inp.up_pressed(1)
+    return inp.up_pressed()
 end
 function inp_down_pressed()
-    return inp.key_pressed(inp.KEY_DOWN) or inp.down_pressed(1)
+    return inp.down_pressed()
 end
 function inp_left_pressed()
-    return inp.key_pressed(inp.KEY_LEFT)  or inp.left_pressed(1)
+    return inp.left_pressed()
 end
 function inp_right_pressed()
-    return inp.key_pressed(inp.KEY_RIGHT)  or inp.right_pressed(1)
+    return inp.right_pressed()
 end
 function inp_left()
-    return max(inp.left(1),inp.left(0)) >0.1
+    return inp.left() > 0.1
 end
 function inp_right()
-    return max(inp.right(1),inp.right(0)) >0.1
+    return inp.right() > 0.1
 end
 function inp_action1_pressed()
-    return inp.pad_button_pressed(1,inp.XBOX360_A) or inp.key_pressed(inp.KEY_X)
+    return inp.action1_pressed()
 end
 function inp_menu_pressed()
     return inp.pad_button_pressed(1,inp.XBOX360_SELECT) or inp.key_pressed(inp.KEY_ESCAPE)

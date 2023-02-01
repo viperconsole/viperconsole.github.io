@@ -13,8 +13,6 @@ SCREEN_SIZE = 16 * SPRITE_SIZE
 LAYER_SPRITE = 7
 SPRITESHEET_SIZE = 224
 
-controller = -1
-
 p1 = {}
 lrs = {}
 als = {}
@@ -498,13 +496,7 @@ function update_titles()
         titles.oy = titles.oy + (160 - titles.oy) * 0.12
     end
 
-    for i = 0, 8 do
-        if inp.pad_button(i, 0) then
-            controller = i
-            break
-        end
-    end
-    if controller >= 0 then
+    if inp.action1_pressed() or inp.action2_pressed() then
         scrn.update = hide_titles
     end
 
@@ -880,16 +872,16 @@ function update_game()
         else
             p1.dx = p1.dx * 0.82
 
-            if inp.right(controller) > 0 and p1.dx < 7 then
+            if inp.right() > 0 and p1.dx < 7 then
                 p1.dx = p1.dx + 0.8
             end
-            if inp.left(controller) > 0 and p1.dx > -7 then
+            if inp.left() > 0 and p1.dx > -7 then
                 p1.dx = p1.dx - 0.8
             end
-            if inp.pad_button(controller, 0) then
+            if inp.action1() then
                 fire_laser(p1)
             end
-            if inp.pad_button_pressed(controller, 1) then
+            if inp.action2_pressed() then
                 fire_missile(p1)
             end
 
@@ -915,7 +907,7 @@ function update_game()
             if p1.lives > 0 then
                 new_life(p1)
             else
-                if inp.pad_button(controller, 0) then
+                if inp.action1() then
                     show_titles()
                 end
             end
@@ -1355,7 +1347,7 @@ function init_music()
 end
 
 function init()
-    inp.set_neutral_zone(0.2)
+    inp.set_ls_neutral_zone(0.2)
     gfx.set_layer_size(LAYER_SPRITE, SPRITESHEET_SIZE, SPRITESHEET_SIZE)
     gfx.set_active_layer(LAYER_SPRITE)
     gfx.load_img("sprites", "tsi/tsi.png")

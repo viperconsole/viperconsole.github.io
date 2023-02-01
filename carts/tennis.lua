@@ -1091,9 +1091,9 @@ end
 
 function player_input_keyboard(p)
 	local move_speed = 0.175 * p.move_dir
-    local kshot=inp.pad_button(p.controller,0)
-    local ksmash=inp.pad_button(p.controller,1)
-    local klob=inp.pad_button(p.controller,2)
+    local kshot=inp.pad_button(p.controller,inp.XBOX360_A)
+    local ksmash=inp.pad_button(p.controller,inp.XBOX360_X)
+    local klob=inp.pad_button(p.controller,inp.XBOX360_Y)
     local any_k = kshot or ksmash or klob
 	if kshot or (ksmash and p.power==0) or klob then
 		if not p.is_swing_pressed then
@@ -1735,7 +1735,7 @@ function update_menu(menu,controller)
         local value_count = #item.values
         item.idx[item.cur_item] = (item.idx[item.cur_item]+value_count -2) % value_count + 1
     end
-    if inp.pad_button_pressed(controller,0) then
+    if inp.pad_button_pressed(controller,inp.XBOX360_A) then
 		if item.action == MENU_GAME_SETTINGS then
         	init_game_settings()
 		elseif item.action == MENU_READY then
@@ -1760,7 +1760,7 @@ function update_game_settings()
 	if #active_player_settings == active_count and active_count < player_count and #inactive_player_settings >= 1 then
         to_remove={}
         for _,v in pairs(inactive_controllers) do
-			if inp.pad_button_pressed(v-1,0) then
+			if inp.pad_button_pressed(v-1,inp.XBOX360_A) then
 				ic = add_player(v-1)
                 if ic >= 0 then
                     table.insert(to_remove,ic)
@@ -1879,10 +1879,10 @@ function draw_game()
         end
 		pico_print("X/  : shot",-120,20,7)
 		pico_print("C/  : smash",-120,28,7)
-		pico_print("V/  : lob",-120,36,7)
+		pico_print("Z/  : lob",-120,36,7)
         sspr(63,176,8,8,-108,20)
-        sspr(72,176,8,8,-108,28)
-        sspr(81,176,8,8,-108,36)
+        sspr(81,176,8,8,-108,28)
+        sspr(90,176,8,8,-108,36)
 	end
 end
 

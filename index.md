@@ -17,6 +17,7 @@
     * [4.1. Keyboard API](#h4.1)
     * [4.2. Mouse API](#h4.2)
     * [4.3. Gamepad API](#h4.3)
+    * [4.4. Generic input API](#h4.4)
 
 ## <a name="h1"></a>1. Language
 
@@ -403,18 +404,24 @@ Functions :
     * `inp.MOUSE_MIDDLE`
     * `inp.MOUSE_RIGHT`
 
-* `mouse_button_pressed(num)` : return true if mouse button num was pressed during last frame
-* `mouse_button_released(num)` : return true if mouse button num was released during last frame
+* `mouse_button_pressed(num)` : return true if mouse button num was pressed since the last game tick
+* `mouse_button_released(num)` : return true if mouse button num was released since the last game tick
 * `mouse_x()`: return the mouse horizontal position in pixels
 * `mouse_y()`: return the mouse vertical position in pixels
 
 ### <a name="h4.3"></a>4.3. Gamepad API
 ***in beta***
 
+In the following functions, `player_num` value is :
+* `0` : the keyboard (arrows for directions and X,C,V,Z,Escape,Enter corresponding to A,X,B,Y,Select,Start on the controller)
+* `1` to `8` : up to 8 controllers support
+
+This makes it possible to use the same API whether the player is using the keyboard or the controller.
+
 Functions :
 
 * `pad_button(player_num, num)` : return true if button num for player player_num is pressed
-* `pad_button_pressed(player_num, num)` : return true if button num for player player_num was pressed during last frame
+* `pad_button_pressed(player_num, num)` : return true if button num for player player_num was pressed since the last game tick
 
     You can use these constants for the num value :
     * `inp.XBOX360_A`
@@ -427,8 +434,38 @@ Functions :
     * `inp.XBOX360_START`
     * `inp.XBOX360_LS`
     * `inp.XBOX360_RS`
+* `pad_ls(player_num)` : return the left analog stick axis values (between -1 and 1) for player player_num
 
-* `pad_axis_x(player_num)` : return the left analog stick horizontal axis value (between -1 and 1) for player player_num
-* `pad_axis_y(player_num)` : return the left analog stick vertical axis value (between -1 and 1) for player player_num
-* `set_neutral_zone(value)` : sets the analog stick neutral zone (between 0 and 1)
+    Example :
+    `local x,y = inp.pad_ls(1)`
+
+* `set_ls_neutral_zone(value)` : sets the left analog stick neutral zone (between 0 and 1)
+* `pad_rs(player_num)` : return the right analog stick axis values (between -1 and 1) for player player_num
+* `set_rs_neutral_zone(value)` : sets the right analog stick neutral zone (between 0 and 1)
+* `pad_lt(player_num)` : return the left trigger value (between -1 and 1) for player player_num
+* `pad_rt(player_num)` : return the right trigger value (between -1 and 1) for player player_num
+
+### <a name="h4.4"></a>4.4. Generic input API
+
+If you want to support both keyboard and controller at the same time in a single player game, you can use these generic functions instead :
+
+* `inp.action1()` returns true if the controller A button or keyboard X key are pressed
+* `inp.action2()` returns true if the controller X button or keyboard C key are pressed
+* `inp.action3()` returns true if the controller B button or keyboard V key are pressed
+* `inp.action4()` returns true if the controller Y button or keyboard Z key are pressed
+The same functions with the _pressed suffix exist to check if the button was pressed since the last game tick. They all return a boolean.
+* `inp.action1_pressed()`
+* `inp.action2_pressed()`
+* `inp.action3_pressed()`
+* `inp.action4_pressed()`
+
+Those last function will check controller #1 and keyboard if the player is not defined, else only the controller #player (0=keyboard, 1-8=controller)
+* `inp.up([player])` value between 0 and 1
+* `inp.down([player])` value between 0 and 1
+* `inp.left([player])` value between 0 and 1
+* `inp.right([player])` value between 0 and 1
+* `inp.up_pressed([player])`
+* `inp.down_pressed([player])`
+* `inp.left_pressed([player])`
+* `inp.right_pressed([player])`
 
