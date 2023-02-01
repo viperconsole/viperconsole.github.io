@@ -21,30 +21,8 @@ function inp_accel()
     -- controller A or keyboard X
     return inp.action1()
 end
-inp_action1=inp_accel
 function inp_boost()
     return inp.pad_button(1,inp.XBOX360_RB) or inp.key(inp.KEY_UP)
-end
-function inp_up_pressed()
-    return inp.up_pressed()
-end
-function inp_down_pressed()
-    return inp.down_pressed()
-end
-function inp_left_pressed()
-    return inp.left_pressed()
-end
-function inp_right_pressed()
-    return inp.right_pressed()
-end
-function inp_left()
-    return inp.left() > 0.1
-end
-function inp_right()
-    return inp.right() > 0.1
-end
-function inp_action1_pressed()
-    return inp.action1_pressed()
 end
 function inp_menu_pressed()
     return inp.pad_button_pressed(1,inp.XBOX360_SELECT) or inp.key_pressed(inp.KEY_ESCAPE)
@@ -581,11 +559,11 @@ end
 function intro:update()
     frame = frame + 1
 
-    if not inp_action1() then
+    if not inp.action1() then
         self.ready = true
     end
 
-    if self.ready and inp_action1_pressed() then
+    if self.ready and inp.action1_pressed() then
         if self.game_mode == 3 then
             mapeditor:init()
             set_game_mode(mapeditor)
@@ -597,33 +575,33 @@ function intro:update()
     end
 
     if self.option == 1 then
-        if inp_left_pressed() then
+        if inp.left_pressed() then
             self.game_mode = self.game_mode - 1
         end
-        if inp_right_pressed() then
+        if inp.right_pressed() then
             self.game_mode = self.game_mode + 1
         end
     elseif self.option == 2 then
-        if inp_left_pressed() then
+        if inp.left_pressed() then
             difficulty = mid(0, difficulty - 1, 7)
             load_map()
         end
-        if inp_right_pressed() then
+        if inp.right_pressed() then
             difficulty = mid(0, difficulty + 1, 7)
             load_map()
         end
     elseif self.option == 3 then
-        if inp_left_pressed() then
+        if inp.left_pressed() then
             self.car = self.car - 1
         end
-        if inp_right_pressed() then
+        if inp.right_pressed() then
             self.car = self.car + 1
         end
     end
-    if inp_up_pressed() then
+    if inp.up_pressed() then
         self.option = self.option - 1
     end
-    if inp_down_pressed() then
+    if inp.down_pressed() then
         self.option = self.option + 1
     end
     self.game_mode = mid(1, self.game_mode, 3)
@@ -670,14 +648,14 @@ function map_menu(game)
     local m = {}
     function m:update()
         frame = frame + 1
-        if inp_up_pressed() then
+        if inp.up_pressed() then
             selected = selected - 1
         end
-        if inp_down_pressed() then
+        if inp.down_pressed() then
             selected = selected + 1
         end
         selected = max(min(selected, 3), 1)
-        if inp_action1_pressed() then
+        if inp.action1_pressed() then
             if selected == 1 then
                 set_game_mode(game)
             elseif selected == 2 then
@@ -717,7 +695,7 @@ end
 
 function mapeditor:update()
     local cs = mapsections[#mapsections]
-    if inp_left_pressed() then
+    if inp.left_pressed() then
         cs[2] = cs[2] - 1
     elseif btnp(1, 0) then
         cs[2] = cs[2] + 1
@@ -909,8 +887,8 @@ function race()
         local player = self.player
         if player then
             local controls = player.controls
-            controls.left = inp_left()
-            controls.right = inp_right()
+            controls.left = inp.left() > 0.1
+            controls.right = inp.right() > 0.1
             controls.boost = inp_boost()
             controls.accel = inp_accel()
             controls.brake = inp_brake()
@@ -1352,14 +1330,14 @@ function paused_menu(game)
     local m = {}
     function m:update()
         frame = frame + 1
-        if inp_up_pressed() then
+        if inp.up_pressed() then
             selected = selected - 1
         end
-        if inp_down_pressed() then
+        if inp.down_pressed() then
             selected = selected + 1
         end
         selected = max(min(selected, 3), 1)
-        if inp_action1_pressed() then
+        if inp.action1_pressed() then
             if selected == 1 then
                 set_game_mode(game)
             elseif selected == 2 then
@@ -1387,17 +1365,17 @@ function completed_menu(game)
     }
     function m:update()
         frame = frame + 1
-        if not inp_action1() then
+        if not inp.action1() then
             self.ready = true
         end
-        if inp_up_pressed() then
+        if inp.up_pressed() then
             self.selected = self.selected - 1
         end
-        if inp_down_pressed() then
+        if inp.down_pressed() then
             self.selected = self.selected + 1
         end
         self.selected = clamp(self.selected, 1, 2)
-        if self.ready and inp_action1_pressed() then
+        if self.ready and inp.action1_pressed() then
             if self.selected == 1 then
                 set_game_mode(game)
                 game:restart()
