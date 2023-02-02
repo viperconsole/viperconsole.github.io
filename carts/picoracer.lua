@@ -9,6 +9,7 @@ cam_pos = {
     x=0,
     y=0
 }
+camera_angle=0
 function camera(x,y)
     cam_pos.x=x or 0
     cam_pos.y=y or 0
@@ -76,14 +77,16 @@ PAL = {[0]=col(0, 0, 1), col(29, 43, 83), col(126, 37, 83), col(0, 135, 81), col
     }
 function line(x1, y1, x2, y2, col)
     local c=flr(col)
-    gfx.line((x1-cam_pos.x)*224/128 + X_OFFSET, (y1-cam_pos.y)*224/128 + Y_OFFSET,
-        (x2-cam_pos.x)*224/128 + X_OFFSET, (y2-cam_pos.y)*224/128 + Y_OFFSET,
-        PAL[c].r, PAL[c].g, PAL[c].b)
+    local p1=cam2screen(vec(x1,y1))
+    local p2=cam2screen(vec(x2,y2))
+    gfx.line(p1.x, p1.y, p2.x, p2.y, PAL[c].r, PAL[c].g, PAL[c].b)
 end
 function cam2screen(p)
+    p=vecsub(p,cam_pos)
+    p=vecadd(rotate_point(p,-camera_angle+0.25,vec(0,0)),vec(64,64))
     return {
-        x=(p.x-cam_pos.x)*224/128 + X_OFFSET,
-        y= (p.y-cam_pos.y)*224/128 + Y_OFFSET
+        x=p.x*224/128 + X_OFFSET,
+        y= p.y*224/128 + Y_OFFSET
     }
 end
 
@@ -101,9 +104,8 @@ end
 
 function circfill(x,y,r,pal)
     local col=PAL[flr(pal)]
-    local x = (x-cam_pos.x)*224/128 + X_OFFSET
-    local y = (y-cam_pos.y)*224/128 + Y_OFFSET
-    gfx.disk(x,y,r*224/128,col.r,col.g,col.b)
+    local p=cam2screen(vec(x,y))
+    gfx.disk(p.x,p.y,r*224/128,col.r,col.g,col.b)
 end
 function rectfill(x0,y0,x1,y1,pal)
     local col=PAL[flr(pal)]
@@ -1029,7 +1031,7 @@ function race()
                 table.remove(particles, i)
             end
         end
-
+        camera_angle = camera_angle + (player.angle-camera_angle) * 0.05
     end
 
     function race:draw()
@@ -1040,7 +1042,7 @@ function race()
 
         local tp = cbufget(player.trails, player.trails._size - 8) or player.pos
         local trail = clampv(vecsub(player.pos, tp), 54)
-        camera_pos = vecadd(vecadd(player.pos, trail), vec(-64, -64))
+        camera_pos = vecadd(player.pos, trail)
         if player.collision > 0 then
             camera(camera_pos.x + rnd(3) - 2, camera_pos.y + rnd(3) - 2)
         else
@@ -1460,9 +1462,8 @@ function dot(a, b)
 end
 
 function onscreen(p)
-    local x = (p.x-camera_pos.x)*224/128 + X_OFFSET
-    local y = (p.y-camera_pos.y)*224/128 + Y_OFFSET
-    return x >= -30 and x <= gfx.SCREEN_WIDTH+30  and y >= -30 and y <= gfx.SCREEN_HEIGHT+30
+    p=cam2screen(p)
+    return p.x >= -30 and p.x <= gfx.SCREEN_WIDTH+30  and p.y >= -30 and p.y <= gfx.SCREEN_HEIGHT+30
 end
 
 function length(v)
