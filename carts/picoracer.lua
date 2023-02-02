@@ -295,7 +295,8 @@ function create_car(race)
         collision = 0,
         delta_time=0,
         lap_times={},
-        time="-----"
+        time="-----",
+        best_time=nil,
     }
     car.controls = {}
     car.pos = copyv(get_vec_from_vecmap(car.current_segment))
@@ -422,7 +423,10 @@ function create_car(race)
                     end
                     if current_segment> 0 and current_segment % mapsize == 0 then
                         -- new lap
-                        local lap_time=time - self.delta_time
+                        local lap_time=time
+                        if self.race.race_mode==MODE_RACE then
+                            lap_time = lap_time - self.delta_time
+                        end
                         table.insert(self.lap_times,lap_time)
                         self.delta_time = self.delta_time + lap_time
                         if best_lap_time == nil or lap_time < best_lap_time then
@@ -647,6 +651,10 @@ end
 intro = {}
 frame = 0
 
+MODE_RACE=1
+MODE_TIME_ATTACK=2
+MODE_EDITOR=3
+
 game_modes = {"Race vs AI", "Time Attack", "Track Editor"}
 
 function intro:init()
@@ -666,7 +674,7 @@ function intro:update()
     end
 
     if self.ready and inp.action1_pressed() then
-        if self.game_mode == 3 then
+        if self.game_mode == MODE_EDITOR then
             mapeditor:init()
             set_game_mode(mapeditor)
         else
@@ -924,9 +932,9 @@ function race()
 
     function race:restart()
         self.completed = false
-        self.time = self.race_mode == 1 and -4 or 0
+        self.time = self.race_mode == MODE_RACE and -4 or 0
         camera_lastpos = vec()
-        self.start_timer = self.race_mode == 1
+        self.start_timer = self.race_mode == MODE_RACE
         self.record_replay = nil
         self.play_replay_step = 1
         self.lap_count=2
@@ -938,7 +946,7 @@ function race()
         seg_times={}
         best_lap_time=nil
         best_lap_driver=nil
-        if self.race_mode == 2 and self.play_replay then
+        if self.race_mode == MODE_TIME_ATTACK and self.play_replay then
             local replay_car = create_car(self)
             table.insert(self.objects, replay_car)
             replay_car.color = 1
@@ -956,7 +964,7 @@ function race()
         p.driver={name="Player",short_name="PLA",is_best=false}
         table.insert(self.ranks,p)
 
-        if self.race_mode == 1 then
+        if self.race_mode == MODE_RACE then
             for i = 1, STARTING_GRID_LINES*2-1 do
                 local ai_car = create_car(self)
                 ai_car.color = flr(rnd(6) + 9)
@@ -1044,7 +1052,7 @@ function race()
             end
         end
 
-        if player.current_segment == 0 and not self.start_timer and self.race_mode == 2 then
+        if player.current_segment == 0 and not self.start_timer and self.race_mode == MODE_TIME_ATTACK then
             self.start_timer = true
             self.record_replay = {}
             table.insert(self.record_replay, {
@@ -1074,12 +1082,14 @@ function race()
             table.insert(self.record_replay, v)
         end
 
-        if self.race_mode == 2 or self.time > 0 then
+        if self.race_mode == MODE_TIME_ATTACK or self.time > 0 then
             for _,obj in pairs(self.objects) do
                 obj:update(self.completed,self.time)
             end
         end
-
+        if self.race_mode == MODE_TIME_ATTACK and player.current_segment%mapsize==0 then
+            self.time=0
+        end
         -- car to car collision
         for _,obj in pairs(self.objects) do
             for _,obj2 in pairs(self.objects) do
@@ -1124,7 +1134,7 @@ function race()
             end
         end
 
-        if player.current_segment == mapsize * self.lap_count then
+        if player.current_segment == mapsize * self.lap_count and self.race_mode == MODE_RACE then
             -- completed
             snd.stop_note(1)
             self.completed = true
@@ -1397,15 +1407,32 @@ function race()
         -- ranking board
         local lap = flr(player.current_segment / mapsize) + 1
         if not self.completed then
-            gfx.rectangle(0,0,120,90,PAL[17].r,PAL[17].g,PAL[17].b)
-            gprint("Lap " .. lap .. '/'..self.lap_count, 12, 3, 9)
-            gfx.line(0,12,120,12,PAL[6].r,PAL[6].g,PAL[6].b)
+            if self.race_mode == MODE_RACE then
+                gfx.rectangle(0,0,120,90,PAL[17].r,PAL[17].g,PAL[17].b)
+                gprint("Lap " .. lap .. '/'..self.lap_count, 12, 3, 9)
+                gfx.line(0,12,120,12,PAL[6].r,PAL[6].g,PAL[6].b)
 
-            local leader_time=format_time(time > 0 and time or 0)
-            for rank,car in pairs(self.ranks) do
-                local y=14+rank*10
-                gprint(string.format("%2d  %s %6s",rank, car.driver.short_name, rank==1 and leader_time or car.time),0,y,6)
-                rectfill(17,y,23,y+8,car.color)
+                local leader_time=format_time(time > 0 and time or 0)
+                for rank,car in pairs(self.ranks) do
+                    local y=14+rank*10
+                    gprint(string.format("%2d  %s %6s",rank, car.driver.short_name, rank==1 and leader_time or car.time),0,y,6)
+                    rectfill(17,y,23,y+8,car.color)
+                end
+            elseif self.race_mode == MODE_TIME_ATTACK then
+                gfx.rectangle(0,0,120,100,PAL[17].r,PAL[17].g,PAL[17].b)
+                gprint(string.format("%2d %6s",lap,format_time(time > 0 and time or 0)), 20, 3, 9)
+                local y=3
+                for i=#player.lap_times,1,-1 do
+                    local t=player.lap_times[i]
+                    y=y+10
+                    if y > 73 then
+                        break
+                    end
+                    gprint(string.format("%2d %6s",i,format_time(t)), 20, y, 9)
+                end
+                if player.best_time then
+                    gprint(string.format("Best %6s",format_time(player.best_time)), 4, 83, 8)
+                end
             end
         else
             --race results
@@ -1419,7 +1446,7 @@ function race()
             end
         end
         -- lap times
-        if not self.completed then
+        if not self.completed and self.race_mode == MODE_RACE then
             if lap > 1 then
                 local is_personal_best=player.lap_times[lap-1] == player.best_time
                 if lap > self.lap_count or time < player.lap_times[lap-1] + 5 then
