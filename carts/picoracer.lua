@@ -5,6 +5,8 @@
 
 X_OFFSET = 80
 Y_OFFSET = 0
+MINIMAP_START=-10
+MINIMAP_END=20
 cam_pos = {
     x=0,
     y=0
@@ -81,6 +83,28 @@ function line(x1, y1, x2, y2, col)
     local p2=cam2screen(vec(x2,y2))
     gfx.line(p1.x, p1.y, p2.x, p2.y, PAL[c].r, PAL[c].g, PAL[c].b)
 end
+
+function world2minimap(p)
+    p=vecsub(p,cam_pos)
+    p=rotate_point(p,-camera_angle+0.25,vec(0,0))
+    p=scalev(p,0.05)
+    p=vecadd(p,vec(20,40))
+    return p
+end
+
+function minimap_line(p1,p2,c)
+    p1=world2minimap(p1)
+    p2=world2minimap(p2)
+    c=flr(c)
+    gfx.line(p1.x,p1.y,p2.x,p2.y, PAL[c].r, PAL[c].g, PAL[c].b)
+end
+
+function minimap_disk(p,c)
+    p=world2minimap(p)
+    c=flr(c)
+    gfx.disk(p.x,p.y,2, PAL[c].r, PAL[c].g, PAL[c].b)
+end
+
 function cam2screen(p)
     p=vecsub(p,cam_pos)
     p=vecadd(rotate_point(p,-camera_angle+0.25,vec(0,0)),vec(64,64))
@@ -452,7 +476,15 @@ function create_car(race)
         self.angle = angle
         self.current_segment = current_segment
     end
+    function car:draw_minimap()
+        local seg=self.current_segment
+        local pseg=player.current_segment
+        if seg >= pseg + MINIMAP_START and seg < pseg + MINIMAP_END then
+            minimap_disk(self.pos, self.color)
+        end
+    end
     function car:draw()
+        self:draw_minimap()
         local angle = self.angle
         local color = self.color
         local v = fmap(car_verts, function(i)
@@ -1041,7 +1073,7 @@ function race()
         cls()
 
         local tp = cbufget(player.trails, player.trails._size - 8) or player.pos
-        local trail = clampv(vecsub(player.pos, tp), 54)
+        local trail = clampv(vecsub(player.pos, tp), 34)
         camera_pos = vecadd(player.pos, trail)
         if player.collision > 0 then
             camera(camera_pos.x + rnd(3) - 2, camera_pos.y + rnd(3) - 2)
@@ -1053,6 +1085,15 @@ function race()
         camera_lastpos = copyv(camera_pos)
 
         local current_segment = player.current_segment
+        -- draw_minimap
+        local lastv=nil
+        for seg = current_segment +MINIMAP_START, current_segment + MINIMAP_END do
+            local v = get_vec_from_vecmap(seg)
+            if lastv ~= nil then
+                minimap_line(lastv,v,7)
+            end
+            lastv=v
+        end
         -- draw track
         local lastv
         for seg = current_segment - 30, current_segment + 30 do
@@ -1106,12 +1147,12 @@ function race()
                            linevec(lastup2, lastdown2, 1) -- normal verticals
                         end
                         -- kerbs
-                        local middown=scalev(vecadd(down,lastdown),0.5)
-                        local middown2=scalev(vecadd(down2,lastdown2),0.5)
+                        local middown=midpoint(down,lastdown)
+                        local middown2=midpoint(down2,lastdown2)
                         quadfill(down2,down,middown2,middown,7)
                         quadfill(lastdown,middown,lastdown2,middown2,8)
-                        local midup=scalev(vecadd(up,lastup),0.5)
-                        local midup2=scalev(vecadd(up2,lastup2),0.5)
+                        local midup=midpoint(up,lastup)
+                        local midup2=midpoint(up2,lastup2)
                         quadfill(up2,up,midup2,midup,7)
                         quadfill(midup2,midup,lastup2,lastup,8)
                         linevec(down2, down, 4)
@@ -1183,7 +1224,7 @@ function race()
             end
         end
         for _,obj in pairs(self.objects) do
-            if abs(obj.current_segment - player.current_segment) <= 10 then
+            if abs(obj.current_segment - player.current_segment) <= max(MINIMAP_START,MINIMAP_END) then
                 obj:draw()
             end
         end
@@ -1255,10 +1296,10 @@ function race()
             local count=-flr(time)
             local lit = 4-count
             for i=1,lit do
-                gfx.blit(34,0,20,20, 159+i*22,44,0,0,false,false,1,1,1)
+                gfx.blit(34,0,20,20, 137+i*22,44,0,0,false,false,1,1,1)
             end
             for i=lit+1,3 do
-                gfx.blit(14,0,20,20, 159+i*22,44,0,0,false,false,1,1,1)
+                gfx.blit(14,0,20,20, 137+i*22,44,0,0,false,false,1,1,1)
             end
         end
         if player.collision > 0 or self.completed then
