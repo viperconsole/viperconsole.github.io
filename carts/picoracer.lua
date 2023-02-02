@@ -13,6 +13,9 @@ cam_pos = {
     y=0
 }
 camera_angle=0
+seg_times={}
+best_lap_time=nil
+best_lap_driver=nil
 function camera(x,y)
     cam_pos.x=x or 0
     cam_pos.y=y or 0
@@ -89,7 +92,7 @@ function world2minimap(p)
     p=vecsub(p,cam_pos)
     p=rotate_point(p,-camera_angle+0.25,vec(0,0))
     p=scalev(p,0.05)
-    p=vecadd(p,vec(20,40))
+    p=vecadd(p,vec(20,180))
     return p
 end
 
@@ -143,10 +146,6 @@ function circfill(x,y,r,pal)
 end
 function rectfill(x0,y0,x1,y1,pal)
     local col=PAL[flr(pal)]
-    local x0 = x0 + X_OFFSET
-    local x1 = x1 + X_OFFSET
-    local y0 = y0 + Y_OFFSET
-    local y1 = y1 + Y_OFFSET
     gfx.rectangle(x0, y0, x1-x0+1, y1-y0+1, col.r,col.g,col.b)
 end
 function mid(x,y,z)
@@ -160,7 +159,7 @@ function mid(x,y,z)
 end
 function gprint(msg, px, py, col)
     local c = math.floor(col)
-    gfx.print(msg, math.floor(px + X_OFFSET), math.floor(py + Y_OFFSET), PAL[c].r, PAL[c].g, PAL[c].b)
+    gfx.print(msg, math.floor(px), math.floor(py), PAL[c].r, PAL[c].g, PAL[c].b)
 end
 function sfx(n)
     snd.play_pattern(n)
@@ -181,15 +180,38 @@ cars = {{
     accsqr = 0.1
 }, {
     name = "Medium",
-    maxacc = 2,
+    maxacc = 2.1,
     steer = 0.0185,
-    accsqr = 0.15
+    accsqr = 0.16
 }, {
     name = "Hard",
-    maxacc = 2.5,
+    maxacc = 2.4,
     steer = 0.0165,
     accsqr = 0.2
 }}
+
+drivers = {{
+    name="Anton Sanna",
+    short_name="ASA",
+    skill=8,
+}, {
+    name="Alan Proust",
+    short_name="APR",
+    skill=7,
+}, {
+    name="Nygel Mansale",
+    short_name="NMA",
+    skill=5,
+}, {
+    name="Nyson Packet",
+    short_name="NPA",
+    skill=6,
+}, {
+    name="Neke Louder",
+    short_name="NLO",
+    skill=6,
+}
+}
 
 track_colors = {8, 9, 10, 11, 12, 3, 14, 15}
 dt = 0.033333
@@ -270,7 +292,10 @@ function create_car(race)
         last_good_pos = vec(),
         last_good_seg = 1,
         color = 8,
-        collision = 0
+        collision = 0,
+        delta_time=0,
+        lap_times={},
+        time="-----"
     }
     car.controls = {}
     car.pos = copyv(get_vec_from_vecmap(car.current_segment))
@@ -281,7 +306,7 @@ function create_car(race)
              rotate_point(vecadd(self.pos, car_verts[3]), self.angle, self.pos),
         }
     end
-    function car:update(completed)
+    function car:update(completed, time)
         local angle = self.angle
         local pos = self.pos
         local vel = self.vel
@@ -392,6 +417,27 @@ function create_car(race)
                 if segnextpoly and point_in_polygon(segnextpoly, self.pos) then
                     poly = get_segment(current_segment + 1)
                     current_segment = current_segment + 1
+                    if seg_times[current_segment] == nil then
+                        seg_times[current_segment] = time
+                    end
+                    if current_segment> 0 and current_segment % mapsize == 0 then
+                        -- new lap
+                        local lap_time=time - self.delta_time
+                        table.insert(self.lap_times,lap_time)
+                        self.delta_time = self.delta_time + lap_time
+                        if best_lap_time == nil or lap_time < best_lap_time then
+                            best_lap_time = lap_time
+                            if best_lap_driver then
+                                best_lap_driver.is_best=false
+                            end
+                            best_lap_driver=self.driver
+                            self.driver.is_best=true
+                        end
+                        if self.best_time==nil or lap_time < self.best_time then
+                            self.best_time=lap_time
+                            self.play_replay = self.record_replay
+                        end
+                    end
                     self.wrong_way = 0
                 else
                     -- not found in current or next, try the previous one
@@ -406,7 +452,6 @@ function create_car(race)
                         -- current_segment+=1 -- try to find the car next frame
                         if self.lost_count > 30 then
                             -- lost for too long, bring them back to the last known good position
-                            print("car "..self.ai.skill.." lost")
                             local v = get_vec_from_vecmap(self.last_good_seg)
                             self.pos = copyv(v)
                             self.current_segment = self.last_good_seg - 2
@@ -680,19 +725,19 @@ difficulty_names = {
 function intro:draw()
     cls()
     sspr(0, 20, 224, 204, 0, 0)
-    draw_minimap(40, 68, 0.025, 6)
-    printr("x - accel", 223, 60, 6)
-    printr("c - brake", 223, 70, 6)
-    printr("up - boost", 223, 80, 6)
-    printr("< > - steer", 223, 90, 6)
-    printr("tab -  menu", 223, 100, 6)
+    draw_intro_minimap(40, 68, 0.025, 6)
+    printr("x - accel", 303, 60, 6)
+    printr("c - brake", 303, 70, 6)
+    printr("up - boost", 303, 80, 6)
+    printr("< > - steer", 303, 90, 6)
+    printr("tab -  menu", 303, 100, 6)
 
     local c = frame % 16 < 8 and 8 or 9
-    printr("Mode", 223, 2, self.option == 1 and c or 9)
-    printr(game_modes[self.game_mode], 223, 12, 6)
-    printr("Track", 224, 22, self.option == 2 and c or 9)
-    printr(difficulty_names[difficulty], 224, 32, 6)
-    printr(cars[self.car].name, 224, 42, self.option == 3 and c or 9)
+    printr("Mode", 303, 2, self.option == 1 and c or 9)
+    printr(game_modes[self.game_mode], 303, 12, 6)
+    printr("Track", 304, 22, self.option == 2 and c or 9)
+    printr(difficulty_names[difficulty], 304, 32, 6)
+    printr(cars[self.car].name,304, 42, self.option == 3 and c or 9)
 end
 
 mapeditor = {}
@@ -741,11 +786,11 @@ function map_menu(game)
     end
     function m:draw()
         game:draw()
-        rectfill(35, 40, 93, 88, 1)
-        gprint("editor", 40, 44, 7)
-        gprint("continue", 40, 56, selected == 1 and frame % 4 < 2 and 7 or 6)
-        gprint("test track", 40, 62, selected == 2 and frame % 4 < 2 and 7 or 6)
-        gprint("exit", 40, 70, selected == 3 and frame % 4 < 2 and 7 or 6)
+        rectfill(115, 40, 173, 88, 1)
+        gprint("editor", 120, 44, 7)
+        gprint("continue", 120, 56, selected == 1 and frame % 4 < 2 and 7 or 6)
+        gprint("test track", 120, 62, selected == 2 and frame % 4 < 2 and 7 or 6)
+        gprint("exit", 120, 70, selected == 3 and frame % 4 < 2 and 7 or 6)
     end
     return m
 end
@@ -781,16 +826,16 @@ function mapeditor:update()
     cs[1] = mid(0, cs[1], 255)
 end
 
-function draw_minimap(sx, sy, scale, col)
-    local x, y = sx, sy
-    local lastx, lasty = sx, sy
+function draw_intro_minimap(sx, sy, scale, col)
+    local x, y = sx-45, sy-100
+    local lastx, lasty = x,y
     local dir = 0
     for i = 1, #mapsections do
         ms = mapsections[i]
         for seg = 1, ms[1] do
             dir = dir + (ms[2] - 128) / 100
-            x = x + cos(dir) * 32 * scale
-            y = y + sin(dir) * 32 * scale
+            x = x + cos(dir) * 28 * scale
+            y = y + sin(dir) * 28 * scale
             line(lastx, lasty, x, y, #mapsections == i and 3 or col)
             lastx, lasty = x, y
         end
@@ -799,8 +844,8 @@ end
 
 function mapeditor:draw()
     cls()
-    draw_minimap(64, 64, scale, 6)
-    gprint(#mapsections .. '/' .. flr(0x1000 / 8 / 3), 2, 2, 7)
+    draw_intro_minimap(64, 64, scale, 6)
+    gprint(#mapsections .. '/' .. flr(0x1000 / 8 / 3), 82, 2, 7)
 end
 
 function load_map()
@@ -880,15 +925,19 @@ function race()
     function race:restart()
         self.completed = false
         self.time = self.race_mode == 1 and -4 or 0
-        self.previous_best = nil
         camera_lastpos = vec()
         self.start_timer = self.race_mode == 1
         self.record_replay = nil
         self.play_replay_step = 1
+        self.lap_count=2
+
         -- spawn cars
 
         self.objects = {}
-
+        self.ranks={}
+        seg_times={}
+        best_lap_time=nil
+        best_lap_driver=nil
         if self.race_mode == 2 and self.play_replay then
             local replay_car = create_car(self)
             table.insert(self.objects, replay_car)
@@ -904,12 +953,16 @@ function race()
         local v = get_vec_from_vecmap(p.current_segment)
         local side = perpendicular(normalize(lastv and vecsub(v, lastv) or vec(1, 0)))
         p.pos = vecadd(p.pos, scalev(side,15))
+        p.driver={name="Player",short_name="PLA",is_best=false}
+        table.insert(self.ranks,p)
 
         if self.race_mode == 1 then
             for i = 1, STARTING_GRID_LINES*2-1 do
                 local ai_car = create_car(self)
                 ai_car.color = flr(rnd(6) + 9)
                 ai_car.current_segment=-3-i//2
+                ai_car.driver=drivers[i]
+                ai_car.driver.is_best=false
                 local lastv = get_vec_from_vecmap(ai_car.current_segment-1)
                 local v = get_vec_from_vecmap(ai_car.current_segment)
                 local front=scalev(normalize(vecsub(v,lastv)),-15)
@@ -921,12 +974,13 @@ function race()
                 ai_car.angle = v.dir
                 local oldupdate = ai_car.update
                 ai_car.ai = ai_controls(ai_car)
-                ai_car.ai.skill = i+4
-                function ai_car:update()
+                ai_car.ai.skill = ai_car.driver.skill
+                function ai_car:update(completed,time)
                     self.ai:update()
-                    oldupdate(self)
+                    oldupdate(self,completed,time)
                 end
                 table.insert(self.objects, ai_car)
+                table.insert(self.ranks,ai_car)
             end
         end
 
@@ -1022,7 +1076,7 @@ function race()
 
         if self.race_mode == 2 or self.time > 0 then
             for _,obj in pairs(self.objects) do
-                obj:update(self.completed)
+                obj:update(self.completed,self.time)
             end
         end
 
@@ -1070,19 +1124,12 @@ function race()
             end
         end
 
-        if player.current_segment == mapsize * 3 then
+        if player.current_segment == mapsize * self.lap_count then
             -- completed
             snd.stop_note(1)
             self.completed = true
             self.completed_countdown = 5
             self.start_timer = false
-            if (not self.best_time) or self.time < self.best_time then
-                if self.best_time then
-                    self.previous_best = self.best_time
-                end
-                self.best_time = self.time
-                self.play_replay = self.record_replay
-            end
         end
 
         -- particles
@@ -1097,7 +1144,30 @@ function race()
                 table.remove(particles, i)
             end
         end
-        camera_angle = camera_angle + (player.angle-camera_angle) * 0.03
+        camera_angle = camera_angle + (player.angle-camera_angle) * 0.04
+
+        --car times
+        if frame%100==0 or self.completed then
+            t=self.time
+            for _,car in pairs(self.objects) do
+                car.time= seg_times[car.current_segment] and "+"..format_time(t-seg_times[car.current_segment]) or "-----"
+            end
+            self.ranks={}
+            for _,car in pairs(self.objects) do
+                if #self.ranks == 0 then
+                    table.insert(self.ranks,car)
+                else
+                    local i=1
+                    for _,_ in pairs(self.ranks) do
+                        if self.ranks[i].current_segment < car.current_segment then
+                            break
+                        end
+                        i=i+1
+                    end
+                    table.insert(self.ranks,i,car)
+                end
+            end
+        end
     end
 
     function race:draw()
@@ -1118,15 +1188,6 @@ function race()
         camera_lastpos = copyv(camera_pos)
 
         local current_segment = player.current_segment
-        -- draw_minimap
-        local lastv=nil
-        for seg = current_segment +MINIMAP_START, current_segment + MINIMAP_END do
-            local v = get_vec_from_vecmap(seg)
-            if lastv ~= nil then
-                minimap_line(lastv,v,7)
-            end
-            lastv=v
-        end
         -- draw track
         local lastv
         for seg = current_segment - 30, current_segment + 30 do
@@ -1173,12 +1234,10 @@ function race()
 
                     if seg >= current_segment - 2 and seg < current_segment + 7 then
                         -- ground
-                        local ground=seg%2==0 and 1 or 17
+                        local ground=seg%2==0 and 5 or 18
                         quadfill(lastup2,lastdown2,up2,down2,ground)
                         if seg % mapsize == 0 then
                             linevec(lastup2, lastdown2, time < -1 and 8 or time < 0 and 9 or 11) -- start/end markers
-                        else
-                           linevec(lastup2, lastdown2, 1) -- normal verticals
                         end
                         -- kerbs
                         local middown=midpoint(down,lastdown)
@@ -1289,17 +1348,19 @@ function race()
         for _,p in pairs(particles) do
             line(p.x, p.y, p.x - p.xv, p.y - p.yv, p.ttl > 20 and 10 or (p.ttl > 10 and 9 or 8))
         end
-
-        -- local seg = get_segment(player.current_segment)
-        -- linevec(seg[1],seg[2],15)
-        -- linevec(seg[2],seg[3],15)
-        -- linevec(seg[3],seg[4],15)
-        -- linevec(seg[4],seg[1],15)
+        -- draw_minimap
+        if not self.completed then
+            local lastv=nil
+            for seg = current_segment +MINIMAP_START, current_segment + MINIMAP_END do
+                local v = get_vec_from_vecmap(seg)
+                if lastv ~= nil then
+                    minimap_line(lastv,v,7)
+                end
+                lastv=v
+            end
+        end
 
         camera()
-
-        -- print("mem:"..stat(0),0,0,7)
-        -- print("cpu:"..stat(1),0,8,7)
 
         -- get placing
         local placing = 1
@@ -1316,36 +1377,73 @@ function race()
             player.placing = placing
         end
 
-        gprint((player.placing or '?') .. '/' .. nplaces, 0, 1, 9)
-        local lap = flr(player.current_segment / mapsize) + 1
-        if lap > 3 then
-            gprint("Lap 3/3", 0, 10, 9)
-        else
-            gprint("Lap " .. lap .. '/3', 0, 10, 9)
-        end
-        gfx.blit(0,224,66,35,gfx.SCREEN_WIDTH-66,gfx.SCREEN_HEIGHT-35,0,0,false,false,1,1,1)
-        printc("" .. flr(player.speed * 10), 290, 210, 28)
-        gfx.blit(66,224,25*min(1,player.speed/15),8, gfx.SCREEN_WIDTH-28,gfx.SCREEN_HEIGHT-23,0,0,false,false,1,1,1)
-        gfx.blit(66,232,19*min(1,(player.accel^3)/(1.5^3)),9, gfx.SCREEN_WIDTH-60, gfx.SCREEN_HEIGHT-22,0,0,false,false,1,1,1)
+        --car dashboard
+        if not self.completed then
+            gfx.blit(0,224,66,35,gfx.SCREEN_WIDTH-66,gfx.SCREEN_HEIGHT-35,0,0,false,false,1,1,1)
+            printc("" .. flr(player.speed * 10), 370, 210, 28)
+            gfx.blit(66,224,25*min(1,player.speed/15),8, gfx.SCREEN_WIDTH-28,gfx.SCREEN_HEIGHT-23,0,0,false,false,1,1,1)
+            gfx.blit(66,232,19*min(1,(player.accel^3)/(1.5^3)),9, gfx.SCREEN_WIDTH-60, gfx.SCREEN_HEIGHT-22,0,0,false,false,1,1,1)
 
-        if player.cooldown > 0 then
-            if frame%4< 2 then
-                gfx.blit(66,249,21*(1-player.cooldown/30),4, gfx.SCREEN_WIDTH-61, gfx.SCREEN_HEIGHT-11,0,0,false,false,1,1,1)
+            if player.cooldown > 0 then
+                if frame%4< 2 then
+                    gfx.blit(66,249,21*(1-player.cooldown/30),4, gfx.SCREEN_WIDTH-61, gfx.SCREEN_HEIGHT-11,0,0,false,false,1,1,1)
+                end
+            else
+                local spritey=(player.boost < boost_warning_thresh and frame % 4 < 2) and 245 or 241
+                gfx.blit(66,spritey,21*(player.boost/100),4, gfx.SCREEN_WIDTH-61, gfx.SCREEN_HEIGHT-11,0,0,false,false,1,1,1)
+            end
+        end
+
+        -- ranking board
+        local lap = flr(player.current_segment / mapsize) + 1
+        if not self.completed then
+            gfx.rectangle(0,0,120,90,PAL[17].r,PAL[17].g,PAL[17].b)
+            gprint("Lap " .. lap .. '/'..self.lap_count, 12, 3, 9)
+            gfx.line(0,12,120,12,PAL[6].r,PAL[6].g,PAL[6].b)
+
+            local leader_time=format_time(time > 0 and time or 0)
+            for rank,car in pairs(self.ranks) do
+                local y=14+rank*10
+                gprint(string.format("%2d  %s %6s",rank, car.driver.short_name, rank==1 and leader_time or car.time),0,y,6)
+                rectfill(17,y,23,y+8,car.color)
             end
         else
-            local spritey=(player.boost < boost_warning_thresh and frame % 4 < 2) and 245 or 241
-            gfx.blit(66,spritey,21*(player.boost/100),4, gfx.SCREEN_WIDTH-61, gfx.SCREEN_HEIGHT-11,0,0,false,false,1,1,1)
+            --race results
+            gfx.rectangle(55,35,gfx.SCREEN_WIDTH-102,115,PAL[17].r,PAL[17].g,PAL[17].b)
+            gprint("Classification   Time   Best", 86,40,6)
+            gfx.line(78,50,gfx.SCREEN_WIDTH-70,50,PAL[6].r,PAL[6].g,PAL[6].b)
+            local leader_time=format_time(time > 0 and time or 0)
+            for rank,car in pairs(self.ranks) do
+                gprint(string.format("%2d %13s %6s",rank,car.driver.name,rank==1 and leader_time or car.time),78,50+rank*10,car.is_player and 7 or 22)
+                gprint(format_time(car.best_time),276,50+rank*10, car.driver.is_best and 8 or (car.is_player and 7 or 22))
+            end
         end
-
-        gprint("Time: " .. format_time(time > 0 and time or 0), 302-90, 10, 7)
-        if self.best_time then
-            gprint("Best: " .. format_time(self.best_time), 302-90, 1, 7)
-        end
-        -- if player.lost_count > 10 and not self.completed then
-        --	print("off course",54,60,8)
-        -- end
-        if player.wrong_way > 4 then
-            gprint("Wrong way!", 72, 104, 8)
+        -- lap times
+        if not self.completed then
+            if lap > 1 then
+                local is_personal_best=player.lap_times[lap-1] == player.best_time
+                if lap > self.lap_count or time < player.lap_times[lap-1] + 5 then
+                    if lap > self.lap_count or frame%10 > 2 then
+                        gprint("Lap " .. format_time(player.lap_times[lap-1]), 306, 10, player.driver.is_best and 8 or (is_personal_best and 3 or 7))
+                    end
+                else
+                    gprint("Lap " .. format_time(time > 0 and time - player.delta_time or 0), 306, 10, 7)
+                    gprint("Prev " .. format_time(player.lap_times[lap-1]), 298, 20, player.lap_times[lap-1] == best_lap_time and 8 or (is_personal_best and 3 or 7))
+                end
+            else
+                gprint("Lap " .. format_time(time > 0 and time - player.delta_time or 0), 306, 10, 7)
+            end
+            if player.best_time then
+                gprint("P best " .. format_time(player.best_time), 282, 1, player.driver.is_best and 8 or 3)
+            end
+            if best_lap_time then
+                gfx.line(258,29,gfx.SCREEN_WIDTH-9,29,PAL[6].r,PAL[6].g,PAL[6].b)
+                gprint("Race best " .. format_time(best_lap_time), 258, 31, 7)
+                printr(best_lap_driver.name, gfx.SCREEN_WIDTH-9, 41, 7)
+            end
+            if player.wrong_way > 4 then
+                gprint("Wrong way!", 152, 104, 8)
+            end
         end
 
         -- starting lights
@@ -1360,14 +1458,6 @@ function race()
             end
         end
         if player.collision > 0 or self.completed then
-            -- corrupt screen
-            for i = 1, (completed and 100 - ((completed_countdown / 5) * 100) or 10) do
-                local source = rnd(flr(0x6000 + 8192))
-                local range = flr(rnd(64))
-                local dest = 0x6000 + rnd(8192 - range) - 2
-                -- TODO
-                --memcpy(dest, source, range)
-            end
             player.collision = player.collision - 0.1
         end
     end
@@ -1450,11 +1540,11 @@ function paused_menu(game)
     end
     function m:draw()
         game:draw()
-        rectfill(35, 40, 93, 88, 1)
-        gprint("Paused", 40, 44, 7)
-        gprint("Continue", 40, 56, selected == 1 and frame % 4 < 2 and 7 or 6)
-        gprint("Restart race", 40, 62, selected == 2 and frame % 4 < 2 and 7 or 6)
-        gprint("Exit", 40, 70, selected == 3 and frame % 4 < 2 and 7 or 6)
+        rectfill(115, 40, 233, 88, 1)
+        gprint("Paused", 120, 44, 7)
+        gprint("Continue", 120, 56, selected == 1 and frame % 4 < 2 and 7 or 6)
+        gprint("Restart race", 120, 62, selected == 2 and frame % 4 < 2 and 7 or 6)
+        gprint("Exit", 120, 70, selected == 3 and frame % 4 < 2 and 7 or 6)
     end
     return m
 end
@@ -1486,18 +1576,8 @@ function completed_menu(game)
     end
     function m:draw()
         game:draw()
-        gprint(difficulty_names[difficulty] .. ": " .. cars[intro.car].name, 40, 32, 7)
-        gprint("Race complete!", 40, 44, 7)
-        gprint("Place: " .. player.placing, 40, 56, 7)
-
-        gprint("Time: " .. format_time(game.time), 35, 70, 7)
-        gprint("Best: " .. format_time(game.best_time), 35, 80, game.best_time == game.time and frame % 4 < 2 and 8 or 7)
-        if game.previous_best then
-            gprint("Previous: " .. format_time(game.previous_best), 30, 90, 7)
-        end
-
-        gprint("Retry", 44, 102, self.selected == 1 and frame % 16 < 8 and 8 or 6)
-        gprint("Exit", 44, 112, self.selected == 2 and frame % 16 < 8 and 8 or 6)
+        gprint("Retry", 120, 130, self.selected == 1 and frame % 16 < 8 and 8 or 6)
+        gprint("Exit", 120, 140, self.selected == 2 and frame % 16 < 8 and 8 or 6)
     end
     return m
 end
