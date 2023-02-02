@@ -114,6 +114,15 @@ function cam2screen(p)
     }
 end
 
+function draw_tires(p1,p2,p3,p4)
+    local x = scalev(normalize(vecsub(p3,p1)),1.5)
+    local y = scalev(normalize(vecsub(p2,p1)),0.7)
+    quadfill(vecsub(vecsub(p1,x),y),vecadd(vecsub(p1,x),y),vecsub(vecadd(p1,x),y),vecadd(vecadd(p1,x),y),0)
+    quadfill(vecsub(vecsub(p2,x),y),vecadd(vecsub(p2,x),y),vecsub(vecadd(p2,x),y),vecadd(vecadd(p2,x),y),0)
+    quadfill(vecsub(vecsub(p3,x),y),vecadd(vecsub(p3,x),y),vecsub(vecadd(p3,x),y),vecadd(vecadd(p3,x),y),0)
+    quadfill(vecsub(vecsub(p4,x),y),vecadd(vecsub(p4,x),y),vecsub(vecadd(p4,x),y),vecadd(vecadd(p4,x),y),0)
+end
+
 function trifill(p1,p2,p3,pal)
     local col=PAL[flr(pal)]
     p1=cam2screen(p1)
@@ -266,9 +275,11 @@ function create_car(race)
     car.controls = {}
     car.pos = copyv(get_vec_from_vecmap(car.current_segment))
     function car:get_poly()
-        return fmap(car_verts, function(i)
-            return rotate_point(vecadd(self.pos, i), self.angle, self.pos)
-        end)
+        return {
+             rotate_point(vecadd(self.pos, car_verts[1]), self.angle, self.pos),
+             rotate_point(vecadd(self.pos, car_verts[2]), self.angle, self.pos),
+             rotate_point(vecadd(self.pos, car_verts[3]), self.angle, self.pos),
+        }
     end
     function car:update(completed)
         local angle = self.angle
@@ -494,10 +505,14 @@ function create_car(race)
         local b = v[2]
         local c = v[3]
         local boost = self.boost
+        linevec(v[6],v[7],18)
+        quadfill(v[8],v[9],v[10],v[11],color)
         trifill(a,b,c,color+16)
         linevec(a, b, color)
         linevec(b, c, color)
         linevec(c, a, color)
+        draw_tires(v[4],v[5],v[6],v[7])
+        circfill(v[12].x,v[12].y,1,color+4)
         local circ = rotate_point(vecadd(self.pos, trail_offset), angle, self.pos)
         local outc = 12
         if self.boost and self.boost < 30 then
@@ -536,7 +551,12 @@ function set_game_mode(m)
 end
 
 function init()
-    car_verts = {vec(-4, -3), vec(4, 0), vec(-4, 3)}
+    car_verts = {
+        vec(-4, -3), vec(4, 0), vec(-4, 3), -- hull
+        vec(-3,-3),vec(-3,3),vec(2,-3),vec(2,3), -- tires positions
+        vec(4,-3),vec(4,3),vec(5,-3),vec(5,3), -- front warning
+        vec(0,0) -- pilot
+    }
 	for _,sfx in pairs(SFX) do
 		snd.new_pattern(sfx)
 	end
@@ -886,8 +906,7 @@ function race()
                 ai_car.angle = v.dir
                 local oldupdate = ai_car.update
                 ai_car.ai = ai_controls(ai_car)
-                global_ai = ai_car.ai
-                global_ai.skill = i + 4
+                ai_car.ai.skill = i+4
                 function ai_car:update()
                     self.ai:update()
                     oldupdate(self)
@@ -1067,7 +1086,6 @@ function race()
     end
 
     function race:draw()
-        -- local player = global_ai.car
         player = self.player
         time = self.time
         cls()
