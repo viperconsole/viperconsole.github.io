@@ -7,6 +7,7 @@ X_OFFSET = 80
 Y_OFFSET = 0
 MINIMAP_START=-10
 MINIMAP_END=20
+STARTING_GRID_LINES=3
 cam_pos = {
     x=0,
     y=0
@@ -238,7 +239,6 @@ function ai_controls(car)
                 c.brake = abs(diff) > steer
                 c.boost = car.boost > 24 - self.riskiness and (abs(diff) < steer / 2 or car.accel < 0.5)
                 self.decisions = self.decisions - 1
-                -- break
             end
         else
             c.accel = false
@@ -287,7 +287,6 @@ function create_car(race)
         local vel = self.vel
         local accel = self.accel
         local controls = self.controls
-
         if controls.accel then
             accel = accel + self.accsqr * 0.3
         else
@@ -407,6 +406,7 @@ function create_car(race)
                         -- current_segment+=1 -- try to find the car next frame
                         if self.lost_count > 30 then
                             -- lost for too long, bring them back to the last known good position
+                            print("car "..self.ai.skill.." lost")
                             local v = get_vec_from_vecmap(self.last_good_seg)
                             self.pos = copyv(v)
                             self.current_segment = self.last_good_seg - 2
@@ -496,6 +496,9 @@ function create_car(race)
     end
     function car:draw()
         self:draw_minimap()
+        if abs(self.current_segment-player.current_segment) > 10 then
+            return
+        end
         local angle = self.angle
         local color = self.color
         local v = fmap(car_verts, function(i)
@@ -826,6 +829,7 @@ function race()
         self.race_mode = race_mode
         sc1 = nil
         sc1timer = 0
+        camera_angle=0
 
         vecmap = {}
         boosters = {}
@@ -896,13 +900,24 @@ function race()
         table.insert(self.objects, p)
         self.player = p
         p.is_player = true
+        local lastvv = get_vec_from_vecmap(p.current_segment-1)
+        local v = get_vec_from_vecmap(p.current_segment)
+        local side = perpendicular(normalize(lastv and vecsub(v, lastv) or vec(1, 0)))
+        p.pos = vecadd(p.pos, scalev(side,15))
 
         if self.race_mode == 1 then
-            for i = 1, 3 do
+            for i = 1, STARTING_GRID_LINES*2-1 do
                 local ai_car = create_car(self)
-                ai_car.color = rnd(6) + 9
-                local v = get_vec_from_vecmap(-3 - i)
-                ai_car.pos = copyv(v)
+                ai_car.color = flr(rnd(6) + 9)
+                ai_car.current_segment=-3-i//2
+                local lastv = get_vec_from_vecmap(ai_car.current_segment-1)
+                local v = get_vec_from_vecmap(ai_car.current_segment)
+                local front=scalev(normalize(vecsub(v,lastv)),-15)
+                local side = perpendicular(normalize(lastv and vecsub(v, lastv) or vec(1, 0)))
+                ai_car.pos = vecadd(copyv(v),scalev(side, i%2==0 and 15 or -15))
+                if i%2==1 then
+                    ai_car.pos = vecadd(ai_car.pos,front)
+                end
                 ai_car.angle = v.dir
                 local oldupdate = ai_car.update
                 ai_car.ai = ai_controls(ai_car)
@@ -1082,7 +1097,7 @@ function race()
                 table.remove(particles, i)
             end
         end
-        camera_angle = camera_angle + (player.angle-camera_angle) * 0.05
+        camera_angle = camera_angle + (player.angle-camera_angle) * 0.03
     end
 
     function race:draw()
@@ -1116,8 +1131,9 @@ function race()
         local lastv
         for seg = current_segment - 30, current_segment + 30 do
             local v = get_vec_from_vecmap(seg)
-            local diff = perpendicular(normalize(lastv and vecsub(v, lastv) or vec(1, 0)))
-            local offset = scalev(diff, v.w)
+            local front = normalize(lastv and vecsub(v, lastv) or vec(1, 0))
+            local side = perpendicular(front)
+            local offset = scalev(side, v.w)
             up = vecsub(v, offset)
             down = vecadd(v, offset)
             local v1 = get_vec_from_vecmap(seg)
@@ -1126,11 +1142,11 @@ function race()
             kerbw = curve >2 and 8 or 0
             rkerbw = (v2.dir > v1.dir or curve >=4 )and kerbw or 0
             lkerbw = (v2.dir < v1.dir or curve >=4 )and kerbw or 0
-            offset = scalev(diff, v.w - lkerbw)
+            offset = scalev(side, v.w - lkerbw)
             up2 = vecsub(v, offset)
-            offset = scalev(diff, v.w - rkerbw)
+            offset = scalev(side, v.w - rkerbw)
             down2 = vecadd(v, offset)
-            offset = scalev(diff, v.w + 4)
+            offset = scalev(side, v.w + 4)
             up3 = vecsub(v, offset)
             down3 = vecadd(v, offset)
 
@@ -1175,7 +1191,30 @@ function race()
                         quadfill(midup2,midup,lastup2,lastup,8)
                         linevec(down2, down, 4)
                         linevec(up2, up, 4)
+                        -- starting grid
+                        local wseg=wrap(seg, mapsize)
+                        if wseg < mapsize and wseg > mapsize+1-STARTING_GRID_LINES*2 then
+                            side=scalev(side,12)
+                            local smallfront=scalev(front,-2)
+                            local lfront=scalev(front,-10)
+                            local p=vecadd(vecadd(lastup2,side),lfront)
+                            if wseg ~= mapsize-1 then
+                                local p2=vecadd(p,side)
+                                linevec(p,p2,7)
+                                linevec(p,vecadd(p,smallfront),7)
+                                linevec(p2,vecadd(p2,smallfront),7)
+                            end
+                            lfront=scalev(front,-24)
+                            p=vecadd(vecsub(lastdown2,side),lfront)
+                            if wseg ~= mapsize-4 then
+                                local p2=vecsub(p,side)
+                                linevec(p,p2,7)
+                                linevec(p,vecadd(p,smallfront),7)
+                                linevec(p2,vecadd(p2,smallfront),7)
+                            end
+                        end
                     end
+
                     -- inner track
                     local track_color = (seg < current_segment - 10 or seg > current_segment + 10) and 1 or
                                             (seg % 2 == 0 and 13 or 5)
