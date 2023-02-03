@@ -6,6 +6,7 @@ X_OFFSET = 130
 Y_OFFSET = 0
 MINIMAP_START = -10
 MINIMAP_END = 20
+LAP_COUNTS={2,3,5,15}
 cam_pos = {
     x = 0,
     y = 0
@@ -375,7 +376,7 @@ function ai_controls(car)
             return
         end
         local t = car.current_segment + s
-        if t < (mapsize * 3) + 10 then
+        if t < (mapsize * car.race.lap_count) + 10 then
             local v5 = get_vec_from_vecmap(t)
             if v5 then
                 local a = to_pico_angle(atan2(v5.y - car.pos.y, v5.x - car.pos.x))
@@ -796,6 +797,7 @@ function intro:init()
     self.game_mode = 1
     self.car = 1
     self.option = 1
+    self.lap_count = 1
 end
 
 function intro:update()
@@ -811,7 +813,7 @@ function intro:update()
             set_game_mode(mapeditor)
         else
             local race = race()
-            race:init(difficulty, self.game_mode)
+            race:init(difficulty, self.game_mode, self.lap_count)
             set_game_mode(race)
         end
     end
@@ -839,6 +841,13 @@ function intro:update()
         if inp.right_pressed() then
             self.car = self.car + 1
         end
+    elseif self.option == 4 then
+        if inp.left_pressed() then
+            self.lap_count = self.lap_count-1
+        end
+        if inp.right_pressed() then
+            self.lap_count = self.lap_count+1
+        end
     end
     if inp.up_pressed() then
         self.option = self.option - 1
@@ -847,8 +856,9 @@ function intro:update()
         self.option = self.option + 1
     end
     self.game_mode = mid(1, self.game_mode, 3)
-    self.option = mid(1, self.option, 3)
+    self.option = mid(1, self.option, 4)
     self.car = mid(1, self.car, 3)
+    self.lap_count = mid(1, self.lap_count, #LAP_COUNTS)
 end
 
 difficulty_names = {
@@ -865,29 +875,40 @@ difficulty_names = {
 function intro:draw()
     cls()
     sspr(0, 20, 224, 204, 80, 0)
-    draw_intro_minimap(-30, 3, 0.025, 6)
+    draw_intro_minimap(-60, 3, 0.025, 6)
     printr("x - accel", 303, 60, 6)
     printr("c - brake", 303, 70, 6)
     printr("up - boost", 303, 80, 6)
     printr("< > - steer", 303, 90, 6)
-    printr("tab -  menu", 303, 100, 6)
+    printr("esc -  menu", 303, 100, 6)
 
     local c = frame % 16 < 8 and 8 or 9
-    printr("Mode", 303, 2, self.option == 1 and c or 9)
-    printr(game_modes[self.game_mode], 303, 12, 6)
-    printr("Track", 304, 22, self.option == 2 and c or 9)
-    printr(difficulty_names[difficulty], 304, 32, 6)
-    printr(cars[self.car].name, 304, 42, self.option == 3 and c or 9)
+    printr("Mode", 202, 2, 6)
+    printr(game_modes[self.game_mode], 303, 2, self.option == 1 and c or 9)
+    printr("Track", 202, 12, 6)
+    printr(difficulty_names[difficulty], 304, 12, self.option == 2 and c or 9)
+    printr("Difficulty",202,22,6)
+    printr(cars[self.car].name, 304, 22, self.option == 3 and c or 9)
+    printr("Laps",202,32,6)
+    printr(""..LAP_COUNTS[self.lap_count], 304, 32, self.option == 4 and c or 9)
 end
 
 mapeditor = {
     sec = 0,
     mapoffx = 0,
     mapoffy = 0,
+    mousex = 0,
+    mousey = 0,
+    drag = false,
+    mouseoffx = 0,
+    mouseoffy = 0,
+    mdragx = 0,
+    mdragy = 0,
     sec_pos = nil
 }
 function mapeditor:init()
     scale = 0.05
+    camera_angle = 0.25
     self.sec = #mapsections
 end
 
@@ -934,11 +955,29 @@ end
 
 function mapeditor:update()
     local cs = mapsections[self.sec]
+    if inp.mouse_button(inp.MOUSE_LEFT) then
+        if not self.drag then
+            self.drag = true
+            self.mousex = inp.mouse_x()
+            self.mousey = inp.mouse_y()
+            self.mdragx = 0
+            self.mdragy = 0
+        else
+            self.mdragx = inp.mouse_x() - self.mousex
+            self.mdragy = inp.mouse_y() - self.mousey
+        end
+    elseif self.drag then
+        self.mouseoffx = self.mouseoffx + self.mdragx
+        self.mouseoffy = self.mouseoffy + self.mdragy
+        self.mdragx = 0
+        self.mdragy = 0
+        self.drag = false
+    end
     -- left/right : change section curve
     if inp.left_pressed() then
-        cs[2] = cs[2] - 1
+        cs[2] = cs[2] - (inp.key(inp.KEY_LSHIFT) and 0.1 or 1)
     elseif inp.right_pressed() then
-        cs[2] = cs[2] + 1
+        cs[2] = cs[2] + (inp.key(inp.KEY_LSHIFT) and 0.1 or 1)
         -- up/down : change section length
     elseif inp.up_pressed() then
         cs[1] = cs[1] + 1
@@ -994,7 +1033,7 @@ function draw_intro_minimap(sx, sy, scale, col, sec)
             dir = dir + (ms[2] - 128) / 100
             x = x + cos(dir) * 28 * scale
             y = y + sin(dir) * 28 * scale
-            if last_section then
+            if last_section and sec == nil then
                 local coef = seg / ms[1]
                 x = (1 - coef) * x + coef * sx
                 y = (1 - coef) * y + coef * sy
@@ -1009,11 +1048,12 @@ end
 
 function mapeditor:draw()
     cls()
-    self.sec_pos = draw_intro_minimap(30 + self.mapoffx, self.mapoffy - 10, scale, 6, self.sec)
+    self.sec_pos = draw_intro_minimap(30 + self.mapoffx + self.mouseoffx + self.mdragx,
+        self.mapoffy - 10 + self.mouseoffy + self.mdragy, scale, 6, self.sec)
     local pos = self.sec_pos[self.sec]
     self.mapoffx = pos[1]
     self.mapoffy = pos[2]
-    gprint(#mapsections .. '/' .. flr(0x1000 / 8 / 3), 222, 2, 7)
+    gprint("section " .. self.sec .. '/' .. #mapsections .. " seg " .. mapsections[self.sec][1], 122, 1, 7)
     gfx.blit(162, 8, 12, 12, 17, 4, 0, 0, false, false, 1, 1, 1)
     gprint("  delete", 17, 5, 7)
     gfx.blit(174, 8, 12, 12, 17, 16, 0, 0, false, false, 1, 1, 1)
@@ -1053,8 +1093,9 @@ end
 
 function race()
     local race = {}
-    function race:init(difficulty, race_mode)
+    function race:init(difficulty, race_mode, lap_count)
         self.race_mode = race_mode
+        self.lap_count = LAP_COUNTS[lap_count]
         sc1 = nil
         sc1timer = 0
         camera_angle = 0
@@ -1149,7 +1190,6 @@ function race()
         self.start_timer = self.race_mode == MODE_RACE
         self.record_replay = nil
         self.play_replay_step = 1
-        self.lap_count = 2
 
         -- spawn cars
 
@@ -1174,6 +1214,7 @@ function race()
         local side = perpendicular(normalize(lastv and vecsub(v, lastv) or vec(1, 0)))
         p.pos = vecadd(p.pos, scalev(side, 15))
         p.angle = v.dir
+        p.rank=1
         camera_angle = v.dir
         p.driver = {
             name = "Player",
@@ -1398,6 +1439,12 @@ function race()
                     table.insert(self.ranks, i, car)
                 end
             end
+            for i,car in pairs(self.ranks) do
+                if car.is_player then
+                    car.rank=i
+                    break
+                end
+            end
         end
     end
 
@@ -1465,7 +1512,7 @@ function race()
 
                     if seg >= current_segment - 2 and seg < current_segment + 7 then
                         -- ground
-                        local ground = seg % 2 == 0 and 5 or 18
+                        local ground = seg % 2 == 0 and 5 or 21
                         quadfill(lastup2, lastdown2, up2, down2, ground)
                         if seg % mapsize == 0 then
                             linevec(lastup2, lastdown2, time < -1 and 8 or time < 0 and 9 or 11) -- start/end markers
@@ -1630,6 +1677,9 @@ function race()
                 gfx.blit(66, spritey, 21 * (player.boost / 100), 4, gfx.SCREEN_WIDTH - 61, gfx.SCREEN_HEIGHT - 11, 0, 0,
                     false, false, 1, 1, 1)
             end
+            gfx.activate_font(1,124,249,100,10,10,10,"1234567890")
+            gprint(""..player.rank, gfx.SCREEN_WIDTH-40 - (player.rank > 9 and 5 or 0),gfx.SCREEN_HEIGHT-40, 7)
+            gfx.activate_font(gfx.SYSTEM_LAYER, 0,0,512,32, 8,8, "")
         end
 
         -- ranking board
@@ -1676,7 +1726,9 @@ function race()
                 local y = 26 + rank * 10
                 gprint(string.format("%2d %s %15s %6s", rank, teams[car.driver.team].short_name, car.driver.name,
                     rank == 1 and leader_time or car.time), 53, y, car.is_player and 7 or 22)
-                gprint(format_time(car.best_time), 301, y, car.driver.is_best and 8 or (car.is_player and 7 or 22))
+                if car.best_time then
+                    gprint(format_time(car.best_time), 301, y, car.driver.is_best and 8 or (car.is_player and 7 or 22))
+                end
                 rectfill(69, y - 1, 75, y + 7, car.color)
             end
         end
@@ -1706,7 +1758,6 @@ function race()
                 y = y + 9
             end
             if best_lap_time then
-                gfx.line(258, 29, gfx.SCREEN_WIDTH - 9, 29, PAL[6].r, PAL[6].g, PAL[6].b)
                 gprint("RBest " .. format_time(best_lap_time), 4, y, 7)
                 y = y + 9
                 gprint(best_lap_driver.name, 4, y, 7)
@@ -1721,10 +1772,10 @@ function race()
             local count = -flr(time)
             local lit = 4 - count
             for i = 1, lit do
-                gfx.blit(34, 0, 20, 20, 137 + i * 22, 44, 0, 0, false, false, 1, 1, 1)
+                gfx.blit(34, 0, 20, 20, 217 + i * 22, 44, 0, 0, false, false, 1, 1, 1)
             end
             for i = lit + 1, 3 do
-                gfx.blit(14, 0, 20, 20, 137 + i * 22, 44, 0, 0, false, false, 1, 1, 1)
+                gfx.blit(14, 0, 20, 20, 217 + i * 22, 44, 0, 0, false, false, 1, 1, 1)
             end
         end
         if player.collision > 0 or self.completed then
@@ -2081,9 +2132,10 @@ function draw_arrow(p, size, dir, col)
 end
 
 TRACKS = {
-    [0] = {10, 128, 32, 10, 126, 32, 10, 126, 32, 10, 128, 32, 10, 128, 32, 10, 127, 32, 10, 127, 32, 10, 127, 32, 10,
-           129, 32, 10, 127, 32, 10, 127, 32, 10, 124, 32, 10, 122, 32, 10, 124, 32, 10, 127, 32, 10, 131, 32, 10, 129,
-           32, 6, 128, 32, 3, 126, 32, 5, 127, 32, 0, 0, 0},
+    [0] = {14, 128, 32, 10, 128, 32, 10, 128, 32, 3, 120, 32, 3, 140, 32, 6, 126, 32, 6, 128, 32, 8, 126, 32, 6, 127,
+           32, 10, 128, 32, 2, 137, 32, 3, 123, 32, 10, 128, 32, 9, 125, 32, 8, 128, 32, 4, 123.0, 32, 12, 128, 32, 5,
+           129, 32, 16, 128, 32, 5, 131, 32, 7, 125, 32, 6, 131, 32, 37, 128, 32, 5, 120.9, 32, 6, 127, 32, 9, 127.1,
+           32, 11, 127.0, 32, 0, 0, 0},
     {10, 128, 32, 10, 125, 32, 10, 127, 32, 6, 127, 32, 6, 121, 32, 6, 120, 32, 6, 120, 32, 6, 120, 32, 6, 125, 32, 6,
      135, 32, 6, 131, 32, 6, 129, 32, 6, 130, 32, 6, 131, 32, 6, 130, 32, 6, 129, 32, 6, 128, 32, 6, 125, 32, 6, 125,
      32, 6, 124, 32, 6, 124, 32, 6, 123, 32, 6, 121, 32, 6, 127, 32, 6, 136, 32, 6, 128, 32, 6, 128, 32, 6, 126, 32, 6,
