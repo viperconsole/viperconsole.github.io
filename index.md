@@ -148,7 +148,7 @@ You can get the number of frames rendered during the last second with :
     * fill a disk
 
 ### <a name="h2.3"></a>2.3. Font drawing API
-* `activate_font(id, x,y,w,h, char_width,char_height, charset, chars_width)`
+* `activate_font(id, x,y,w,h, char_width,char_height, [charset], [chars_width])`
     * `x,y,w,h` define a region of a layer as a bitmap font to use with `gfx.print`
     * `char_width,char_height` if the size of a character in this bitmap (in case of non-monotype font, use the chars_width parameter)
     * `charset` is a string representing the characters in the bitmap font.
@@ -347,8 +347,6 @@ TODO
 ## <a name="h4"></a>4. Input API (inp)
 
 ### <a name="h4.1"></a>4.1. Keyboard API
-
-List of key values [here](https://developer.mozilla.org/fr/docs/Web/API/KeyboardEvent/key/Key_Values)
 
 * `key(key)` : return true if key is pressed.
 * `key_pressed(key)` : return true if key was pressed during last frame

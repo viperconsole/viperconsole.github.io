@@ -42,7 +42,7 @@ function cls()
     gfx.clear(c.r,c.g,c.b)
 end
 function sspr(x, y, w, h, dx, dy, dw, dh, hflip, vflip)
-    gfx.blit(x, y, w, h, dx + X_OFFSET,dy + Y_OFFSET,dw or 0,dh or 0, hflip or false,vflip or false,1,1,1)
+    gfx.blit(x, y, w, h, dx,dy,dw or 0,dh or 0, hflip or false,vflip or false,1,1,1)
 end
 cos= function(v)
     return math.cos(from_pico_angle(v))
@@ -732,7 +732,7 @@ difficulty_names = {
 
 function intro:draw()
     cls()
-    sspr(0, 20, 224, 204, 0, 0)
+    sspr(0, 20, 224, 204, 80, 0)
     draw_intro_minimap(40, 68, 0.025, 6)
     printr("x - accel", 303, 60, 6)
     printr("c - brake", 303, 70, 6)
@@ -769,20 +769,6 @@ function map_menu(game)
             if selected == 1 then
                 set_game_mode(game)
             elseif selected == 2 then
-                local start = 0x2000 + (difficulty * 512)
-                local offset = start
-                for i = 1, #mapsections do
-                    local ms = mapsections[i]
-                    poke(offset, ms[1])
-                    poke(offset + 1, ms[2])
-                    poke(offset + 2, ms[3])
-                    offset = offset + 3
-                end
-                poke(offset, 0)
-                poke(offset, 0)
-                poke(offset, 0)
-                cstore(start, start, 512)
-                save("picopout.p8")
                 local race = race()
                 race:init(difficulty, 2)
                 set_game_mode(race)
@@ -794,38 +780,44 @@ function map_menu(game)
     end
     function m:draw()
         game:draw()
-        rectfill(115, 40, 173, 88, 1)
-        gprint("editor", 120, 44, 7)
-        gprint("continue", 120, 56, selected == 1 and frame % 4 < 2 and 7 or 6)
-        gprint("test track", 120, 62, selected == 2 and frame % 4 < 2 and 7 or 6)
-        gprint("exit", 120, 70, selected == 3 and frame % 4 < 2 and 7 or 6)
+        rectfill(115, 40, 223, 98, 1)
+        gprint("Editor", 120, 44, 7)
+        gprint("Continue", 120, 56, selected == 1 and frame % 4 < 2 and 7 or 6)
+        gprint("Test track", 120, 68, selected == 2 and frame % 4 < 2 and 7 or 6)
+        gprint("Exit", 120, 80, selected == 3 and frame % 4 < 2 and 7 or 6)
     end
     return m
 end
 
 function mapeditor:update()
     local cs = mapsections[#mapsections]
+    -- left/right : change section curve
     if inp.left_pressed() then
         cs[2] = cs[2] - 1
-    elseif btnp(1, 0) then
+    elseif inp.right_pressed() then
         cs[2] = cs[2] + 1
-    elseif btnp(2, 0) then
+    -- up/down : change section length
+    elseif inp.up_pressed() then
         cs[1] = cs[1] + 1
-    elseif btnp(3, 0) then
+    elseif inp.down_pressed() then
         cs[1] = cs[1] - 1
-    elseif btnp(4, 0) then
+    -- action2 : delete last section
+    elseif inp.action2_pressed() then
         mapsections[#mapsections] = nil
-    elseif btnp(5, 0) then
+    -- action1 : duplicate last section
+    elseif inp.action1_pressed() then
         mapsections[#mapsections + 1] = {cs[1], cs[2], cs[3]}
-    elseif btnp(0, 1) then
+    -- pageup/pagedown : change section width
+    elseif inp.key_pressed(inp.KEY_PAGEDOWN) then
         cs[3] = cs[3] - 1
-    elseif btnp(1, 1) then
+    elseif inp.key_pressed(inp.KEY_PAGEUP) then
         cs[3] = cs[3] + 1
-    elseif btnp(2, 1) then
+    -- NUMPAD +/- : zoom
+    elseif inp.key_pressed(inp.KEY_NUMPADMINUS) then
         scale = scale * 0.9
-    elseif btnp(3, 1) then
+    elseif inp.key_pressed(inp.KEY_NUMPADPLUS) then
         scale = scale * 1.1
-    elseif btnp(4, 1) then
+    elseif inp.key_pressed(inp.KEY_ESCAPE) then
         -- test map todo: open menu
         set_game_mode(map_menu(self))
         return
@@ -840,10 +832,16 @@ function draw_intro_minimap(sx, sy, scale, col)
     local dir = 0
     for i = 1, #mapsections do
         ms = mapsections[i]
+        local last_section=i==#mapsections
         for seg = 1, ms[1] do
             dir = dir + (ms[2] - 128) / 100
             x = x + cos(dir) * 28 * scale
             y = y + sin(dir) * 28 * scale
+            if last_section then
+                local coef=seg/ms[1]
+                x = (1-coef)*x + coef * (sx-45)
+                y = (1-coef)*y + coef * (sy-100)
+            end
             line(lastx, lasty, x, y, #mapsections == i and 3 or col)
             lastx, lasty = x, y
         end
@@ -852,8 +850,22 @@ end
 
 function mapeditor:draw()
     cls()
-    draw_intro_minimap(64, 64, scale, 6)
-    gprint(#mapsections .. '/' .. flr(0x1000 / 8 / 3), 82, 2, 7)
+    draw_intro_minimap(64, 124, scale, 6)
+    gprint(#mapsections .. '/' .. flr(0x1000 / 8 / 3), 222, 2, 7)
+    gfx.blit(162,8,12,12,17,4,0,0,false,false,1,1,1)
+    gprint("  delete",17,5,7)
+    gfx.blit(174,8,12,12,17,16,0,0,false,false,1,1,1)
+    gprint("  add",17,17,7)
+    gfx.blit(66,8,24,12,5,28,0,0,false,false,1,1,1)
+    gprint("    length",1,29,7)
+    gfx.blit(90,8,24,12,5,40,0,0,false,false,1,1,1)
+    gprint("    curve",1,41,7)
+    gfx.blit(138,8,24,12,5,52,0,0,false,false,1,1,1)
+    gprint("    zoom",1,53,7)
+    gfx.blit(114,8,24,12,5,64,0,0,false,false,1,1,1)
+    gprint("    width",1,65,7)
+    gfx.blit(54,8,12,12,17,76,0,0,false,false,1,1,1)
+    gprint("  menu",17,77,7)
 end
 
 function load_map()
@@ -873,7 +885,6 @@ function load_map()
     if #mapsections == 0 then
         mapsections[1] = {10, 128, 32}
     end
-    print("loaded " .. #mapsections .. " sections")
 end
 
 function race()
@@ -888,9 +899,11 @@ function race()
         boosters = {}
         local dir, mx, my = 0, 0, 0
         local lastdir = 0
+        local startmx,startmy=nil,nil
 
         -- generate map
-        for _,ms in pairs(mapsections) do
+        for i,ms in pairs(mapsections) do
+            local last_section=i==#mapsections
             -- read length,curve,width from tiledata
             local length = ms[1]
             local curve = ms[2]
@@ -898,6 +911,38 @@ function race()
 
             if length == 0 then
                 break
+            end
+            if last_section then
+                -- fine tune curve to join smoothly the first and last segment
+                local bestcurve=0
+                for curve_dt=-9,9 do
+                    local newcurve=curve+curve_dt/10
+                    local l=length
+                    local d=dir
+                    local ld=lastdir
+                    local nmx=mx
+                    local nmy=my
+                    local mindist=1000
+                    while l > 0 do
+                        d=d+(newcurve-128)/100
+                        if abs(d - ld) > 0.09 then
+                            d = lerp(ld, d, 0.5)
+                            segment_length = 16
+                            l = l - 0.5
+                        else
+                            segment_length = 32
+                            l = l - 1
+                        end
+                        nmx = nmx + cos(d) * segment_length
+                        nmy = nmy + sin(d) * segment_length
+                    end
+                    local dist=sqrt((nmx-startmx)*(nmx-startmx)+(nmy-startmy)*(nmy-startmy))
+                    if dist < mindist then
+                        mindist=dist
+                        bestcurve = newcurve
+                    end
+                end
+                curve=bestcurve
             end
 
             while length > 0 do
@@ -914,13 +959,16 @@ function race()
 
                 mx = mx + cos(dir) * segment_length
                 my = my + sin(dir) * segment_length
+
                 table.insert(vecmap, mx)
                 table.insert(vecmap, my)
                 table.insert(vecmap, width)
                 table.insert(vecmap, dir)
-
+                if startmx == nil then
+                    startmx=mx
+                    startmy=my
+                end
                 mapsize = mapsize + 1
-
                 lastdir = dir
             end
         end
