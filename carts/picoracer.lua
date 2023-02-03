@@ -218,41 +218,49 @@ cars = {{
 teams = {
     ["Williamson"] = {
         color = 1,
+        color2=10,
         perf = 0,
         short_name = "WIL"
     },
     ["MacLoran"] = {
         color = 7,
+        color2=8,
         perf = 0,
         short_name = "MCL"
     },
     ["Benettson"] = {
         color = 11,
+        color2=26,
         perf = 0,
         short_name = "BEN"
     },
     ["Ferrero"] = {
         color = 8,
+        color2=8,
         perf = 0,
         short_name = "FER"
     },
     ["Leger"] = {
         color = 28,
+        color2=7,
         perf = 0,
         short_name = "LEG"
     },
     ["Lotusi"] = {
         color = 5,
+        color2=7,
         perf = 0,
         short_name = "LOT"
     },
     ["Soober"] = {
         color = 16,
+        color2=16,
         perf = 0,
         short_name = "SOO"
     },
     ["Jardon"] = {
         color = 29,
+        color2=8,
         perf = 0,
         short_name = "JAR"
     }
@@ -458,6 +466,7 @@ function create_car(race)
         last_good_pos = vec(),
         last_good_seg = 1,
         color = 8,
+        color2 = 8,
         collision = 0,
         delta_time = 0,
         lap_times = {},
@@ -695,9 +704,12 @@ function create_car(race)
         local b = v[2]
         local c = v[3]
         local boost = self.boost
-        linevec(v[6], v[7], 18)
-        quadfill(v[8], v[9], v[10], v[11], color)
-        trifill(a, b, c, color < 16 and (color + 16) or (color - 16))
+        linevec(v[6], v[7], 18) -- front suspension
+        quadfill(v[8], v[9], v[10], v[11], color) -- front wing
+        trifill(a, b, c, color < 16 and (color + 16) or (color - 16)) -- hull
+        trifill(v[13],v[14],v[15],self.color2)
+        trifill(v[16],v[17],v[18],self.color2)
+        -- hull outlin
         linevec(a, b, color)
         linevec(b, c, color)
         linevec(c, a, color)
@@ -744,7 +756,8 @@ function init()
     car_verts = {vec(-4, -3), vec(4, 0), vec(-4, 3), -- hull
     vec(-3, -3), vec(-3, 3), vec(2, -3), vec(2, 3), -- tires positions
     vec(4, -3), vec(4, 3), vec(5, -3), vec(5, 3), -- front wing
-    vec(0, 0) -- pilot helmet position
+    vec(0, 0), -- pilot helmet position
+    vec(-4,-3),vec(0,-1.5),vec(-4,0),vec(-4,3),vec(0,1.5),vec(-4,0), --second color
     }
     for _, sfx in pairs(SFX) do
         snd.new_pattern(sfx)
@@ -1237,6 +1250,7 @@ function race()
                 ai_car.current_segment = -3 - i // 2
                 ai_car.driver = drivers[i]
                 ai_car.color = teams[ai_car.driver.team].color
+                ai_car.color2 = teams[ai_car.driver.team].color2
                 ai_car.driver.is_best = false
                 local lastv = get_vec_from_vecmap(ai_car.current_segment - 1)
                 local v = get_vec_from_vecmap(ai_car.current_segment)
