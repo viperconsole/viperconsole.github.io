@@ -680,6 +680,7 @@ game_modes = {"Race vs AI", "Time Attack", "Track Editor"}
 function intro:init()
     -- music(0)
     difficulty = 0
+    camera_angle = 0.25
     load_map()
     self.game_mode = 1
     self.car = 1
@@ -753,7 +754,7 @@ difficulty_names = {
 function intro:draw()
     cls()
     sspr(0, 20, 224, 204, 80, 0)
-    draw_intro_minimap(40, 68, 0.025, 6)
+    draw_intro_minimap(-30, 3, 0.025, 6)
     printr("x - accel", 303, 60, 6)
     printr("c - brake", 303, 70, 6)
     printr("up - boost", 303, 80, 6)
@@ -768,9 +769,15 @@ function intro:draw()
     printr(cars[self.car].name, 304, 42, self.option == 3 and c or 9)
 end
 
-mapeditor = {}
+mapeditor = {
+    sec = 0,
+    mapoffx = 0,
+    mapoffy = 0,
+    sec_pos = nil
+}
 function mapeditor:init()
     scale = 0.05
+    self.sec = #mapsections
 end
 
 function map_menu(game)
@@ -815,7 +822,7 @@ function map_menu(game)
 end
 
 function mapeditor:update()
-    local cs = mapsections[#mapsections]
+    local cs = mapsections[self.sec]
     -- left/right : change section curve
     if inp.left_pressed() then
         cs[2] = cs[2] - 1
@@ -828,10 +835,18 @@ function mapeditor:update()
         cs[1] = cs[1] - 1
         -- action2 : delete last section
     elseif inp.action2_pressed() then
-        mapsections[#mapsections] = nil
+        if self.sec > 1 then
+            if self.sec == #mapsections then
+                mapsections[#mapsections] = nil
+            else
+                table.remove(mapsections, self.sec)
+            end
+            self.sec = self.sec - 1
+        end
         -- action1 : duplicate last section
     elseif inp.action1_pressed() then
         mapsections[#mapsections + 1] = {cs[1], cs[2], cs[3]}
+        self.sec = #mapsections
         -- pageup/pagedown : change section width
     elseif inp.key_pressed(inp.KEY_PAGEDOWN) then
         cs[3] = cs[3] - 1
@@ -842,6 +857,10 @@ function mapeditor:update()
         scale = scale * 0.9
     elseif inp.key_pressed(inp.KEY_NUMPADPLUS) then
         scale = scale * 1.1
+    elseif inp.key_pressed(inp.KEY_HOME) then
+        self.sec = self.sec == 1 and #mapsections or self.sec - 1
+    elseif inp.key_pressed(inp.KEY_END) then
+        self.sec = self.sec == #mapsections and 1 or self.sec + 1
     elseif inp.key_pressed(inp.KEY_ESCAPE) then
         -- test map todo: open menu
         set_game_mode(map_menu(self))
@@ -851,31 +870,38 @@ function mapeditor:update()
     cs[1] = mid(0, cs[1], 255)
 end
 
-function draw_intro_minimap(sx, sy, scale, col)
-    local x, y = sx - 45, sy - 100
+function draw_intro_minimap(sx, sy, scale, col, sec)
+    local x, y = sx, sy
     local lastx, lasty = x, y
     local dir = 0
+    local sec_pos = {{0, 0}}
     for i = 1, #mapsections do
         ms = mapsections[i]
         local last_section = i == #mapsections
+        local highlighted = i == sec
         for seg = 1, ms[1] do
             dir = dir + (ms[2] - 128) / 100
             x = x + cos(dir) * 28 * scale
             y = y + sin(dir) * 28 * scale
             if last_section then
                 local coef = seg / ms[1]
-                x = (1 - coef) * x + coef * (sx - 45)
-                y = (1 - coef) * y + coef * (sy - 100)
+                x = (1 - coef) * x + coef * sx
+                y = (1 - coef) * y + coef * sy
             end
-            line(lastx, lasty, x, y, #mapsections == i and 3 or col)
+            line(lastx, lasty, x, y, highlighted and 9 or (#mapsections == i and 3 or col))
             lastx, lasty = x, y
         end
+        table.insert(sec_pos, {sx - x, sy - y})
     end
+    return sec_pos
 end
 
 function mapeditor:draw()
     cls()
-    draw_intro_minimap(64, 124, scale, 6)
+    self.sec_pos = draw_intro_minimap(30 + self.mapoffx, self.mapoffy - 10, scale, 6, self.sec)
+    local pos = self.sec_pos[self.sec]
+    self.mapoffx = pos[1]
+    self.mapoffy = pos[2]
     gprint(#mapsections .. '/' .. flr(0x1000 / 8 / 3), 222, 2, 7)
     gfx.blit(162, 8, 12, 12, 17, 4, 0, 0, false, false, 1, 1, 1)
     gprint("  delete", 17, 5, 7)
@@ -889,8 +915,10 @@ function mapeditor:draw()
     gprint("    zoom", 1, 53, 7)
     gfx.blit(114, 8, 24, 12, 5, 64, 0, 0, false, false, 1, 1, 1)
     gprint("    width", 1, 65, 7)
-    gfx.blit(54, 8, 12, 12, 17, 76, 0, 0, false, false, 1, 1, 1)
-    gprint("  menu", 17, 77, 7)
+    gfx.blit(186, 8, 24, 12, 5, 76, 0, 0, false, false, 1, 1, 1)
+    gprint("    section", 1, 77, 7)
+    gfx.blit(54, 8, 12, 12, 17, 88, 0, 0, false, false, 1, 1, 1)
+    gprint("  menu", 17, 87, 7)
 end
 
 function load_map()
