@@ -213,66 +213,139 @@ cars = {{
     accsqr = 0.2
 }}
 
+teams = {
+    ["Williamson"] = {
+        color = 1,
+        perf = 0,
+        short_name = "WIL"
+    },
+    ["MacLoran"] = {
+        color = 7,
+        perf = 0,
+        short_name = "MCL"
+    },
+    ["Benettson"] = {
+        color = 11,
+        perf = 0,
+        short_name = "BEN"
+    },
+    ["Ferrero"] = {
+        color = 8,
+        perf = 0,
+        short_name = "FER"
+    },
+    ["Leger"] = {
+        color = 28,
+        perf = 0,
+        short_name = "LEG"
+    },
+    ["Lotusi"] = {
+        color = 5,
+        perf = 0,
+        short_name = "LOT"
+    },
+    ["Soober"] = {
+        color = 16,
+        perf = 0,
+        short_name = "SOO"
+    },
+    ["Jardon"] = {
+        color = 29,
+        perf = 0,
+        short_name = "JAR"
+    }
+}
+
 drivers = {{
     name = "Anton Sanna",
     short_name = "ASA",
-    skill = 8
+    skill = 8,
+    team = "MacLoran",
+    helmet = 10
 }, {
     name = "Alan Proust",
     short_name = "APR",
-    skill = 7
+    skill = 7,
+    team = "Williamson",
+    helmet = 11
 }, {
     name = "Nygel Mansale",
     short_name = "NMA",
-    skill = 5
+    skill = 5,
+    team = "Jardon",
+    helmet = 12
 }, {
-    name = "Nyson Packet",
-    short_name = "NPA",
-    skill = 6
+    name = "Gege Leyton",
+    short_name = "GLE",
+    skill = 6,
+    team = "Soober",
+    helmet = 13
 }, {
-    name = "Neke Louder",
-    short_name = "NLO",
-    skill = 6
+    name = "Mike Shoemaker",
+    short_name = "MSH",
+    skill = 6,
+    team = "Benettson",
+    helmet = 14
 }, {
-    name = "Andre Decezaro",
-    short_name = "ADE",
-    skill = 5
+    name = "Pierre Lami",
+    short_name = "PLA",
+    skill = 5,
+    team = "Jardon",
+    helmet = 15
 }, {
     name = "Richard Petrez",
     short_name = "RPE",
-    skill = 5
+    skill = 5,
+    team = "Benettson",
+    helmet = 22
 }, {
     name = "John HeartBerth",
     short_name = "JHE",
-    skill = 4
+    skill = 4,
+    team = "Lotusi",
+    helmet = 23
 }, {
     name = "Devon Hell",
     short_name = "DHE",
-    skill = 6
+    skill = 6,
+    team = "Williamson",
+    helmet = 24
 }, {
     name = "Martin Blundle",
     short_name = "MBL",
-    skill = 5
+    skill = 5,
+    team = "Leger",
+    helmet = 25
 }, {
     name = "Gerard Bergler",
     short_name = "GBE",
-    skill = 5
+    skill = 5,
+    team = "Ferrero",
+    helmet = 26
 }, {
     name = "Mike Andrett",
     short_name = "MAN",
-    skill = 4
+    skill = 4,
+    team = "MacLoran",
+    helmet = 27
 }, {
     name = "Carl Wandling",
     short_name = "CWA",
-    skill = 4
+    skill = 4,
+    team = "Soober",
+    helmet = 28
 }, {
-    name = "Kristof Fittipalden",
-    short_name = "KFI",
-    skill = 4
+    name = "Marco Blundelli",
+    short_name = "MBL",
+    skill = 4,
+    team = "Leger",
+    helmet = 29
 }, {
     name = "Mickael Hakinon",
     short_name = "MHA",
-    skill = 5
+    skill = 5,
+    team = "Lotusi",
+    helmet = 30
 }}
 
 track_colors = {8, 9, 10, 11, 12, 3, 14, 15}
@@ -604,9 +677,6 @@ function create_car(race)
         end
     end
     function car:draw()
-        if not self.race.completed then
-            self:draw_minimap()
-        end
         if abs(self.current_segment - player.current_segment) > 10 then
             return
         end
@@ -621,12 +691,12 @@ function create_car(race)
         local boost = self.boost
         linevec(v[6], v[7], 18)
         quadfill(v[8], v[9], v[10], v[11], color)
-        trifill(a, b, c, color + 16)
+        trifill(a, b, c, color < 16 and (color + 16) or (color - 16))
         linevec(a, b, color)
         linevec(b, c, color)
         linevec(c, a, color)
         draw_tires(v[4], v[5], v[6], v[7])
-        circfill(v[12].x, v[12].y, 1, color + 4)
+        circfill(v[12].x, v[12].y, 1, self.driver.helmet)
         local circ = rotate_point(vecadd(self.pos, trail_offset), angle, self.pos)
         local outc = 12
         if self.boost and self.boost < 30 then
@@ -1103,19 +1173,23 @@ function race()
         local v = get_vec_from_vecmap(p.current_segment)
         local side = perpendicular(normalize(lastv and vecsub(v, lastv) or vec(1, 0)))
         p.pos = vecadd(p.pos, scalev(side, 15))
+        p.angle = v.dir
+        camera_angle = v.dir
         p.driver = {
             name = "Player",
             short_name = "PLA",
-            is_best = false
+            is_best = false,
+            team = "Ferrero",
+            helmet = 0
         }
         table.insert(self.ranks, p)
 
         if self.race_mode == MODE_RACE then
             for i = 1, #drivers do
                 local ai_car = create_car(self)
-                ai_car.color = flr(rnd(6) + 9)
                 ai_car.current_segment = -3 - i // 2
                 ai_car.driver = drivers[i]
+                ai_car.color = teams[ai_car.driver.team].color
                 ai_car.driver.is_best = false
                 local lastv = get_vec_from_vecmap(ai_car.current_segment - 1)
                 local v = get_vec_from_vecmap(ai_car.current_segment)
@@ -1515,6 +1589,9 @@ function race()
                 end
                 lastv = v
             end
+            for _, car in pairs(self.objects) do
+                car:draw_minimap()
+            end
         end
 
         camera()
@@ -1593,13 +1670,14 @@ function race()
             -- race results
             gfx.rectangle(30, 10, gfx.SCREEN_WIDTH - 52, (#drivers + 4) * 10, PAL[17].r, PAL[17].g, PAL[17].b)
             gprint("Classification         Time   Best", 61, 20, 6)
-            gfx.line(53, 30, gfx.SCREEN_WIDTH - 70, 30, PAL[6].r, PAL[6].g, PAL[6].b)
+            gfx.line(30, 30, gfx.SCREEN_WIDTH - 22, 30, PAL[6].r, PAL[6].g, PAL[6].b)
             local leader_time = format_time(time > 0 and time or 0)
             for rank, car in pairs(self.ranks) do
-                gprint(string.format("%2d %19s %6s", rank, car.driver.name, rank == 1 and leader_time or car.time), 53,
-                    30 + rank * 10, car.is_player and 7 or 22)
-                gprint(format_time(car.best_time), 301, 30 + rank * 10,
-                    car.driver.is_best and 8 or (car.is_player and 7 or 22))
+                local y = 26 + rank * 10
+                gprint(string.format("%2d %s %15s %6s", rank, teams[car.driver.team].short_name, car.driver.name,
+                    rank == 1 and leader_time or car.time), 53, y, car.is_player and 7 or 22)
+                gprint(format_time(car.best_time), 301, y, car.driver.is_best and 8 or (car.is_player and 7 or 22))
+                rectfill(69, y - 1, 75, y + 7, car.color)
             end
         end
         -- lap times
