@@ -6,6 +6,7 @@ X_OFFSET = 130
 Y_OFFSET = 0
 MINIMAP_START = -10
 MINIMAP_END = 20
+SMOKE_LIFE=80
 LAP_COUNTS={2,3,5,15}
 cam_pos = {
     x = 0,
@@ -354,8 +355,37 @@ dt = 0.033333
 -- globals
 
 particles = {}
+smokes={}
 mapsize = 250
-
+function create_spark(pos,speed)
+    local p={
+        x = pos.x,
+        y = pos.y,
+        xv = -speed.x + (rnd(2) - 1) / 2,
+        yv = -speed.y + (rnd(2) - 1) / 2,
+        ttl = 30,
+    }
+    function p:draw()
+        line(self.x, self.y, self.x - self.xv, self.y - self.yv, self.ttl > 20 and 10 or (self.ttl > 10 and 9 or 8))
+    end
+    return p
+end
+function create_smoke(pos,speed)
+    local p={
+        x = pos.x,
+        y = pos.y,
+        xv = speed.x*0.3 + (rnd(2) - 1) / 2,
+        yv = speed.y*0.3 + (rnd(2) - 1) / 2,
+        ttl = SMOKE_LIFE,
+        r=math.random(2,4)
+    }
+    function p:draw()
+        local p = cam2screen(vec(self.x, self.y))
+        local rgb=self.ttl/SMOKE_LIFE
+        gfx.disk(p.x, p.y, self.r*(2-rgb), rgb,rgb,rgb)
+    end
+    return p
+end
 function ai_controls(car)
     -- look ahead 5 segments
     local ai = {
@@ -614,13 +644,7 @@ function create_car(race)
                     end
                     vel = vecsub(vel, scalev(rv, pen))
                     accel = accel * (1.0 - (pen / 10))
-                    table.insert(particles, {
-                        x = point.x,
-                        y = point.y,
-                        xv = -rv.x + (rnd(2) - 1) / 2,
-                        yv = -rv.y + (rnd(2) - 1) / 2,
-                        ttl = 30
-                    })
+                    table.insert(particles, create_spark(point,rv))
                     self.collision = self.collision + pen
                     if self.is_player then
                         if pen > 2 then
@@ -634,28 +658,6 @@ function create_car(race)
                 end
             end
         end
-        -- check for boosters under us
-        -- if current_segment then
-        --	for _,b in pairs(boosters) do
-        --		if b.segment <= current_segment+1 and b.segment >= current_segment-1 then
-        --			local bx = b.x
-        --			local by = b.y
-        --			local pa = rotate_point(bx-12,by-12,b.dir,bx,by)
-        --			local pb = rotate_point(bx+12,by-12,b.dir,bx,by)
-        --			local pc = rotate_point(bx+12,by+12,b.dir,bx,by)
-        --			local pd = rotate_point(bx-12,by+12,b.dir,bx,by)
-        --			if point_in_polygon({pa,pb,pc,pd},vec(x,y)) then
-        --				xv*=1.25
-        --				yv*=1.25
-        --				if self.is_player then
-        --					sfx(sfx_booster)
-        --					sc1=sfx_booster
-        --					sc1timer=10
-        --				end
-        --			end
-        --		end
-        --	end
-        -- end
 
         local car_dir = vec(cos(angle), sin(angle))
         self.vel = vecadd(vel, scalev(car_dir, accel))
@@ -669,6 +671,9 @@ function create_car(race)
         self.speed = speed -- used for showing speedo
         self.angle = angle
         self.current_segment = current_segment
+        if (accel > 1 and speed < 10) or accel > 2 or (controls.brake and speed < 7) then
+            table.insert(smokes,create_smoke(vecsub(self.pos,scalev(self.vel,0.5)),self.vel))
+        end
     end
     function car:draw_minimap()
         local seg = self.current_segment
@@ -738,8 +743,8 @@ end
 function init()
     car_verts = {vec(-4, -3), vec(4, 0), vec(-4, 3), -- hull
     vec(-3, -3), vec(-3, 3), vec(2, -3), vec(2, 3), -- tires positions
-    vec(4, -3), vec(4, 3), vec(5, -3), vec(5, 3), -- front warning
-    vec(0, 0) -- pilot
+    vec(4, -3), vec(4, 3), vec(5, -3), vec(5, 3), -- front wing
+    vec(0, 0) -- pilot helmet position
     }
     for _, sfx in pairs(SFX) do
         snd.new_pattern(sfx)
@@ -757,8 +762,10 @@ function init()
     gfx.set_active_layer(1)
     gfx.set_layer_size(1, 224, 259)
     gfx.load_img("picoracer", "picoracer/picoracer.png")
-    gfx.set_active_layer(0)
     gfx.set_sprite_layer(1)
+    gfx.show_layer(3)
+    gfx.set_layer_operation(3, gfx.LAYEROP_ADD)
+    gfx.set_active_layer(0)
     trail_offset = vec(-6, 0)
     intro:init()
     set_game_mode(intro)
@@ -1101,7 +1108,6 @@ function race()
         camera_angle = 0
 
         vecmap = {}
-        boosters = {}
         local dir, mx, my = 0, 0, 0
         local lastdir = 0
         local startmx, startmy = nil, nil
@@ -1369,13 +1375,7 @@ function race()
                                     p = p * 1.5
                                     obj.vel = vecadd(obj.vel, scalev(rv, p))
                                     obj2.vel = vecsub(obj2.vel, scalev(rv, p))
-                                    table.insert(particles, {
-                                        x = point.x,
-                                        y = point.y,
-                                        xv = -rv.x + (rnd(2) - 1) / 2,
-                                        yv = -rv.y + (rnd(2) - 1) / 2,
-                                        ttl = 30
-                                    })
+                                    table.insert(particles, create_spark(point,rv))
                                     obj.collision = obj.collision + flr(p)
                                     obj2.collision = obj2.collision + flr(p)
                                     if obj.is_player or obj2.is_player then
@@ -1413,6 +1413,17 @@ function race()
             p.ttl = p.ttl - 1
             if p.ttl < 0 then
                 table.remove(particles, i)
+            end
+        end
+        for i = #smokes, 1, -1 do
+            local p = smokes[i]
+            p.x = p.x + p.xv
+            p.y = p.y + p.yv
+            p.xv = p.xv * 0.95
+            p.yv = p.yv * 0.95
+            p.ttl = p.ttl - 1
+            if p.ttl < 0 then
+                table.remove(smokes, i)
             end
         end
         camera_angle = camera_angle + (player.angle - camera_angle) * 0.04
@@ -1603,20 +1614,7 @@ function race()
             lastv = v
         end
 
-        for _, b in pairs(boosters) do
-            if b.segment >= current_segment - 5 and b.segment <= current_segment + 5 then
-                draw_arrow(b, 8, b.dir, 12)
-            end
-        end
-
         -- draw objects
-        for _, obj in pairs(self.objects) do
-            if abs(obj.current_segment - player.current_segment) <= 10 then
-                if obj.trails then
-                    obj:draw_trails()
-                end
-            end
-        end
         for _, obj in pairs(self.objects) do
             if abs(obj.current_segment - player.current_segment) <= max(MINIMAP_START, MINIMAP_END) then
                 obj:draw()
@@ -1624,8 +1622,14 @@ function race()
         end
 
         for _, p in pairs(particles) do
-            line(p.x, p.y, p.x - p.xv, p.y - p.yv, p.ttl > 20 and 10 or (p.ttl > 10 and 9 or 8))
+            p:draw()
         end
+        gfx.set_active_layer(3)
+        gfx.clear(0,0,0)
+        for _, p in pairs(smokes) do
+            p:draw()
+        end
+        gfx.set_active_layer(0)
         -- draw_minimap
         if not self.completed then
             local lastv = nil

@@ -111,7 +111,7 @@ You can get the number of frames rendered during the last second with :
 
 * `set_layer_operation(id, layer_op)`
     * set the layer color operation.
-    * layer_op values : `gfx.SET`/`gfx.ADD`/`gfx.AVERAGE`/`gfx.SUBTRACT`/`gfx.MULTIPLY`.
+    * layer_op values : `gfx.LAYEROP_SET`/`gfx.LAYEROP_ADD`/`gfx.LAYEROP_AVERAGE`/`gfx.LAYEROP_SUBTRACT`/`gfx.LAYEROP_MULTIPLY`.
 
 * `clear(r,g,b)`
     * fill the active layer with the color `r,g,b`
