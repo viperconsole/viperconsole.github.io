@@ -1693,8 +1693,9 @@ function race()
                 y = y + 11;
                 local leader_time = format_time(time > 0 and time or 0)
                 for rank, car in pairs(self.ranks) do
-                    gprint(string.format("%2d  %s %6s", rank, car.driver.short_name,
-                        rank == 1 and leader_time or car.time), 4, y, car.is_player and 7 or 6)
+                    gprint(string.format("%2d", rank), 4, y, car.is_player and 7 or 6)
+                    gprint(car.driver.short_name, 32, y, car.is_player and 7 or 6)
+                    gprint(string.format("%7s", rank == 1 and leader_time or car.time), 60, y, car.is_player and 7 or 6)
                     rectfill(21, y, 27, y + 8, car.color)
                     y = y + 9
                 end
@@ -1724,7 +1725,7 @@ function race()
             local leader_time = format_time(time > 0 and time or 0)
             for rank, car in pairs(self.ranks) do
                 local y = 26 + rank * 10
-                gprint(string.format("%2d %s %15s %6s", rank, teams[car.driver.team].short_name, car.driver.name,
+                gprint(string.format("%2d %s %15s %7s", rank, teams[car.driver.team].short_name, car.driver.name,
                     rank == 1 and leader_time or car.time), 53, y, car.is_player and 7 or 22)
                 if car.best_time then
                     gprint(format_time(car.best_time), 301, y, car.driver.is_best and 8 or (car.is_player and 7 or 22))
@@ -1943,7 +1944,7 @@ function format_number(n)
 end
 
 function format_time(t)
-    return format_number(flr(t)) .. ":" .. format_number(flr((t - flr(t)) * 60))
+    return format_number(flr(t)) .. ":" .. format_number(flr((t - flr(t)) * 100))
 end
 
 function printr(text, x, y, c)
