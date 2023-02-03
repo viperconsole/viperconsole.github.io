@@ -2,11 +2,10 @@
 -- by impbox software
 --
 -- viper port by jice
-X_OFFSET = 80
+X_OFFSET = 130
 Y_OFFSET = 0
 MINIMAP_START = -10
 MINIMAP_END = 20
-STARTING_GRID_LINES = 3
 cam_pos = {
     x = 0,
     y = 0
@@ -118,7 +117,7 @@ function world2minimap(p)
     p = vecsub(p, cam_pos)
     p = rotate_point(p, -camera_angle + 0.25, vec(0, 0))
     p = scalev(p, 0.05)
-    p = vecadd(p, vec(20, 180))
+    p = vecadd(p, vec(340, 120))
     return p
 end
 
@@ -234,6 +233,46 @@ drivers = {{
     name = "Neke Louder",
     short_name = "NLO",
     skill = 6
+}, {
+    name = "Andre Decezaro",
+    short_name = "ADE",
+    skill = 5
+}, {
+    name = "Richard Petrez",
+    short_name = "RPE",
+    skill = 5
+}, {
+    name = "John HeartBerth",
+    short_name = "JHE",
+    skill = 4
+}, {
+    name = "Devon Hell",
+    short_name = "DHE",
+    skill = 6
+}, {
+    name = "Martin Blundle",
+    short_name = "MBL",
+    skill = 5
+}, {
+    name = "Gerard Bergler",
+    short_name = "GBE",
+    skill = 5
+}, {
+    name = "Mike Andrett",
+    short_name = "MAN",
+    skill = 4
+}, {
+    name = "Carl Wandling",
+    short_name = "CWA",
+    skill = 4
+}, {
+    name = "Kristof Fittipalden",
+    short_name = "KFI",
+    skill = 4
+}, {
+    name = "Mickael Hakinon",
+    short_name = "MHA",
+    skill = 5
 }}
 
 track_colors = {8, 9, 10, 11, 12, 3, 14, 15}
@@ -452,7 +491,7 @@ function create_car(race)
                         self.delta_time = self.delta_time + lap_time
                         if best_lap_time == nil or lap_time < best_lap_time then
                             best_lap_time = lap_time
-                            if best_lap_driver then
+                            if best_lap_driver ~= nil then
                                 best_lap_driver.is_best = false
                             end
                             best_lap_driver = self.driver
@@ -565,7 +604,9 @@ function create_car(race)
         end
     end
     function car:draw()
-        self:draw_minimap()
+        if not self.race.completed then
+            self:draw_minimap()
+        end
         if abs(self.current_segment - player.current_segment) > 10 then
             return
         end
@@ -1070,7 +1111,7 @@ function race()
         table.insert(self.ranks, p)
 
         if self.race_mode == MODE_RACE then
-            for i = 1, STARTING_GRID_LINES * 2 - 1 do
+            for i = 1, #drivers do
                 local ai_car = create_car(self)
                 ai_car.color = flr(rnd(6) + 9)
                 ai_car.current_segment = -3 - i // 2
@@ -1368,7 +1409,7 @@ function race()
                         linevec(up2, up, 4)
                         -- starting grid
                         local wseg = wrap(seg, mapsize)
-                        if wseg < mapsize and wseg > mapsize + 1 - STARTING_GRID_LINES * 2 then
+                        if wseg < mapsize and wseg > mapsize - #drivers then
                             side = scalev(side, 12)
                             local smallfront = scalev(front, -2)
                             local lfront = scalev(front, -10)
@@ -1516,45 +1557,48 @@ function race()
 
         -- ranking board
         local lap = flr(player.current_segment / mapsize) + 1
+        local y = 1
         if not self.completed then
             if self.race_mode == MODE_RACE then
-                gfx.rectangle(0, 0, 120, 90, PAL[17].r, PAL[17].g, PAL[17].b)
-                gprint("Lap " .. lap .. '/' .. self.lap_count, 12, 3, 9)
-                gfx.line(0, 12, 120, 12, PAL[6].r, PAL[6].g, PAL[6].b)
-
+                gfx.rectangle(0, 0, 120, gfx.SCREEN_HEIGHT, PAL[17].r, PAL[17].g, PAL[17].b)
+                gprint("Lap " .. lap .. '/' .. self.lap_count, 12, y, 9)
+                gfx.line(0, y + 9, 120, y + 9, PAL[6].r, PAL[6].g, PAL[6].b)
+                y = y + 11;
                 local leader_time = format_time(time > 0 and time or 0)
                 for rank, car in pairs(self.ranks) do
-                    local y = 14 + rank * 10
                     gprint(string.format("%2d  %s %6s", rank, car.driver.short_name,
-                        rank == 1 and leader_time or car.time), 0, y, 6)
-                    rectfill(17, y, 23, y + 8, car.color)
+                        rank == 1 and leader_time or car.time), 4, y, car.is_player and 7 or 6)
+                    rectfill(21, y, 27, y + 8, car.color)
+                    y = y + 9
                 end
+                gfx.line(0, y, 120, y, PAL[6].r, PAL[6].g, PAL[6].b)
+                y = y + 3
             elseif self.race_mode == MODE_TIME_ATTACK then
                 gfx.rectangle(0, 0, 120, 100, PAL[17].r, PAL[17].g, PAL[17].b)
-                gprint(string.format("%2d %6s", lap, format_time(time > 0 and time or 0)), 20, 3, 9)
-                local y = 3
+                gprint(string.format("%2d %6s", lap, format_time(time > 0 and time or 0)), 20, y, 9)
+                y = y + 10
                 for i = #player.lap_times, 1, -1 do
                     local t = player.lap_times[i]
-                    y = y + 10
                     if y > 73 then
                         break
                     end
                     gprint(string.format("%2d %6s", i, format_time(t)), 20, y, 9)
+                    y = y + 10
                 end
                 if player.best_time then
-                    gprint(string.format("Best %6s", format_time(player.best_time)), 4, 83, 8)
+                    gprint(string.format("Best %6s", format_time(player.best_time)), 4, y, 8)
                 end
             end
         else
             -- race results
-            gfx.rectangle(55, 35, gfx.SCREEN_WIDTH - 102, 115, PAL[17].r, PAL[17].g, PAL[17].b)
-            gprint("Classification   Time   Best", 86, 40, 6)
-            gfx.line(78, 50, gfx.SCREEN_WIDTH - 70, 50, PAL[6].r, PAL[6].g, PAL[6].b)
+            gfx.rectangle(30, 10, gfx.SCREEN_WIDTH - 52, (#drivers + 4) * 10, PAL[17].r, PAL[17].g, PAL[17].b)
+            gprint("Classification         Time   Best", 61, 20, 6)
+            gfx.line(53, 30, gfx.SCREEN_WIDTH - 70, 30, PAL[6].r, PAL[6].g, PAL[6].b)
             local leader_time = format_time(time > 0 and time or 0)
             for rank, car in pairs(self.ranks) do
-                gprint(string.format("%2d %13s %6s", rank, car.driver.name, rank == 1 and leader_time or car.time), 78,
-                    50 + rank * 10, car.is_player and 7 or 22)
-                gprint(format_time(car.best_time), 276, 50 + rank * 10,
+                gprint(string.format("%2d %19s %6s", rank, car.driver.name, rank == 1 and leader_time or car.time), 53,
+                    30 + rank * 10, car.is_player and 7 or 22)
+                gprint(format_time(car.best_time), 301, 30 + rank * 10,
                     car.driver.is_best and 8 or (car.is_player and 7 or 22))
             end
         end
@@ -1564,24 +1608,30 @@ function race()
                 local is_personal_best = player.lap_times[lap - 1] == player.best_time
                 if lap > self.lap_count or time < player.lap_times[lap - 1] + 5 then
                     if lap > self.lap_count or frame % 10 > 2 then
-                        gprint("Lap " .. format_time(player.lap_times[lap - 1]), 306, 10,
+                        gprint("Lap   " .. format_time(player.lap_times[lap - 1]), 4, y,
                             player.driver.is_best and 8 or (is_personal_best and 3 or 7))
                     end
+                    y = y + 18
                 else
-                    gprint("Lap " .. format_time(time > 0 and time - player.delta_time or 0), 306, 10, 7)
-                    gprint("Prev " .. format_time(player.lap_times[lap - 1]), 298, 20,
+                    gprint("Lap   " .. format_time(time > 0 and time - player.delta_time or 0), 4, y, 7)
+                    y = y + 9
+                    gprint("Prev  " .. format_time(player.lap_times[lap - 1]), 4, y,
                         player.lap_times[lap - 1] == best_lap_time and 8 or (is_personal_best and 3 or 7))
+                    y = y + 9
                 end
             else
-                gprint("Lap " .. format_time(time > 0 and time - player.delta_time or 0), 306, 10, 7)
+                gprint("Lap   " .. format_time(time > 0 and time - player.delta_time or 0), 4, y, 7)
+                y = y + 9
             end
             if player.best_time then
-                gprint("P best " .. format_time(player.best_time), 282, 1, player.driver.is_best and 8 or 3)
+                gprint("PBest " .. format_time(player.best_time), 4, y, player.driver.is_best and 8 or 3)
+                y = y + 9
             end
             if best_lap_time then
                 gfx.line(258, 29, gfx.SCREEN_WIDTH - 9, 29, PAL[6].r, PAL[6].g, PAL[6].b)
-                gprint("Race best " .. format_time(best_lap_time), 258, 31, 7)
-                printr(best_lap_driver.name, gfx.SCREEN_WIDTH - 9, 41, 7)
+                gprint("RBest " .. format_time(best_lap_time), 4, y, 7)
+                y = y + 9
+                gprint(best_lap_driver.name, 4, y, 7)
             end
             if player.wrong_way > 4 then
                 gprint("Wrong way!", 152, 104, 8)
@@ -1718,8 +1768,8 @@ function completed_menu(game)
     end
     function m:draw()
         game:draw()
-        gprint("Retry", 120, 130, self.selected == 1 and frame % 16 < 8 and 8 or 6)
-        gprint("Exit", 120, 140, self.selected == 2 and frame % 16 < 8 and 8 or 6)
+        gprint("Retry", 53, 204, self.selected == 1 and frame % 16 < 8 and 8 or 6)
+        gprint("Exit", 53, 214, self.selected == 2 and frame % 16 < 8 and 8 or 6)
     end
     return m
 end
