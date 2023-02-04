@@ -6,8 +6,8 @@ X_OFFSET = 130
 Y_OFFSET = 0
 MINIMAP_START = -10
 MINIMAP_END = 20
-SMOKE_LIFE=80
-LAP_COUNTS={2,3,5,15}
+SMOKE_LIFE = 80
+LAP_COUNTS = {2, 3, 5, 15}
 cam_pos = {
     x = 0,
     y = 0
@@ -218,49 +218,49 @@ cars = {{
 teams = {
     ["Williamson"] = {
         color = 1,
-        color2=10,
+        color2 = 10,
         perf = 0,
         short_name = "WIL"
     },
     ["MacLoran"] = {
         color = 7,
-        color2=8,
+        color2 = 8,
         perf = 0,
         short_name = "MCL"
     },
     ["Benettson"] = {
         color = 11,
-        color2=26,
+        color2 = 26,
         perf = 0,
         short_name = "BEN"
     },
     ["Ferrero"] = {
         color = 8,
-        color2=8,
+        color2 = 8,
         perf = 0,
         short_name = "FER"
     },
     ["Leger"] = {
         color = 28,
-        color2=7,
+        color2 = 7,
         perf = 0,
         short_name = "LEG"
     },
     ["Lotusi"] = {
         color = 5,
-        color2=7,
+        color2 = 7,
         perf = 0,
         short_name = "LOT"
     },
     ["Soober"] = {
         color = 16,
-        color2=16,
+        color2 = 16,
         perf = 0,
         short_name = "SOO"
     },
     ["Jardon"] = {
         color = 29,
-        color2=8,
+        color2 = 8,
         perf = 0,
         short_name = "JAR"
     }
@@ -363,34 +363,34 @@ dt = 0.033333
 -- globals
 
 particles = {}
-smokes={}
+smokes = {}
 mapsize = 250
-function create_spark(pos,speed)
-    local p={
+function create_spark(pos, speed)
+    local p = {
         x = pos.x,
         y = pos.y,
         xv = -speed.x + (rnd(2) - 1) / 2,
         yv = -speed.y + (rnd(2) - 1) / 2,
-        ttl = 30,
+        ttl = 30
     }
     function p:draw()
         line(self.x, self.y, self.x - self.xv, self.y - self.yv, self.ttl > 20 and 10 or (self.ttl > 10 and 9 or 8))
     end
     return p
 end
-function create_smoke(pos,speed)
-    local p={
+function create_smoke(pos, speed)
+    local p = {
         x = pos.x,
         y = pos.y,
-        xv = speed.x*0.3 + (rnd(2) - 1) / 2,
-        yv = speed.y*0.3 + (rnd(2) - 1) / 2,
+        xv = speed.x * 0.3 + (rnd(2) - 1) / 2,
+        yv = speed.y * 0.3 + (rnd(2) - 1) / 2,
         ttl = SMOKE_LIFE,
-        r=math.random(2,4)
+        r = math.random(2, 4)
     }
     function p:draw()
         local p = cam2screen(vec(self.x, self.y))
-        local rgb=self.ttl/SMOKE_LIFE
-        gfx.disk(p.x, p.y, self.r*(2-rgb), rgb,rgb,rgb)
+        local rgb = self.ttl / SMOKE_LIFE
+        gfx.disk(p.x, p.y, self.r * (2 - rgb), rgb, rgb, rgb)
     end
     return p
 end
@@ -653,7 +653,7 @@ function create_car(race)
                     end
                     vel = vecsub(vel, scalev(rv, pen))
                     accel = accel * (1.0 - (pen / 10))
-                    table.insert(particles, create_spark(point,rv))
+                    table.insert(particles, create_spark(point, rv))
                     self.collision = self.collision + pen
                     if self.is_player then
                         if pen > 2 then
@@ -681,7 +681,7 @@ function create_car(race)
         self.angle = angle
         self.current_segment = current_segment
         if (accel > 1 and speed < 10) or accel > 2 or (controls.brake and speed < 7) then
-            table.insert(smokes,create_smoke(vecsub(self.pos,scalev(self.vel,0.5)),self.vel))
+            table.insert(smokes, create_smoke(vecsub(self.pos, scalev(self.vel, 0.5)), self.vel))
         end
     end
     function car:draw_minimap()
@@ -707,8 +707,8 @@ function create_car(race)
         linevec(v[6], v[7], 18) -- front suspension
         quadfill(v[8], v[9], v[10], v[11], color) -- front wing
         trifill(a, b, c, color < 16 and (color + 16) or (color - 16)) -- hull
-        trifill(v[13],v[14],v[15],self.color2)
-        trifill(v[16],v[17],v[18],self.color2)
+        trifill(v[13], v[14], v[15], self.color2)
+        trifill(v[16], v[17], v[18], self.color2)
         -- hull outlin
         linevec(a, b, color)
         linevec(b, c, color)
@@ -757,7 +757,7 @@ function init()
     vec(-3, -3), vec(-3, 3), vec(2, -3), vec(2, 3), -- tires positions
     vec(4, -3), vec(4, 3), vec(5, -3), vec(5, 3), -- front wing
     vec(0, 0), -- pilot helmet position
-    vec(-4,-3),vec(0,-1.5),vec(-4,0),vec(-4,3),vec(0,1.5),vec(-4,0), --second color
+    vec(-4, -3), vec(0, -1.5), vec(-4, 0), vec(-4, 3), vec(0, 1.5), vec(-4, 0) -- second color
     }
     for _, sfx in pairs(SFX) do
         snd.new_pattern(sfx)
@@ -863,10 +863,10 @@ function intro:update()
         end
     elseif self.option == 4 then
         if inp.left_pressed() then
-            self.lap_count = self.lap_count-1
+            self.lap_count = self.lap_count - 1
         end
         if inp.right_pressed() then
-            self.lap_count = self.lap_count+1
+            self.lap_count = self.lap_count + 1
         end
     end
     if inp.up_pressed() then
@@ -882,7 +882,7 @@ function intro:update()
 end
 
 difficulty_names = {
-    [0] = "Berlin",
+    [0] = "Monzana",
     "Vancouver",
     "Melbourne",
     "Detroit",
@@ -907,10 +907,10 @@ function intro:draw()
     printr(game_modes[self.game_mode], 303, 2, self.option == 1 and c or 9)
     printr("Track", 202, 12, 6)
     printr(difficulty_names[difficulty], 304, 12, self.option == 2 and c or 9)
-    printr("Difficulty",202,22,6)
+    printr("Difficulty", 202, 22, 6)
     printr(cars[self.car].name, 304, 22, self.option == 3 and c or 9)
-    printr("Laps",202,32,6)
-    printr(""..LAP_COUNTS[self.lap_count], 304, 32, self.option == 4 and c or 9)
+    printr("Laps", 202, 32, 6)
+    printr("" .. LAP_COUNTS[self.lap_count], 304, 32, self.option == 4 and c or 9)
 end
 
 mapeditor = {
@@ -1123,7 +1123,6 @@ function race()
         vecmap = {}
         local dir, mx, my = 0, 0, 0
         local lastdir = 0
-        local startmx, startmy = nil, nil
 
         -- generate map
         for i, ms in pairs(mapsections) do
@@ -1139,14 +1138,14 @@ function race()
             if last_section then
                 -- fine tune curve to join smoothly the first and last segment
                 local bestcurve = 0
-                for curve_dt = -9, 9 do
-                    local newcurve = curve + curve_dt / 10
+                local mindist = 1000
+                for curve_dt = -90, 90 do
+                    local newcurve = curve + curve_dt / 100
                     local l = length
                     local d = dir
                     local ld = lastdir
                     local nmx = mx
                     local nmy = my
-                    local mindist = 1000
                     while l > 0 do
                         d = d + (newcurve - 128) / 100
                         if abs(d - ld) > 0.09 then
@@ -1160,7 +1159,7 @@ function race()
                         nmx = nmx + cos(d) * segment_length
                         nmy = nmy + sin(d) * segment_length
                     end
-                    local dist = sqrt((nmx - startmx) * (nmx - startmx) + (nmy - startmy) * (nmy - startmy))
+                    local dist = sqrt(nmx * nmx + nmy * nmy)
                     if dist < mindist then
                         mindist = dist
                         bestcurve = newcurve
@@ -1188,10 +1187,6 @@ function race()
                 table.insert(vecmap, my)
                 table.insert(vecmap, width)
                 table.insert(vecmap, dir)
-                if startmx == nil then
-                    startmx = mx
-                    startmy = my
-                end
                 mapsize = mapsize + 1
                 lastdir = dir
             end
@@ -1233,7 +1228,7 @@ function race()
         local side = perpendicular(normalize(lastv and vecsub(v, lastv) or vec(1, 0)))
         p.pos = vecadd(p.pos, scalev(side, 15))
         p.angle = v.dir
-        p.rank=1
+        p.rank = 1
         camera_angle = v.dir
         p.driver = {
             name = "Player",
@@ -1389,7 +1384,7 @@ function race()
                                     p = p * 1.5
                                     obj.vel = vecadd(obj.vel, scalev(rv, p))
                                     obj2.vel = vecsub(obj2.vel, scalev(rv, p))
-                                    table.insert(particles, create_spark(point,rv))
+                                    table.insert(particles, create_spark(point, rv))
                                     obj.collision = obj.collision + flr(p)
                                     obj2.collision = obj2.collision + flr(p)
                                     if obj.is_player or obj2.is_player then
@@ -1409,7 +1404,7 @@ function race()
             end
         end
 
-        if player.current_segment == mapsize * self.lap_count and self.race_mode == MODE_RACE then
+        if self.race_mode == MODE_RACE and player.current_segment == mapsize * self.lap_count then
             -- completed
             snd.stop_note(1)
             self.completed = true
@@ -1464,9 +1459,9 @@ function race()
                     table.insert(self.ranks, i, car)
                 end
             end
-            for i,car in pairs(self.ranks) do
+            for i, car in pairs(self.ranks) do
                 if car.is_player then
-                    car.rank=i
+                    car.rank = i
                     break
                 end
             end
@@ -1555,7 +1550,7 @@ function race()
                         linevec(up2, up, 4)
                         -- starting grid
                         local wseg = wrap(seg, mapsize)
-                        if wseg < mapsize and wseg > mapsize - #drivers then
+                        if wseg < mapsize and wseg > mapsize - #drivers//2-3 then
                             side = scalev(side, 12)
                             local smallfront = scalev(front, -2)
                             local lfront = scalev(front, -10)
@@ -1568,7 +1563,7 @@ function race()
                             end
                             lfront = scalev(front, -24)
                             p = vecadd(vecsub(lastdown2, side), lfront)
-                            if wseg ~= mapsize - 4 then
+                            if wseg ~= mapsize - #drivers//2-2 then
                                 local p2 = vecsub(p, side)
                                 linevec(p, p2, 7)
                                 linevec(p, vecadd(p, smallfront), 7)
@@ -1639,7 +1634,7 @@ function race()
             p:draw()
         end
         gfx.set_active_layer(3)
-        gfx.clear(0,0,0)
+        gfx.clear(0, 0, 0)
         for _, p in pairs(smokes) do
             p:draw()
         end
@@ -1695,9 +1690,9 @@ function race()
                 gfx.blit(66, spritey, 21 * (player.boost / 100), 4, gfx.SCREEN_WIDTH - 61, gfx.SCREEN_HEIGHT - 11, 0, 0,
                     false, false, 1, 1, 1)
             end
-            gfx.activate_font(1,124,249,100,10,10,10,"1234567890")
-            gprint(""..player.rank, gfx.SCREEN_WIDTH-40 - (player.rank > 9 and 5 or 0),gfx.SCREEN_HEIGHT-40, 7)
-            gfx.activate_font(gfx.SYSTEM_LAYER, 0,0,512,32, 8,8, "")
+            gfx.activate_font(1, 124, 249, 100, 10, 10, 10, "1234567890")
+            gprint("" .. player.rank, gfx.SCREEN_WIDTH - 40 - (player.rank > 9 and 5 or 0), gfx.SCREEN_HEIGHT - 40, 7)
+            gfx.activate_font(gfx.SYSTEM_LAYER, 0, 0, 512, 32, 8, 8, "")
         end
 
         -- ranking board
@@ -2153,8 +2148,8 @@ end
 TRACKS = {
     [0] = {14, 128, 32, 10, 128, 32, 10, 128, 32, 3, 120, 32, 3, 140, 32, 6, 126, 32, 6, 128, 32, 8, 126, 32, 6, 127,
            32, 10, 128, 32, 2, 137, 32, 3, 123, 32, 10, 128, 32, 9, 125, 32, 8, 128, 32, 4, 123.0, 32, 12, 128, 32, 5,
-           129, 32, 16, 128, 32, 5, 131, 32, 7, 125, 32, 6, 131, 32, 37, 128, 32, 5, 120.9, 32, 6, 127, 32, 9, 127.1,
-           32, 11, 127.0, 32, 0, 0, 0},
+           129, 32, 16, 128, 32, 5, 131, 32, 7, 125, 32, 6, 131, 32, 37, 128, 32, 5, 121.1, 32, 7, 127.1, 32, 8, 126.8,
+           32, 12, 128.0, 32, 0, 0, 0},
     {10, 128, 32, 10, 125, 32, 10, 127, 32, 6, 127, 32, 6, 121, 32, 6, 120, 32, 6, 120, 32, 6, 120, 32, 6, 125, 32, 6,
      135, 32, 6, 131, 32, 6, 129, 32, 6, 130, 32, 6, 131, 32, 6, 130, 32, 6, 129, 32, 6, 128, 32, 6, 125, 32, 6, 125,
      32, 6, 124, 32, 6, 124, 32, 6, 123, 32, 6, 121, 32, 6, 127, 32, 6, 136, 32, 6, 128, 32, 6, 128, 32, 6, 126, 32, 6,
