@@ -7,7 +7,7 @@ Y_OFFSET = 0
 MINIMAP_START = -10
 MINIMAP_END = 20
 SMOKE_LIFE = 80
-LAP_COUNTS = {2, 3, 5, 15}
+LAP_COUNTS = {1, 3, 5, 15}
 cam_pos = {
     x = 0,
     y = 0
@@ -594,7 +594,7 @@ function create_car(race)
                     if seg_times[current_segment] == nil then
                         seg_times[current_segment] = time
                     end
-                    if current_segment > 0 and current_segment % mapsize == 0 then
+                    if current_segment > 0 and current_segment % mapsize == 0 and current_segment<=mapsize * self.race.lap_count then
                         -- new lap
                         local lap_time = time
                         if self.race.race_mode == MODE_RACE then
@@ -680,8 +680,12 @@ function create_car(race)
         self.speed = speed -- used for showing speedo
         self.angle = angle
         self.current_segment = current_segment
-        if (accel > 1 and speed < 10) or accel > 2 or (controls.brake and speed < 7) then
+        local caccel = accel/cars[intro.car].maxacc
+        if (caccel > 0.8 and speed < 10) or caccel > 1.4 or (controls.brake and speed < 7) then
             table.insert(smokes, create_smoke(vecsub(self.pos, scalev(self.vel, 0.5)), self.vel))
+        end
+        if car.current_segment >= mapsize * car.race.lap_count then
+            car.race_finished=true
         end
     end
     function car:draw_minimap()
@@ -1116,6 +1120,7 @@ function race()
     function race:init(difficulty, race_mode, lap_count)
         self.race_mode = race_mode
         self.lap_count = LAP_COUNTS[lap_count]
+        self.live_cars=16
         sc1 = nil
         sc1timer = 0
         camera_angle = 0
@@ -1278,13 +1283,12 @@ function race()
 
         if self.completed then
             self.completed_countdown = self.completed_countdown - dt
-            if self.completed_countdown < 4 then
+            if self.completed_countdown < 4 and (inp_menu_pressed() or self.live_cars==0) then
                 set_game_mode(completed_menu(self))
                 return
             end
-        end
-
-        if inp_menu_pressed() then
+        elseif inp_menu_pressed() then
+            snd.stop_note(1)
             set_game_mode(paused_menu(self))
             return
         end
@@ -1293,11 +1297,19 @@ function race()
         local player = self.player
         if player then
             local controls = player.controls
-            controls.left = inp.left() > 0.1
-            controls.right = inp.right() > 0.1
-            controls.boost = inp_boost()
-            controls.accel = inp_accel()
-            controls.brake = inp_brake()
+            if self.completed then
+                controls.left=false
+                controls.right=false
+                controls.boost=false
+                controls.brake=true
+                controls.accel=false
+            else
+                controls.left = inp.left() > 0.1
+                controls.right = inp.right() > 0.1
+                controls.boost = inp_boost()
+                controls.accel = inp_accel()
+                controls.brake = inp_brake()
+            end
         end
 
         -- replay playback
@@ -1409,7 +1421,6 @@ function race()
             snd.stop_note(1)
             self.completed = true
             self.completed_countdown = 5
-            self.start_timer = false
         end
 
         -- particles
@@ -1440,31 +1451,33 @@ function race()
         -- car times
         if frame % 100 == 0 or self.completed then
             t = self.time
+            self.live_cars=0
             for _, car in pairs(self.objects) do
-                car.time = seg_times[car.current_segment] and "+" .. format_time(t - seg_times[car.current_segment]) or
+                if not car.race_finished then
+                    car.time = seg_times[car.current_segment] and "+" .. format_time(t - seg_times[car.current_segment]) or
                                "-----"
+                    self.live_cars=self.live_cars+1
+                end
             end
             self.ranks = {}
             for _, car in pairs(self.objects) do
-                if #self.ranks == 0 then
-                    table.insert(self.ranks, car)
-                else
-                    local i = 1
-                    for _, _ in pairs(self.ranks) do
-                        if self.ranks[i].current_segment < car.current_segment then
-                            break
-                        end
-                        i = i + 1
+                table.insert(self.ranks, car)
+            end
+            table.sort(self.ranks, function(car,car2)
+                if car.race_finished then
+                    if not car2.race_finished then
+                        return true
                     end
-                    table.insert(self.ranks, i, car)
+                    if car.delta_time < car2.delta_time then
+                        return true
+                    end
+                else
+                    if not car2.race_finished and car2.current_segment < car.current_segment then
+                        return true
+                    end
                 end
-            end
-            for i, car in pairs(self.ranks) do
-                if car.is_player then
-                    car.rank = i
-                    break
-                end
-            end
+                return false
+            end)
         end
     end
 
@@ -1635,8 +1648,10 @@ function race()
         end
         gfx.set_active_layer(3)
         gfx.clear(0, 0, 0)
-        for _, p in pairs(smokes) do
-            p:draw()
+        if not self.completed then
+                for _, p in pairs(smokes) do
+                p:draw()
+            end
         end
         gfx.set_active_layer(0)
         -- draw_minimap
@@ -1691,7 +1706,7 @@ function race()
                     false, false, 1, 1, 1)
             end
             gfx.activate_font(1, 124, 249, 100, 10, 10, 10, "1234567890")
-            gprint("" .. player.rank, gfx.SCREEN_WIDTH - 40 - (player.rank > 9 and 5 or 0), gfx.SCREEN_HEIGHT - 40, 7)
+            gprint("" .. player.placing, gfx.SCREEN_WIDTH - 40 - (player.placing > 9 and 5 or 0), gfx.SCREEN_HEIGHT - 40, 7)
             gfx.activate_font(gfx.SYSTEM_LAYER, 0, 0, 512, 32, 8, 8, "")
         end
 
@@ -1710,6 +1725,9 @@ function race()
                     gprint(car.driver.short_name, 32, y, car.is_player and 7 or 6)
                     gprint(string.format("%7s", rank == 1 and leader_time or car.time), 60, y, car.is_player and 7 or 6)
                     rectfill(21, y, 27, y + 8, car.color)
+                    if car.race_finished then
+                        gfx.blit(149,0,6,8,57,y,0,0,false,false,1,1,1)
+                    end
                     y = y + 9
                 end
                 gfx.line(0, y, 120, y, PAL[6].r, PAL[6].g, PAL[6].b)
@@ -1735,15 +1753,17 @@ function race()
             gfx.rectangle(30, 10, gfx.SCREEN_WIDTH - 52, (#drivers + 4) * 10, PAL[17].r, PAL[17].g, PAL[17].b)
             gprint("Classification         Time   Best", 61, 20, 6)
             gfx.line(30, 30, gfx.SCREEN_WIDTH - 22, 30, PAL[6].r, PAL[6].g, PAL[6].b)
-            local leader_time = format_time(time > 0 and time or 0)
             for rank, car in pairs(self.ranks) do
                 local y = 26 + rank * 10
                 gprint(string.format("%2d %s %15s %7s", rank, teams[car.driver.team].short_name, car.driver.name,
-                    rank == 1 and leader_time or car.time), 53, y, car.is_player and 7 or 22)
+                    rank == 1 and format_time(car.delta_time) or car.time), 53, y, car.is_player and 7 or 22)
                 if car.best_time then
                     gprint(format_time(car.best_time), 301, y, car.driver.is_best and 8 or (car.is_player and 7 or 22))
                 end
                 rectfill(69, y - 1, 75, y + 7, car.color)
+                if car.race_finished then
+                    gfx.blit(149,0,6,8,233,y,0,0,false,false,1,1,1)
+                end
             end
         end
         -- lap times
@@ -1867,8 +1887,10 @@ function paused_menu(game)
                 set_game_mode(game)
             elseif selected == 2 then
                 set_game_mode(game)
+                snd.stop_note(1)
                 game:restart()
             elseif selected == 3 then
+                snd.stop_note(1)
                 set_game_mode(intro)
             end
         end
