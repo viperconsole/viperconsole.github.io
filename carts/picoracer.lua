@@ -64,6 +64,7 @@ end
 abs = math.abs
 sqrt = math.sqrt
 flr = math.floor
+ceil = math.ceil
 min = math.min
 max = math.max
 col = function(r, g, b)
@@ -504,11 +505,6 @@ function create_car(race)
     }
     car.controls = {}
     car.pos = copyv(get_vec_from_vecmap(car.current_segment))
-    function car:get_poly()
-        return {rotate_point(vecadd(self.pos, car_verts[1]), self.angle, self.pos),
-                rotate_point(vecadd(self.pos, car_verts[2]), self.angle, self.pos),
-                rotate_point(vecadd(self.pos, car_verts[3]), self.angle, self.pos)}
-    end
     function car:update(completed, time)
         local angle = self.angle
         local pos = self.pos
@@ -592,9 +588,6 @@ function create_car(race)
             end
         end
         if self.is_player and not completed then
-            -- and
-            --    (sc1 == 37 or sc1 == 39 or sc1 == 36 or ((sc1 == 38 or sc1 == 40) and self.collision <= 0) or
-            --        (sc1 == 34 and self.boost > 10)) then
             -- engine noise
             snd.play_note(5 + self.speed * 2, (0.5 + self.accel) * 0.5, 8, 1)
             sc1 = 35
@@ -643,6 +636,9 @@ function create_car(race)
                             self.best_time = lap_time
                             self.play_replay = self.record_replay
                         end
+                        if car.race.is_finished then
+                            car.race_finished=true
+                        end
                     end
                     self.wrong_way = 0
                 else
@@ -674,7 +670,7 @@ function create_car(race)
             end
             -- check collisions with walls
             if poly then
-                local car_poly = self:get_poly()
+                local car_poly = {self.verts[1],self.verts[2],self.verts[3]}
                 local rv, pen, point = check_collision(car_poly, {{poly[2], poly[3]}, {poly[4], poly[1]}})
                 if rv then
                     if pen > 5 then
@@ -701,8 +697,13 @@ function create_car(race)
         self.vel = vecadd(vel, scalev(car_dir, accel))
         self.pos = vecadd(self.pos, scalev(self.vel, 0.3))
         self.vel = scalev(self.vel, 0.9)
+        for i=1,#car_verts do
+            self.verts[i] = rotate_point(vecadd(self.pos, car_verts[i]), angle, self.pos)
+        end
 
-        cbufpush(self.trails, rotate_point(vecadd(self.pos, trail_offset), angle, self.pos))
+        if self.is_player then
+            cbufpush(self.trails, rotate_point(vecadd(self.pos, trail_offset), angle, self.pos))
+        end
 
         -- update self attrs
         self.accel = accel
@@ -711,30 +712,31 @@ function create_car(race)
         self.current_segment = current_segment
         if abs(current_segment-player.current_segment) < 10 then
             local caccel = accel/cars[intro.car].maxacc
-            if (caccel > 0.8 and speed < 10) or caccel > 1.4 or (controls.brake and speed < 7) then
+            if (caccel > 0.8 and speed < 10) or caccel > 1.4 or (controls.brake and speed < 7 and speed > 2) then
                 create_smoke(current_segment,vecsub(self.pos, scalev(self.vel, 0.5)), self.vel)
             end
         end
         if car.current_segment >= mapsize * car.race.lap_count then
             car.race_finished=true
+            car.race.is_finished=true
         end
     end
     function car:draw_minimap()
-        local seg = self.current_segment
+        local seg = player_lap_seg(self.current_segment)
         local pseg = player.current_segment
         if seg >= pseg + MINIMAP_START and seg < pseg + MINIMAP_END then
             minimap_disk(self.pos, self.color)
         end
     end
     function car:draw()
-        if abs(self.current_segment - player.current_segment) > 10 then
-            return
+        if #self.verts == 0 then
+            -- happens only before race start, when cars are drawn but not updated
+            for i=1,#car_verts do
+                self.verts[i] = rotate_point(vecadd(self.pos, car_verts[i]), self.angle, self.pos)
+            end
         end
         local angle = self.angle
         local color = self.color
-        for i=1,#car_verts do
-            self.verts[i] = rotate_point(vecadd(self.pos, car_verts[i]), angle, self.pos)
-        end
         local v = self.verts
         local a = v[1]
         local b = v[2]
@@ -1173,6 +1175,7 @@ function race()
         self.race_mode = race_mode
         self.lap_count = LAP_COUNTS[lap_count]
         self.live_cars=16
+        self.is_finished=false
         sc1 = nil
         sc1timer = 0
         camera_angle = 0
@@ -1324,7 +1327,6 @@ function race()
                 table.insert(self.ranks, ai_car)
             end
         end
-
     end
 
     function race:update()
@@ -1434,9 +1436,9 @@ function race()
         for _, obj in pairs(self.objects) do
             for _, obj2 in pairs(self.objects) do
                 if obj ~= obj2 and obj ~= self.replay_car and obj2 ~= self.replay_car then
-                    if abs(obj.current_segment - obj2.current_segment) <= 1 then
-                        local p1 = obj:get_poly()
-                        local p2 = obj2:get_poly()
+                    if abs(car_lap_seg(obj.current_segment,obj2) - obj2.current_segment) <= 1 then
+                        local p1 = {obj.verts[1],obj.verts[2],obj.verts[3]}
+                        local p2 = {obj2.verts[1],obj2.verts[2],obj2.verts[3]}
                         for _, point in pairs(p1) do
                             if point_in_polygon(p2, point) then
                                 local rv, p, point = check_collision(p1,
@@ -1468,7 +1470,7 @@ function race()
             end
         end
 
-        if self.race_mode == MODE_RACE and player.current_segment == mapsize * self.lap_count then
+        if not self.completed and self.race_mode == MODE_RACE and player.race_finished then
             -- completed
             snd.stop_note(1)
             self.completed = true
@@ -1478,7 +1480,7 @@ function race()
         -- particles
         for _,p in pairs(particles) do
             if p.enabled then
-                if abs(p.seg - player.current_segment) > 10 then
+                if abs(player_lap_seg(p.seg) - player.current_segment) > 10 then
                     p.enabled=false
                 else
                     p.x = p.x + p.xv
@@ -1494,7 +1496,7 @@ function race()
         end
         for _,p in pairs(smokes) do
             if p.enabled then
-                if abs(p.seg - player.current_segment) > 10 then
+                if abs(player_lap_seg(p.seg) - player.current_segment) > 10 then
                     p.enabled=false
                 else
                     p.x = p.x + p.xv
@@ -1511,31 +1513,35 @@ function race()
         camera_angle = camera_angle + (player.angle - camera_angle) * 0.04
 
         -- car times
-        if frame % 100 == 0 or self.completed then
-            t = self.time
-            self.live_cars=0
-            for _, car in pairs(self.objects) do
-                if not car.race_finished then
-                    car.time = seg_times[car.current_segment] and "+" .. format_time(t - seg_times[car.current_segment]) or
-                               "-----"
-                    self.live_cars=self.live_cars+1
-                end
-            end
+        if frame % 100 == 0 then
             table.sort(self.ranks, function(car,car2)
+                local seg = car.race_finished and #car.lap_times * mapsize or car.current_segment
+                local seg2 = car2.race_finished and #car2.lap_times * mapsize or car2.current_segment
+                if seg > seg2 then
+                    return true
+                end
+                if seg < seg2 then
+                    return false
+                end
                 if car.race_finished then
-                    if not car2.race_finished then
-                        return true
-                    end
-                    if car.delta_time < car2.delta_time then
-                        return true
-                    end
-                else
-                    if not car2.race_finished and car2.current_segment < car.current_segment then
-                        return true
-                    end
+                    return car.delta_time < car2.delta_time
                 end
                 return false
             end)
+            t = self.time
+            local leader = self.ranks[1]
+            local leader_seg = leader.race_finished and #leader.lap_times*mapsize or leader.current_segment
+            self.live_cars=16
+            for _, car in pairs(self.objects) do
+                if car.race_finished then
+                    self.live_cars=self.live_cars-1
+                else
+                    local lap_behind = ceil((car.current_segment - leader_seg)/mapsize)
+                    car.time = lap_behind < 0 and lap_behind.." laps"
+                        or (seg_times[car.current_segment] and "+" .. format_time(t - seg_times[car.current_segment])
+                        or "-----")
+                end
+            end
         end
     end
 
@@ -1696,7 +1702,8 @@ function race()
 
         -- draw objects
         for _, obj in pairs(self.objects) do
-            if abs(obj.current_segment - player.current_segment) <= max(MINIMAP_START, MINIMAP_END) then
+            local oseg=player_lap_seg(obj.current_segment)
+            if abs(oseg-player.current_segment) <10 then
                 obj:draw()
             end
         end
@@ -1709,11 +1716,9 @@ function race()
         gfx.set_active_layer(3)
         gfx.clear(0, 0, 0)
         if not self.completed then
-            local d=0
             for _, p in pairs(smokes) do
                 if p.enabled then
                     p:draw()
-                    d=d+1
                 end
             end
         end
@@ -1787,7 +1792,8 @@ function race()
                 for rank, car in pairs(self.ranks) do
                     gprint(string.format("%2d", rank), 4, y, car.is_player and 7 or 6)
                     gprint(car.driver.short_name, 32, y, car.is_player and 7 or 6)
-                    gprint(string.format("%7s", rank == 1 and leader_time or car.time), 60, y, car.is_player and 7 or 6)
+                    gprint(string.format("%7s", rank == 1 and leader_time or car.time),
+                        60, y, car.is_player and 7 or 6)
                     rectfill(21, y, 27, y + 8, car.color)
                     if car.race_finished then
                         gfx.blit(149,0,6,8,57,y,0,0,false,false,1,1,1)
@@ -1815,14 +1821,15 @@ function race()
         else
             -- race results
             gfx.rectangle(30, 10, gfx.SCREEN_WIDTH - 52, (#drivers + 4) * 10, PAL[17].r, PAL[17].g, PAL[17].b)
-            gprint("Classification         Time   Best", 61, 20, 6)
+            gprint("Classification          Time   Best", 61, 20, 6)
             gfx.line(30, 30, gfx.SCREEN_WIDTH - 22, 30, PAL[6].r, PAL[6].g, PAL[6].b)
             for rank, car in pairs(self.ranks) do
                 local y = 26 + rank * 10
-                gprint(string.format("%2d %s %15s %7s", rank, teams[car.driver.team].short_name, car.driver.name,
-                    rank == 1 and format_time(car.delta_time) or car.time), 53, y, car.is_player and 7 or 22)
+                gprint(string.format("%2d %s %15s  %7s", rank, teams[car.driver.team].short_name, car.driver.name,
+                    rank == 1 and format_time(car.delta_time) or car.time),
+                    53, y, car.is_player and 7 or 22)
                 if car.best_time then
-                    gprint(format_time(car.best_time), 301, y, car.driver.is_best and 8 or (car.is_player and 7 or 22))
+                    gprint(format_time(car.best_time), 309, y, car.driver.is_best and 8 or (car.is_player and 7 or 22))
                 end
                 rectfill(69, y - 1, 75, y + 7, car.color)
                 if car.race_finished then
@@ -2071,6 +2078,20 @@ end
 
 function side_of_line(v1, v2, px, py)
     return (px - v1.x) * (v2.y - v1.y) - (py - v1.y) * (v2.x - v1.x)
+end
+
+function player_lap_seg(s1)
+    return car_lap_seg(s1,player)
+end
+function car_lap_seg(s1, s2)
+    local pseg=s2.current_segment
+    while abs(s1+mapsize - pseg) < abs(s1-pseg) do
+        s1 = s1+mapsize
+    end
+    while abs(s1-mapsize - pseg) < abs(s1-pseg) do
+        s1=s1-mapsize
+    end
+    return s1
 end
 
 function wrap(input, max)
