@@ -365,34 +365,62 @@ dt = 0.033333
 particles = {}
 smokes = {}
 mapsize = 250
-function create_spark(pos, speed)
+function create_spark(segment, pos, speed)
+    for _,p in pairs(particles) do
+        if not p.enabled then
+            p.x=pos.x
+            p.y=pos.y
+            p.xv = -speed.x + (rnd(2) - 1) / 2
+            p.yv = -speed.y + (rnd(2) - 1) / 2
+            p.ttl = 30
+            p.seg=segment
+            p.enabled=true
+            return
+        end
+    end
     local p = {
         x = pos.x,
         y = pos.y,
         xv = -speed.x + (rnd(2) - 1) / 2,
         yv = -speed.y + (rnd(2) - 1) / 2,
-        ttl = 30
+        ttl = 30,
+        seg=segment
     }
     function p:draw()
         line(self.x, self.y, self.x - self.xv, self.y - self.yv, self.ttl > 20 and 10 or (self.ttl > 10 and 9 or 8))
     end
-    return p
+    table.insert(particles,p)
 end
-function create_smoke(pos, speed)
+function create_smoke(segment, pos, speed)
+    for _,s in pairs(smokes) do
+        if not s.enabled then
+            s.x=pos.x
+            s.y=pos.y
+            s.xv = speed.x * 0.3 + (rnd(2) - 1) / 2
+            s.yv = speed.y * 0.3 + (rnd(2) - 1) / 2
+            s.r = math.random(2, 4)
+            s.seg = segment
+            s.enabled = true
+            s.ttl = SMOKE_LIFE
+            return
+        end
+    end
     local p = {
         x = pos.x,
         y = pos.y,
         xv = speed.x * 0.3 + (rnd(2) - 1) / 2,
         yv = speed.y * 0.3 + (rnd(2) - 1) / 2,
         ttl = SMOKE_LIFE,
-        r = math.random(2, 4)
+        r = math.random(2, 4),
+        seg = segment,
+        enabled = true
     }
     function p:draw()
         local p = cam2screen(vec(self.x, self.y))
         local rgb = self.ttl / SMOKE_LIFE
         gfx.disk(p.x, p.y, self.r * (2 - rgb), rgb, rgb, rgb)
     end
-    return p
+    table.insert(smokes,p)
 end
 function ai_controls(car)
     -- look ahead 5 segments
@@ -653,7 +681,7 @@ function create_car(race)
                     end
                     vel = vecsub(vel, scalev(rv, pen))
                     accel = accel * (1.0 - (pen / 10))
-                    table.insert(particles, create_spark(point, rv))
+                    create_spark(self.current_segment, point, rv)
                     self.collision = self.collision + pen
                     if self.is_player then
                         if pen > 2 then
@@ -680,9 +708,11 @@ function create_car(race)
         self.speed = speed -- used for showing speedo
         self.angle = angle
         self.current_segment = current_segment
-        local caccel = accel/cars[intro.car].maxacc
-        if (caccel > 0.8 and speed < 10) or caccel > 1.4 or (controls.brake and speed < 7) then
-            table.insert(smokes, create_smoke(vecsub(self.pos, scalev(self.vel, 0.5)), self.vel))
+        if abs(current_segment-player.current_segment) < 10 then
+            local caccel = accel/cars[intro.car].maxacc
+            if (caccel > 0.8 and speed < 10) or caccel > 1.4 or (controls.brake and speed < 7) then
+                create_smoke(current_segment,vecsub(self.pos, scalev(self.vel, 0.5)), self.vel)
+            end
         end
         if car.current_segment >= mapsize * car.race.lap_count then
             car.race_finished=true
@@ -1396,7 +1426,7 @@ function race()
                                     p = p * 1.5
                                     obj.vel = vecadd(obj.vel, scalev(rv, p))
                                     obj2.vel = vecsub(obj2.vel, scalev(rv, p))
-                                    table.insert(particles, create_spark(point, rv))
+                                    create_spark(obj.current_segment, point, rv)
                                     obj.collision = obj.collision + flr(p)
                                     obj2.collision = obj2.collision + flr(p)
                                     if obj.is_player or obj2.is_player then
@@ -1424,26 +1454,36 @@ function race()
         end
 
         -- particles
-        for i = #particles, 1, -1 do
-            local p = particles[i]
-            p.x = p.x + p.xv
-            p.y = p.y + p.yv
-            p.xv = p.xv * 0.95
-            p.yv = p.yv * 0.95
-            p.ttl = p.ttl - 1
-            if p.ttl < 0 then
-                table.remove(particles, i)
+        for _,p in pairs(particles) do
+            if p.enabled then
+                if abs(p.seg - player.current_segment) > 10 then
+                    p.enabled=false
+                else
+                    p.x = p.x + p.xv
+                    p.y = p.y + p.yv
+                    p.xv = p.xv * 0.95
+                    p.yv = p.yv * 0.95
+                    p.ttl = p.ttl - 1
+                    if p.ttl < 0 then
+                        p.enabled=false
+                    end
+                end
             end
         end
-        for i = #smokes, 1, -1 do
-            local p = smokes[i]
-            p.x = p.x + p.xv
-            p.y = p.y + p.yv
-            p.xv = p.xv * 0.95
-            p.yv = p.yv * 0.95
-            p.ttl = p.ttl - 1
-            if p.ttl < 0 then
-                table.remove(smokes, i)
+        for _,p in pairs(smokes) do
+            if p.enabled then
+                if abs(p.seg - player.current_segment) > 10 then
+                    p.enabled=false
+                else
+                    p.x = p.x + p.xv
+                    p.y = p.y + p.yv
+                    p.xv = p.xv * 0.95
+                    p.yv = p.yv * 0.95
+                    p.ttl = p.ttl - 1
+                    if p.ttl < 0 then
+                        p.enabled=false
+                    end
+                end
             end
         end
         camera_angle = camera_angle + (player.angle - camera_angle) * 0.04
@@ -1644,13 +1684,19 @@ function race()
         end
 
         for _, p in pairs(particles) do
-            p:draw()
+            if p.enabled then
+                p:draw()
+            end
         end
         gfx.set_active_layer(3)
         gfx.clear(0, 0, 0)
         if not self.completed then
-                for _, p in pairs(smokes) do
-                p:draw()
+            local d=0
+            for _, p in pairs(smokes) do
+                if p.enabled then
+                    p:draw()
+                    d=d+1
+                end
             end
         end
         gfx.set_active_layer(0)
