@@ -499,7 +499,8 @@ function create_car(race)
         delta_time = 0,
         lap_times = {},
         time = "-----",
-        best_time = nil
+        best_time = nil,
+        verts={}
     }
     car.controls = {}
     car.pos = copyv(get_vec_from_vecmap(car.current_segment))
@@ -731,9 +732,10 @@ function create_car(race)
         end
         local angle = self.angle
         local color = self.color
-        local v = fmap(car_verts, function(i)
-            return rotate_point(vecadd(self.pos, i), angle, self.pos)
-        end)
+        for i=1,#car_verts do
+            self.verts[i] = rotate_point(vecadd(self.pos, car_verts[i]), angle, self.pos)
+        end
+        local v = self.verts
         local a = v[1]
         local b = v[2]
         local c = v[3]
@@ -1073,8 +1075,28 @@ function mapeditor:update()
     cs[2] = mid(0, cs[2], 255)
     cs[1] = mid(0, cs[1], 255)
 end
-
-function draw_intro_minimap(sx, sy, scale, col, sec)
+function draw_intro_minimap(sx, sy, scale, col)
+    local x, y = sx, sy
+    local lastx, lasty = x, y
+    local dir = 0
+    for i = 1, #mapsections do
+        local ms = mapsections[i]
+        local last_section = i == #mapsections
+        for seg = 1, ms[1] do
+            dir = dir + (ms[2] - 128) / 100
+            x = x + cos(dir) * 28 * scale
+            y = y + sin(dir) * 28 * scale
+            if last_section then
+                local coef = seg / ms[1]
+                x = (1 - coef) * x + coef * sx
+                y = (1 - coef) * y + coef * sy
+            end
+            line(lastx, lasty, x, y, #mapsections == i and 3 or col)
+            lastx, lasty = x, y
+        end
+    end
+end
+function draw_editor_minimap(sx, sy, scale, col, sec)
     local x, y = sx, sy
     local lastx, lasty = x, y
     local dir = 0
@@ -1102,7 +1124,7 @@ end
 
 function mapeditor:draw()
     cls()
-    self.sec_pos = draw_intro_minimap(30 + self.mapoffx + self.mouseoffx + self.mdragx,
+    self.sec_pos = draw_editor_minimap(30 + self.mapoffx + self.mouseoffx + self.mdragx,
         self.mapoffy - 10 + self.mouseoffy + self.mdragy, scale, 6, self.sec)
     local pos = self.sec_pos[self.sec]
     self.mapoffx = pos[1]
@@ -1498,10 +1520,6 @@ function race()
                                "-----"
                     self.live_cars=self.live_cars+1
                 end
-            end
-            self.ranks = {}
-            for _, car in pairs(self.objects) do
-                table.insert(self.ranks, car)
             end
             table.sort(self.ranks, function(car,car2)
                 if car.race_finished then
@@ -2000,15 +2018,6 @@ function linevec(a, b, col)
 end
 
 -- util
-
-function fmap(objs, func)
-    local ret = {}
-    for _, i in pairs(objs) do
-        table.insert(ret, func(i))
-    end
-    return ret
-end
-
 function clamp(val, lower, upper)
     return max(lower, min(upper, val))
 end
