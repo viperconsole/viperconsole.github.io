@@ -45,6 +45,7 @@ Those functions are available globally:
 * `ease_in_out_cubic(t,value,delta,duration)` : cubic tweening function. t goes from 0 to duration, result from value to value+delta
 * `print(message)` : display a debug screen on stdout(native) or js console (web)
 * `elapsed()` : floating point number of seconds elapsed since the game started
+* `lerp_angle(from,to,amount)` : linearly interpolates between two angles (in radians) by a normalized value.
 
 Three interfaces are exposed by the viper console :
 

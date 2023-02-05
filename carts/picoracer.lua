@@ -658,7 +658,7 @@ function create_car(race)
                             -- lost for too long, bring them back to the last known good position
                             local v = get_data_from_vecmap(self.last_good_seg)
                             self.pos = copyv(v)
-                            self.current_segment = self.last_good_seg - 2
+                            self.current_segment = self.last_good_seg - 1
                             self.vel = vec(0, 0)
                             self.angle = v.dir
                             self.wrong_way = 0
@@ -673,22 +673,32 @@ function create_car(race)
             -- check collisions with walls
             if poly then
                 local car_poly = {self.verts[1],self.verts[2],self.verts[3]}
-                local rv, pen, point = check_collision(car_poly, {{poly[2], poly[3]}, {poly[4], poly[1]}})
-                if rv then
-                    if pen > 5 then
-                        pen = 5
-                    end
-                    vel = vecsub(vel, scalev(rv, pen))
-                    accel = accel * (1.0 - (pen / 10))
-                    create_spark(self.current_segment, point, rv)
-                    self.collision = self.collision + pen
-                    if self.is_player then
-                        if pen > 2 then
-                            sfx(38)
-                            sc1 = 38
-                        else
-                            sfx(40)
-                            sc1 = 40
+                local v = get_data_from_vecmap(current_segment+1)
+                local rails={}
+                if v.has_rrail == 1 then
+                    rails[1] = {poly[2], poly[3]}
+                end
+                if v.has_lrail == 1 then
+                    rails[#rails+1]={poly[4], poly[1]}
+                end
+                if #rails > 0 then
+                    local rv, pen, point = check_collision(car_poly, rails)
+                    if rv then
+                        if pen > 5 then
+                            pen = 5
+                        end
+                        vel = vecsub(vel, scalev(rv, pen))
+                        accel = accel * (1.0 - (pen / 10))
+                        create_spark(self.current_segment, point, rv)
+                        self.collision = self.collision + pen
+                        if self.is_player then
+                            if pen > 2 then
+                                sfx(38)
+                                sc1 = 38
+                            else
+                                sfx(40)
+                                sc1 = 40
+                            end
                         end
                     end
                 end
@@ -1536,7 +1546,10 @@ function race()
                 end
             end
         end
-        camera_angle = camera_angle + (player.angle - camera_angle) * 0.04
+        -- lerp_angle
+        local diff=wrap(player.angle-camera_angle,1)
+        local dist=wrap(2*diff,1) - diff
+        camera_angle = camera_angle + dist * 0.04
 
         -- car times
         if frame % 100 == 0 then
@@ -1780,6 +1793,13 @@ function race()
                 end
             end
         end
+        -- DEBUG : display segments collision shapes
+        -- seg=get_segment(player.current_segment-1,false,true)
+        -- quadfill(seg[1],seg[2],seg[4],seg[3],11)
+        -- local seg=get_segment(player.current_segment+1,false,true)
+        -- quadfill(seg[1],seg[2],seg[4],seg[3],12)
+        -- local seg=get_segment(player.current_segment,false,true)
+        -- quadfill(seg[1],seg[2],seg[4],seg[3],8)
         gfx.set_active_layer(0)
         -- draw_minimap
         if not self.completed then
@@ -1946,7 +1966,6 @@ function race()
         if player.collision > 0 or self.completed then
             player.collision = player.collision - 0.1
         end
-        gprint(gfx.fps().." fps",150,10,7)
     end
     return race
 end
@@ -2193,8 +2212,10 @@ function get_segment(seg, enlarge, for_collision)
     local lastv = get_data_from_vecmap(seg)
     local lastlastv = get_vec_from_vecmap(seg - 1)
 
-    local perp = perpendicular(normalize(vecsub(v, lastv)))
-    local lastperp = perpendicular(normalize(vecsub(lastv, lastlastv)))
+    local front=normalize(vecsub(v, lastv))
+    local perp = perpendicular(front)
+    local lastfront=normalize(vecsub(lastv, lastlastv))
+    local lastperp = perpendicular(lastfront)
 
     local lastwl = (for_collision and not lastv.has_lrail) and 200 or (lastv.ltyp==0 and lastv.w or lastv.w+40)
     local lastwr = (for_collision and not lastv.has_rrail) and 200 or (lastv.rtyp==0 and lastv.w or lastv.w+40)
@@ -2206,11 +2227,35 @@ function get_segment(seg, enlarge, for_collision)
         wl = wl * 2.5
         wr = wr * 2.5
     end
-    local lastoffsetl = scalev(perp, lastwl)
-    local lastoffsetr = scalev(perp, lastwr)
+    local lastoffsetl = scalev(lastperp, lastwl)
+    local lastoffsetr = scalev(lastperp, lastwr)
     local offsetl = scalev(perp, wl)
     local offsetr = scalev(perp, wr)
-    return {vecadd(lastv, lastoffsetl), vecsub(lastv, lastoffsetr), vecsub(v, offsetr), vecadd(v, offsetl)}
+    local front_left=vecadd(v, offsetl)
+    local front_right=vecsub(v, offsetr)
+    local back_left=vecadd(lastv, lastoffsetl)
+    local back_right=vecsub(lastv, lastoffsetr)
+    if dot(vecsub(front_left,v),lastfront)<dot(vecsub(back_left,v),lastfront) then
+        local v=intersection(front_left,front_right, back_left,back_right)
+        front_left,back_left=v,v
+    end
+    if dot(vecsub(front_right,v),lastfront)<dot(vecsub(back_right,v),lastfront) then
+        local v=intersection(front_left,front_right, back_left,back_right)
+        front_right,back_right=v,v
+    end
+    return {back_left, back_right, front_right, front_left}
+end
+
+-- intersection between segments [ab] and [cd]
+function intersection(a,b,c,d)
+    local e=(a.x-b.x)*(c.y-d.y)-(a.y-b.y)*(c.x-d.x)
+    if e~=0 then
+        local i,j = a.x*b.y-a.y*b.x, c.x*d.y-c.y*d.x
+        local x=(i*(c.x-d.x)-j*(a.x-b.x))/e
+        local y=(i*(c.y-d.y)-j*(a.y-b.y))/e
+        return vec(x,y)
+    end
+    return nil
 end
 
 function perpendicular(v)
@@ -2324,7 +2369,7 @@ function draw_arrow(p, size, dir, col)
 end
 
 TRACKS = {
-    [0] = {1337, 14, 128, 32, 1,0,0,0, 10, 128, 32, 1,0,0,0, 10, 128, 32, 1,1,0,0, 3, 120, 32, 1,1,-1,0, 3, 140, 32, 1,2,3,0, 6, 126, 32, 1,0,1,0,
+    [0] = {1337, 14, 128, 32, 1,0,0,0, 10, 128, 32, 1,0,0,0, 10, 128, 32, 1,1,0,-1, 3, 120, 32, 1,1,-1,3, 3, 140, 32, 1,2,3,0, 6, 126, 32, 1,0,1,0,
         6, 128, 32, 1,0,0,0, 8, 126, 32, 2,0,0,0, 6, 127,32, 2,0,0,0, 10, 128, 32, 0,0,0,0, 2, 137, 32, 1,3,0,0, 3, 123, 32, 2,3,0,0, 10, 128, 32, 0,0,0,0,
         9, 125, 32, 2,0,0,0, 8, 128, 32, 1,0,0,0, 4, 123.0, 32, 2,0,0,0,  4, 128, 32, 2,0,0,0, 8, 128, 32, 0,0,0,0, 5, 129, 32, 0,0,0,0, 16, 128, 32, 0,0,0,0, 5, 131, 32, 1,2,0,0,
         7, 125, 32,2,1,0,0,  6, 131, 32,1,2,0,0,  37, 128, 32,0,0,0,0,  5, 121.1, 32,3,0,0,0,  7, 127.1, 32,3,0,0,0,  8, 126.8,32, 2,0,0,0,
