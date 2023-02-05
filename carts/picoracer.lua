@@ -608,12 +608,12 @@ function create_car(race)
                 self.last_good_pos = self.pos
                 self.last_good_seg = current_segment
                 self.lost_count = 0
-                poly = get_segment(current_segment)
+                poly = get_segment(current_segment,false,true)
             else
                 -- not found in current segment, try the next
                 local segnextpoly = get_segment(current_segment + 1, true)
                 if segnextpoly and point_in_polygon(segnextpoly, self.pos) then
-                    poly = get_segment(current_segment + 1)
+                    poly = get_segment(current_segment + 1,false,true)
                     current_segment = current_segment + 1
                     if seg_times[current_segment] == nil then
                         seg_times[current_segment] = time
@@ -647,7 +647,7 @@ function create_car(race)
                     -- not found in current or next, try the previous one
                     local segprevpoly = get_segment(current_segment - 1, true)
                     if segprevpoly and point_in_polygon(segprevpoly, self.pos) then
-                        poly = get_segment(current_segment - 1)
+                        poly = get_segment(current_segment - 1,false,true)
                         current_segment = current_segment - 1
                         self.wrong_way = self.wrong_way + 1
                     else
@@ -916,7 +916,7 @@ function intro:update()
         self.option = self.option + 1
     end
     self.game_mode = mid(1, self.game_mode, 3)
-    self.option = mid(1, self.option, 4)
+    self.option = mid(1, self.option, 5 - self.game_mode)
     self.car = mid(1, self.car, 3)
     self.lap_count = mid(1, self.lap_count, #LAP_COUNTS)
 end
@@ -947,10 +947,14 @@ function intro:draw()
     printr(game_modes[self.game_mode], 303, 2, self.option == 1 and c or 9)
     printr("Track", 202, 12, 6)
     printr(difficulty_names[difficulty], 304, 12, self.option == 2 and c or 9)
-    printr("Difficulty", 202, 22, 6)
-    printr(cars[self.car].name, 304, 22, self.option == 3 and c or 9)
-    printr("Laps", 202, 32, 6)
-    printr("" .. LAP_COUNTS[self.lap_count], 304, 32, self.option == 4 and c or 9)
+    if self.game_mode < 3 then
+        printr("Difficulty", 202, 22, 6)
+        printr(cars[self.car].name, 304, 22, self.option == 3 and c or 9)
+    end
+    if self.game_mode == 1 then
+        printr("Laps", 202, 32, 6)
+        printr("" .. LAP_COUNTS[self.lap_count], 304, 32, self.option == 4 and c or 9)
+    end
 end
 
 mapeditor = {
@@ -1586,6 +1590,7 @@ function race()
 
         local current_segment = player.current_segment
         -- draw track
+
         local lastv,lastup,lastup2,lastup3,lastup4,lastdown,lastdown2,lastdown3,lastdown4
         for seg = current_segment - 20, current_segment + 20 do
             local v = get_data_from_vecmap(seg)
@@ -1617,7 +1622,8 @@ function race()
             local down4=vecadd(down3, offset)
 
             if lastv then
-                if onscreen(v) or onscreen(lastv) or onscreen(up) or onscreen(down) then
+                if onscreen(v) or onscreen(lastv) or onscreen(up3) or onscreen(down3)
+                    or onscreen(lastup3) or onscreen(lastdown3) then
 
                     -- edges
                     local track_color = 6
@@ -1940,8 +1946,8 @@ function race()
         if player.collision > 0 or self.completed then
             player.collision = player.collision - 0.1
         end
+        gprint(gfx.fps().." fps",150,10,7)
     end
-
     return race
 end
 
@@ -2180,7 +2186,7 @@ function get_data_from_vecmap(seg)
     return v
 end
 
-function get_segment(seg, enlarge)
+function get_segment(seg, enlarge, for_collision)
     seg = wrap(seg, mapsize)
     -- returns the 4 points of the segment
     local v = get_data_from_vecmap(seg + 1)
@@ -2190,10 +2196,10 @@ function get_segment(seg, enlarge)
     local perp = perpendicular(normalize(vecsub(v, lastv)))
     local lastperp = perpendicular(normalize(vecsub(lastv, lastlastv)))
 
-    local lastwl = not lastv.has_lrail and 200 or (lastv.ltyp==0 and lastv.w or lastv.w+40)
-    local lastwr = not lastv.has_rrail and 200 or (lastv.rtyp==0 and lastv.w or lastv.w+40)
-    local wl = not v.has_lrail and 200 or (v.ltyp==0 and v.w or v.w+40)
-    local wr = not v.has_rrail and 200 or (v.rtyp==0 and v.w or v.w+40)
+    local lastwl = (for_collision and not lastv.has_lrail) and 200 or (lastv.ltyp==0 and lastv.w or lastv.w+40)
+    local lastwr = (for_collision and not lastv.has_rrail) and 200 or (lastv.rtyp==0 and lastv.w or lastv.w+40)
+    local wl = (for_collision and not v.has_lrail) and 200 or (v.ltyp==0 and v.w or v.w+40)
+    local wr = (for_collision and not v.has_rrail) and 200 or (v.rtyp==0 and v.w or v.w+40)
     if enlarge then
         lastwl = lastwl * 2.5
         lastwr = lastwr * 2.5
