@@ -7,6 +7,8 @@ Y_OFFSET = 0
 MINIMAP_START = -10
 MINIMAP_END = 20
 SMOKE_LIFE = 80
+DATA_PER_SEGMENT=8
+DATA_PER_SECTION=7
 LAP_COUNTS = {1, 3, 5, 15}
 cam_pos = {
     x = 0,
@@ -107,7 +109,8 @@ PAL = {
     col(6, 90, 181),
     col(117, 70, 101),
     col(255, 110, 89),
-    col(255, 157, 129)
+    col(255, 157, 129),
+    col(92, 84, 76),
 }
 function line(x1, y1, x2, y2, col)
     local c = flr(col)
@@ -359,7 +362,6 @@ drivers = {{
     helmet = 30
 }}
 
-track_colors = {8, 9, 10, 11, 12, 3, 14, 15}
 dt = 0.033333
 -- globals
 
@@ -418,7 +420,7 @@ function create_smoke(segment, pos, speed)
     }
     function p:draw()
         local p = cam2screen(vec(self.x, self.y))
-        local rgb = self.ttl / SMOKE_LIFE
+        local rgb = self.ttl / (2.0*SMOKE_LIFE)
         gfx.disk(p.x, p.y, self.r * (2 - rgb), rgb, rgb, rgb)
     end
     table.insert(smokes,p)
@@ -481,7 +483,7 @@ function create_car(race)
         vel = vec(),
         angle = 0,
         trails = cbufnew(32),
-        current_segment = -3,
+        current_segment = race.race_mode == MODE_RACE and -3 or -5,
         boost = 100,
         cooldown = 0,
         wrong_way = 0,
@@ -654,7 +656,7 @@ function create_car(race)
                         -- current_segment+=1 -- try to find the car next frame
                         if self.lost_count > 30 then
                             -- lost for too long, bring them back to the last known good position
-                            local v = get_vec_from_vecmap(self.last_good_seg)
+                            local v = get_data_from_vecmap(self.last_good_seg)
                             self.pos = copyv(v)
                             self.current_segment = self.last_good_seg - 2
                             self.vel = vec(0, 0)
@@ -986,11 +988,12 @@ function map_menu(game)
             if selected == 1 then
                 set_game_mode(game)
             elseif selected == 2 then
+                print ("1337,")
                 for i = 1, #mapsections do
                     local ms = mapsections[i]
-                    print(ms[1] .. "," .. ms[2] .. "," .. ms[3] .. ",")
+                    print(ms[1] .. "," .. ms[2] .. "," .. ms[3] .. ","..ms[4]..","..ms[5]..","..ms[6]..","..ms[7]..",")
                 end
-                print("0,0,0")
+                print("0,0,0,0,0,0,0")
                 local race = race()
                 race:init(difficulty, 2)
                 set_game_mode(race)
@@ -1053,7 +1056,7 @@ function mapeditor:update()
         end
         -- action1 : duplicate last section
     elseif inp.action1_pressed() then
-        mapsections[#mapsections + 1] = {cs[1], cs[2], cs[3]}
+        mapsections[#mapsections + 1] = {cs[1], cs[2], cs[3],0,0}
         self.sec = #mapsections
         -- pageup/pagedown : change section width
     elseif inp.key_pressed(inp.KEY_PAGEDOWN) then
@@ -1151,21 +1154,28 @@ function mapeditor:draw()
 end
 
 function load_map()
-    local start = 1 -- (difficulty * 512) + 1
+    local newfmt = TRACKS[difficulty][1] == 1337
+    local start = newfmt and 2 or 1
     mapsections = {}
     while true do
         local ms = {}
         ms[1] = TRACKS[difficulty][start]
         ms[2] = TRACKS[difficulty][start + 1]
         ms[3] = TRACKS[difficulty][start + 2]
+        if newfmt then
+            ms[4] = TRACKS[difficulty][start + 3]
+            ms[5] = TRACKS[difficulty][start + 4]
+            ms[6] = TRACKS[difficulty][start + 5]
+            ms[7] = TRACKS[difficulty][start + 6]
+        end
         if ms[1] == 0 then
             break
         end
         mapsections[#mapsections + 1] = ms
-        start = start + 3
+        start = start + (newfmt and DATA_PER_SECTION or 3)
     end
     if #mapsections == 0 then
-        mapsections[1] = {10, 128, 32}
+        mapsections[1] = {10, 128, 32,0,0,0,0}
     end
 end
 
@@ -1191,6 +1201,12 @@ function race()
             local length = ms[1]
             local curve = ms[2]
             local width = ms[3]
+            local ltyp = ms[4]
+            local rtyp = ms[5]
+            local lskiprail_first = max(0,ms[6])
+            local rskiprail_first = max(0,ms[7])
+            local lskiprail_last = max(0,-ms[6])
+            local rskiprail_last = max(0,-ms[7])
 
             if length == 0 then
                 break
@@ -1230,11 +1246,12 @@ function race()
 
             while length > 0 do
                 dir = dir + (curve - 128) / 100
-
+                local railcoef=1
                 if abs(dir - lastdir) > 0.09 then
                     dir = lerp(lastdir, dir, 0.5)
                     segment_length = 16
                     length = length - 0.5
+                    railcoef=0.5
                 else
                     segment_length = 32
                     length = length - 1
@@ -1247,12 +1264,17 @@ function race()
                 table.insert(vecmap, my)
                 table.insert(vecmap, width)
                 table.insert(vecmap, dir)
-                mapsize = mapsize + 1
+                table.insert(vecmap, ltyp)
+                table.insert(vecmap, rtyp)
+                table.insert(vecmap, (lskiprail_first> 0 or length < lskiprail_last) and 0 or 1)
+                table.insert(vecmap, (rskiprail_first> 0 or length < rskiprail_last) and 0 or 1)
                 lastdir = dir
+                lskiprail_first = lskiprail_first - 1*railcoef
+                rskiprail_first = rskiprail_first - 1*railcoef
             end
         end
 
-        mapsize = #vecmap / 4
+        mapsize = #vecmap / DATA_PER_SEGMENT
 
         self:restart()
     end
@@ -1284,7 +1306,7 @@ function race()
         self.player = p
         p.is_player = true
         local lastvv = get_vec_from_vecmap(p.current_segment - 1)
-        local v = get_vec_from_vecmap(p.current_segment)
+        local v = get_data_from_vecmap(p.current_segment)
         local side = perpendicular(normalize(lastv and vecsub(v, lastv) or vec(1, 0)))
         p.pos = vecadd(p.pos, scalev(side, 15))
         p.angle = v.dir
@@ -1308,7 +1330,7 @@ function race()
                 ai_car.color2 = teams[ai_car.driver.team].color2
                 ai_car.driver.is_best = false
                 local lastv = get_vec_from_vecmap(ai_car.current_segment - 1)
-                local v = get_vec_from_vecmap(ai_car.current_segment)
+                local v = get_data_from_vecmap(ai_car.current_segment)
                 local front = scalev(normalize(vecsub(v, lastv)), -15)
                 local side = perpendicular(normalize(lastv and vecsub(v, lastv) or vec(1, 0)))
                 ai_car.pos = vecadd(copyv(v), scalev(side, i % 2 == 0 and 15 or -15))
@@ -1564,88 +1586,116 @@ function race()
 
         local current_segment = player.current_segment
         -- draw track
-        local lastv
-        for seg = current_segment - 30, current_segment + 30 do
-            local v = get_vec_from_vecmap(seg)
+        local lastv,lastup,lastup2,lastup3,lastup4,lastdown,lastdown2,lastdown3,lastdown4
+        for seg = current_segment - 20, current_segment + 20 do
+            local v = get_data_from_vecmap(seg)
+            local ltyp=v.ltyp
+            local rtyp=v.rtyp
+            local has_lrail = v.has_lrail
+            local has_rrail = v.has_rrail
             local front = normalize(lastv and vecsub(v, lastv) or vec(1, 0))
             local side = perpendicular(front)
             local offset = scalev(side, v.w)
-            up = vecsub(v, offset)
-            down = vecadd(v, offset)
-            local v1 = get_vec_from_vecmap(seg)
-            local v2 = get_vec_from_vecmap(seg + 1)
-            local curve = abs(v2.dir - v1.dir) * 100
-            kerbw = curve > 2 and 8 or 0
-            rkerbw = (v2.dir > v1.dir or curve >= 4) and kerbw or 0
-            lkerbw = (v2.dir < v1.dir or curve >= 4) and kerbw or 0
-            offset = scalev(side, v.w - lkerbw)
-            up2 = vecsub(v, offset)
+            local up = vecsub(v, offset)
+            local down = vecadd(v, offset)
+            --local v1 = get_vec_from_vecmap(seg)
+            local v2 = get_data_from_vecmap(seg + 1)
+            local curve = abs(v2.dir - v.dir) * 100
+            local kerbw = curve > 2 and 8 or 0
+            local rkerbw = (v2.dir > v.dir or curve >= 4) and kerbw or 0
+            local lkerbw = (v2.dir < v.dir or curve >= 4) and kerbw or 0
+            local offset = scalev(side, v.w - lkerbw)
+            local up2 = vecsub(v, offset)
             offset = scalev(side, v.w - rkerbw)
-            down2 = vecadd(v, offset)
-            offset = scalev(side, v.w + 4)
-            up3 = vecsub(v, offset)
-            down3 = vecadd(v, offset)
+            local down2 = vecadd(v, offset)
+            offset = scalev(side, v.w + (rtyp == 0 and 4 or 40))
+            local up3 = vecsub(v, offset)
+            offset = scalev(side, v.w + (ltyp == 0 and 4 or 40))
+            local down3 = vecadd(v, offset)
+            offset = scalev(side, 4)
+            local up4=vecsub(up3, offset)
+            local down4=vecadd(down3, offset)
 
             if lastv then
                 if onscreen(v) or onscreen(lastv) or onscreen(up) or onscreen(down) then
 
                     -- edges
-                    local track_color = (seg < current_segment - 10) and 1 or
-                                            track_colors[flr((seg / (mapsize / 8))) % 8 + 1]
-                    if seg > current_segment + 5 then
-                        -- if it's far ahead, draw it above and scaled for parallax effect
-                        track_color = 1
-                        local segdiff = min((seg - (current_segment + 5)) * 0.01, 1)
-                        displace_line(lastup, up, camera_pos, segdiff, track_color)
-                        displace_line(lastdown, down, camera_pos, segdiff, track_color)
-                    else
-                        -- normal track edges
-                        linevec(lastup, up, track_color)
-                        linevec(lastdown, down, track_color)
-
-                        linevec(lastup3, up3, track_color)
-                        linevec(lastdown3, down3, track_color)
+                    local track_color = 6
+                    if rtyp == 1 then
+                        -- grass
+                        quadfill(lastup,up,lastup3,up3, 27)
+                    elseif rtyp == 2 then
+                        -- sand
+                        quadfill(lastup,up,lastup3,up3, 15)
+                    elseif rtyp == 3 then
+                        -- asphalt
+                        quadfill(lastup,up,lastup3,up3, 5)
                     end
-
-                    if seg >= current_segment - 2 and seg < current_segment + 7 then
-                        -- ground
-                        local ground = seg % 2 == 0 and 5 or 21
-                        quadfill(lastup2, lastdown2, up2, down2, ground)
-                        if seg % mapsize == 0 then
-                            linevec(lastup2, lastdown2, time < -1 and 8 or time < 0 and 9 or 11) -- start/end markers
+                    if ltyp == 1 then
+                        -- grass
+                        quadfill(lastdown,down,lastdown3,down3, 27)
+                    elseif ltyp == 2 then
+                        -- sand
+                        quadfill(lastdown,down,lastdown3,down3, 15)
+                    elseif ltyp == 3 then
+                        -- asphalt
+                        quadfill(lastdown,down,lastdown3,down3, 5)
+                    end
+                    -- ground
+                    local ground = seg % 2 == 0 and 5 or 32
+                    quadfill(lastup2, lastdown2, up2, down2, ground)
+                    if seg % mapsize == 0 then
+                        linevec(lastup2, lastdown2, 10) -- start/end markers
+                    end
+                    -- kerbs
+                    local middown = midpoint(down, lastdown)
+                    local middown2 = midpoint(down2, lastdown2)
+                    quadfill(down2, down, middown2, middown, 7)
+                    quadfill(lastdown, middown, lastdown2, middown2, 8)
+                    local midup = midpoint(up, lastup)
+                    local midup2 = midpoint(up2, lastup2)
+                    quadfill(up2, up, midup2, midup, 7)
+                    quadfill(midup2, midup, lastup2, lastup, 8)
+                    if rtyp == 0 then
+                        -- normal crash barriers
+                        linevec(lastup, up, track_color)
+                    end
+                    if ltyp == 0 then
+                        -- normal crash barriers
+                        linevec(lastdown, down, track_color)
+                    end
+                    if ltyp ~= 0 then
+                        linevec(lastdown, down, 10)
+                    end
+                    if rtyp ~= 0 then
+                        linevec(lastup, up, 10)
+                    end
+                    if has_rrail == 1 then
+                        linevec(lastup4, up4, track_color)
+                    end
+                    if has_lrail == 1 then
+                        linevec(lastdown4, down4, track_color)
+                    end
+                    -- starting grid
+                    local wseg = wrap(seg, mapsize)
+                    if wseg > mapsize - #drivers//2-3 then
+                        side = scalev(side, 12)
+                        local smallfront = scalev(front, -2)
+                        local lfront = scalev(front, -10)
+                        local p = vecadd(vecadd(lastup2, side), lfront)
+                        if wseg ~= mapsize-1 then
+                            local p2 = vecadd(p, side)
+                            linevec(p, p2, 7)
+                            linevec(p, vecadd(p, smallfront), 7)
+                            linevec(p2, vecadd(p2, smallfront), 7)
                         end
-                        -- kerbs
-                        local middown = midpoint(down, lastdown)
-                        local middown2 = midpoint(down2, lastdown2)
-                        quadfill(down2, down, middown2, middown, 7)
-                        quadfill(lastdown, middown, lastdown2, middown2, 8)
-                        local midup = midpoint(up, lastup)
-                        local midup2 = midpoint(up2, lastup2)
-                        quadfill(up2, up, midup2, midup, 7)
-                        quadfill(midup2, midup, lastup2, lastup, 8)
-                        linevec(down2, down, 4)
-                        linevec(up2, up, 4)
-                        -- starting grid
-                        local wseg = wrap(seg, mapsize)
-                        if wseg < mapsize and wseg > mapsize - #drivers//2-3 then
-                            side = scalev(side, 12)
-                            local smallfront = scalev(front, -2)
-                            local lfront = scalev(front, -10)
-                            local p = vecadd(vecadd(lastup2, side), lfront)
-                            if wseg ~= mapsize - 1 then
-                                local p2 = vecadd(p, side)
-                                linevec(p, p2, 7)
-                                linevec(p, vecadd(p, smallfront), 7)
-                                linevec(p2, vecadd(p2, smallfront), 7)
-                            end
-                            lfront = scalev(front, -24)
-                            p = vecadd(vecsub(lastdown2, side), lfront)
-                            if wseg ~= mapsize - #drivers//2-2 then
-                                local p2 = vecsub(p, side)
-                                linevec(p, p2, 7)
-                                linevec(p, vecadd(p, smallfront), 7)
-                                linevec(p2, vecadd(p2, smallfront), 7)
-                            end
+                        lfront = scalev(front, -24)
+                        p = vecadd(vecsub(lastdown2, side), lfront)
+                        if wseg ~= mapsize - #drivers//2-2 then
+                            local p2 = vecsub(p, side)
+                            linevec(p, p2, 7)
+                            linevec(p, vecadd(p, smallfront), 7)
+                            linevec(p2, vecadd(p2, smallfront), 7)
                         end
                     end
 
@@ -1653,16 +1703,12 @@ function race()
                     local track_color = (seg < current_segment - 10 or seg > current_segment + 10) and 1 or
                                             (seg % 2 == 0 and 13 or 5)
                     if seg > current_segment - 5 and seg < current_segment + 7 then
-                        if seg >= current_segment - 2 and seg < current_segment + 7 then
-                            linevec(lastup2, up2, track_color) -- mid upper
-                            linevec(lastdown2, down2, track_color) -- mid lower
-                        end
 
                         -- look for upcoming turns and draw arrows
                         -- scan foward until we find a turn sharper than 2/100
                         for j = seg + 2, seg + 7 do
-                            local v1 = get_vec_from_vecmap(j)
-                            local v2 = get_vec_from_vecmap(j + 1)
+                            local v1 = get_data_from_vecmap(j)
+                            local v2 = get_data_from_vecmap(j + 1)
                             if v1 and v2 and v1.dir and v2.dir then
                                 -- find the difference in angle between v and v2
                                 local diff = v2.dir - v1.dir
@@ -1697,6 +1743,12 @@ function race()
             lastdown2 = down2
             lastup3 = up3
             lastdown3 = down3
+            if has_rrail == 1 then
+                lastup4=up4
+            end
+            if has_lrail == 1 then
+                lastdown4=down4
+            end
             lastv = v
         end
 
@@ -1774,9 +1826,11 @@ function race()
                 gfx.blit(66, spritey, 21 * (player.boost / 100), 4, gfx.SCREEN_WIDTH - 61, gfx.SCREEN_HEIGHT - 11, 0, 0,
                     false, false, 1, 1, 1)
             end
-            gfx.activate_font(1, 124, 249, 100, 10, 10, 10, "1234567890")
-            gprint("" .. player.placing, gfx.SCREEN_WIDTH - 40 - (player.placing > 9 and 5 or 0), gfx.SCREEN_HEIGHT - 40, 7)
-            gfx.activate_font(gfx.SYSTEM_LAYER, 0, 0, 512, 32, 8, 8, "")
+            if self.race_mode == MODE_RACE then
+                gfx.activate_font(1, 124, 249, 100, 10, 10, 10, "1234567890")
+                gprint("" .. player.placing, gfx.SCREEN_WIDTH - 40 - (player.placing > 9 and 5 or 0), gfx.SCREEN_HEIGHT - 40, 7)
+                gfx.activate_font(gfx.SYSTEM_LAYER, 0, 0, 512, 32, 8, 8, "")
+            end
         end
 
         -- ranking board
@@ -2095,10 +2149,10 @@ function car_lap_seg(s1, s2)
 end
 
 function wrap(input, max)
-    while input > max do
+    while input >= max do
         input = input - max
     end
-    while input < 1 do
+    while input < 0 do
         input = input + max
     end
     return input
@@ -2106,12 +2160,22 @@ end
 
 function get_vec_from_vecmap(seg)
     seg = wrap(seg, mapsize)
-    local i = ((seg - 1) * 4) + 1
+    local i = (seg* DATA_PER_SEGMENT) + 1
+    return vec(vecmap[i],vecmap[i+1])
+end
+
+function get_data_from_vecmap(seg)
+    seg = wrap(seg, mapsize)
+    local i = (seg* DATA_PER_SEGMENT) + 1
     local v = {
         x = vecmap[i],
         y = vecmap[i + 1],
         w = vecmap[i + 2],
-        dir = vecmap[i + 3]
+        dir = vecmap[i + 3],
+        ltyp = vecmap[i + 4],
+        rtyp = vecmap[i + 5],
+        has_lrail = vecmap[i + 6],
+        has_rrail = vecmap[i + 7],
     }
     return v
 end
@@ -2119,18 +2183,28 @@ end
 function get_segment(seg, enlarge)
     seg = wrap(seg, mapsize)
     -- returns the 4 points of the segment
-    local v = get_vec_from_vecmap(seg + 1)
-    local lastv = get_vec_from_vecmap(seg)
+    local v = get_data_from_vecmap(seg + 1)
+    local lastv = get_data_from_vecmap(seg)
     local lastlastv = get_vec_from_vecmap(seg - 1)
 
     local perp = perpendicular(normalize(vecsub(v, lastv)))
     local lastperp = perpendicular(normalize(vecsub(lastv, lastlastv)))
 
-    local lastw = enlarge and lastv.w * 2.5 or lastv.w
-    local w = enlarge and v.w * 2.5 or v.w
-    local lastoffset = scalev(perp, lastw)
-    local offset = scalev(perp, w)
-    return {vecadd(lastv, lastoffset), vecsub(lastv, lastoffset), vecsub(v, offset), vecadd(v, offset)}
+    local lastwl = not lastv.has_lrail and 200 or (lastv.ltyp==0 and lastv.w or lastv.w+40)
+    local lastwr = not lastv.has_rrail and 200 or (lastv.rtyp==0 and lastv.w or lastv.w+40)
+    local wl = not v.has_lrail and 200 or (v.ltyp==0 and v.w or v.w+40)
+    local wr = not v.has_rrail and 200 or (v.rtyp==0 and v.w or v.w+40)
+    if enlarge then
+        lastwl = lastwl * 2.5
+        lastwr = lastwr * 2.5
+        wl = wl * 2.5
+        wr = wr * 2.5
+    end
+    local lastoffsetl = scalev(perp, lastwl)
+    local lastoffsetr = scalev(perp, lastwr)
+    local offsetl = scalev(perp, wl)
+    local offsetr = scalev(perp, wr)
+    return {vecadd(lastv, lastoffsetl), vecsub(lastv, lastoffsetr), vecsub(v, offsetr), vecadd(v, offsetl)}
 end
 
 function perpendicular(v)
@@ -2244,10 +2318,11 @@ function draw_arrow(p, size, dir, col)
 end
 
 TRACKS = {
-    [0] = {14, 128, 32, 10, 128, 32, 10, 128, 32, 3, 120, 32, 3, 140, 32, 6, 126, 32, 6, 128, 32, 8, 126, 32, 6, 127,
-           32, 10, 128, 32, 2, 137, 32, 3, 123, 32, 10, 128, 32, 9, 125, 32, 8, 128, 32, 4, 123.0, 32, 12, 128, 32, 5,
-           129, 32, 16, 128, 32, 5, 131, 32, 7, 125, 32, 6, 131, 32, 37, 128, 32, 5, 121.1, 32, 7, 127.1, 32, 8, 126.8,
-           32, 12, 128.0, 32, 0, 0, 0},
+    [0] = {1337, 14, 128, 32, 1,0,0,0, 10, 128, 32, 1,0,0,0, 10, 128, 32, 1,1,0,0, 3, 120, 32, 1,1,-1,0, 3, 140, 32, 1,2,3,0, 6, 126, 32, 1,0,1,0,
+        6, 128, 32, 1,0,0,0, 8, 126, 32, 2,0,0,0, 6, 127,32, 2,0,0,0, 10, 128, 32, 0,0,0,0, 2, 137, 32, 1,3,0,0, 3, 123, 32, 2,3,0,0, 10, 128, 32, 0,0,0,0,
+        9, 125, 32, 2,0,0,0, 8, 128, 32, 1,0,0,0, 4, 123.0, 32, 2,0,0,0,  4, 128, 32, 2,0,0,0, 8, 128, 32, 0,0,0,0, 5, 129, 32, 0,0,0,0, 16, 128, 32, 0,0,0,0, 5, 131, 32, 1,2,0,0,
+        7, 125, 32,2,1,0,0,  6, 131, 32,1,2,0,0,  37, 128, 32,0,0,0,0,  5, 121.1, 32,3,0,0,0,  7, 127.1, 32,3,0,0,0,  8, 126.8,32, 2,0,0,0,
+        12, 128.0, 32, 0,0,0,0, 0, 0, 0,0,0,0,0},
     {10, 128, 32, 10, 125, 32, 10, 127, 32, 6, 127, 32, 6, 121, 32, 6, 120, 32, 6, 120, 32, 6, 120, 32, 6, 125, 32, 6,
      135, 32, 6, 131, 32, 6, 129, 32, 6, 130, 32, 6, 131, 32, 6, 130, 32, 6, 129, 32, 6, 128, 32, 6, 125, 32, 6, 125,
      32, 6, 124, 32, 6, 124, 32, 6, 123, 32, 6, 121, 32, 6, 127, 32, 6, 136, 32, 6, 128, 32, 6, 128, 32, 6, 126, 32, 6,
