@@ -1351,6 +1351,51 @@ function race()
             v.left_kerb = vecsub(v.left_track, scalev(v.side,lkerbw))
             v.right_kerb = vecadd(v.right_track, scalev(v.side,rkerbw))
         end
+        -- distance to turn signs
+        local dist=0
+        local last_curve=0
+        for i=#vecmap-1,1,-1 do
+            local v2=vecmap[i+1]
+            local v=vecmap[i]
+            local curve = abs(v2.dir - v.dir) * 100
+            if curve >= 2 then
+                dist=0
+                last_curve=v2.dir - v.dir
+            else
+                dist = dist+1
+            end
+            if dist==5 or dist == 10 or dist ==15 then
+                if last_curve < 0 then
+                    v.lpanel=dist/5
+                elseif last_curve > 0 then
+                    v.rpanel=dist/5
+                end
+            end
+        end
+        local expected=3
+        for i=1,#vecmap do
+            local v=vecmap[i]
+            if v.lpanel ~= nil then
+                if v.lpanel == expected then
+                    expected=expected - 1
+                    if expected==0 then
+                        expected=3
+                    end
+                else
+                    v.lpanel=nil
+                end
+            end
+            if v.rpanel ~= nil then
+                if v.rpanel == expected then
+                    expected=expected - 1
+                    if expected==0 then
+                        expected=3
+                    end
+                else
+                    v.rpanel=nil
+                end
+            end
+        end
 
         self:restart()
     end
@@ -1692,6 +1737,7 @@ function race()
         -- draw track
 
         local lastv,lastup,lastup2,lastup3,last_right_rail,lastdown,lastdown3,last_left_rail
+        local panels={}
         for seg = current_segment - 20, current_segment + 20 do
             local v = get_data_from_vecmap(seg)
             local has_lrail = v.has_lrail
@@ -1791,41 +1837,14 @@ function race()
                         end
                     end
 
-                    -- inner track
-                    local track_color = (seg < current_segment - 10 or seg > current_segment + 10) and 1 or
-                                            (seg % 2 == 0 and 13 or 5)
-                    if seg > current_segment - 5 and seg < current_segment + 7 then
-
-                        -- look for upcoming turns and draw arrows
-                        -- scan foward until we find a turn sharper than 2/100
-                        for j = seg + 2, seg + 7 do
-                            local v1 = get_data_from_vecmap(j)
-                            local v2 = get_data_from_vecmap(j + 1)
-                            if v1 and v2 and v1.dir and v2.dir then
-                                -- find the difference in angle between v and v2
-                                local diff = v2.dir - v1.dir
-                                while diff > 0.5 do
-                                    diff = diff - 1
-                                end
-                                while diff < -0.5 do
-                                    diff = diff + 1
-                                end
-                                if diff > 0.03 then
-                                    -- arrow left
-                                    draw_arrow(lastv.right_kerb, 4, v.dir + 0.25, 9)
-                                    break
-                                elseif diff < -0.03 then
-                                    -- arrow right
-                                    draw_arrow(lastv.left_kerb, 4, v.dir - 0.25, 9)
-                                    -- linevec(lastv,lastdown3,8)
-                                    break
-                                elseif v2.w < v1.w * 0.75 then
-                                    draw_arrow(lastv.right_kerb, 4, v.dir + 0.25, 8)
-                                    draw_arrow(lastv.left_kerb, 4, v.dir - 0.25, 8)
-                                    break
-                                end
-                            end
-                        end
+                    if v.lpanel ~= nil then
+                        local p=cam2screen(v.left_inner_rail)
+                        local y=214+10*v.lpanel
+                        panels[#panels+1]={y,p.x-12,p.y-5,v.dir}
+                    elseif v.rpanel ~= nil then
+                        local p=cam2screen(v.right_inner_rail)
+                        local y=214+10*v.rpanel
+                        panels[#panels+1]={y,p.x-12,p.y-5,v.dir}
                     end
                 end
             end
@@ -1838,6 +1857,10 @@ function race()
             lastv = v
         end
 
+        for i=1,#panels do
+            local p=panels[i]
+            gfx.blit(91,p[1],24,10,p[2],p[3],0,0,false,false,1,1,1,from_pico_angle(camera_angle-p[4]))
+        end
         -- draw objects
         for _, obj in pairs(self.objects) do
             local oseg=player_lap_seg(obj.current_segment)
@@ -2411,13 +2434,6 @@ function lerp(a, b, t)
 end
 function lerpv(a, b, t)
     return vec(lerp(a.x, b.x, t), lerp(a.y, b.y, t))
-end
-
-function draw_arrow(p, size, dir, col)
-    local p1 = rotate_point(vecadd(p, vec(0, -size)), dir, p)
-    local p2 = rotate_point(vecadd(p, vec(0, size)), dir, p)
-    local p3 = rotate_point(vecadd(p, vec(size, 0)), dir, p)
-    trifill(p1, p2, p3, col)
 end
 
 TRACKS = {
