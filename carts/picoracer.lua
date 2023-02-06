@@ -223,49 +223,49 @@ teams = {
     ["Williamson"] = {
         color = 1,
         color2 = 10,
-        perf = 0,
+        perf = 10,
         short_name = "WIL"
     },
     ["MacLoran"] = {
         color = 7,
         color2 = 8,
-        perf = 0,
+        perf = 9,
         short_name = "MCL"
     },
     ["Benettson"] = {
         color = 11,
         color2 = 26,
-        perf = 0,
+        perf = 9,
         short_name = "BEN"
     },
     ["Ferrero"] = {
         color = 8,
         color2 = 8,
-        perf = 0,
+        perf = 8,
         short_name = "FER"
     },
     ["Leger"] = {
         color = 28,
         color2 = 7,
-        perf = 0,
+        perf = 7,
         short_name = "LEG"
     },
     ["Lotusi"] = {
         color = 5,
         color2 = 7,
-        perf = 0,
+        perf = 5,
         short_name = "LOT"
     },
     ["Soober"] = {
         color = 16,
         color2 = 16,
-        perf = 0,
+        perf = 5,
         short_name = "SOO"
     },
     ["Jardon"] = {
         color = 29,
         color2 = 8,
-        perf = 0,
+        perf = 5,
         short_name = "JAR"
     }
 }
@@ -277,7 +277,7 @@ drivers = {{
     team = "MacLoran",
     helmet = 10
 }, {
-    name = "Alan Proust",
+    name = "Alan Presto",
     short_name = "APR",
     skill = 7,
     team = "Williamson",
@@ -434,7 +434,7 @@ function ai_controls(car)
     }
     ai.car = car
     function ai:update()
-        self.decisions = self.decisions + dt * (self.skill + rnd(6))
+        self.decisions = self.decisions + dt * (self.skill + 4 + rnd(6))
         local c = car.controls
         local car = self.car
         if not car.current_segment then
@@ -708,7 +708,7 @@ function create_car(race)
         local car_dir = vec(cos(angle), sin(angle))
         self.vel = vecadd(vel, scalev(car_dir, accel))
         self.pos = vecadd(self.pos, scalev(self.vel, 0.3))
-        self.vel = scalev(self.vel, 0.9)
+        self.vel = scalev(self.vel, 0.9 * (495+self.perf)/500)
         for i=1,#car_verts do
             self.verts[i] = rotate_point(vecadd(self.pos, car_verts[i]), angle, self.pos)
         end
@@ -1357,6 +1357,7 @@ function race()
             helmet = 0
         }
         table.insert(self.ranks, p)
+        p.perf = teams[p.driver.team].perf
 
         if self.race_mode == MODE_RACE then
             for i = 1, #drivers do
@@ -1365,6 +1366,7 @@ function race()
                 ai_car.driver = drivers[i]
                 ai_car.color = teams[ai_car.driver.team].color
                 ai_car.color2 = teams[ai_car.driver.team].color2
+                ai_car.perf=teams[ai_car.driver.team].perf
                 ai_car.driver.is_best = false
                 local v = get_data_from_vecmap(ai_car.current_segment)
                 ai_car.pos = vecadd(v, scalev(v.side, i % 2 == 0 and 15 or -15))
