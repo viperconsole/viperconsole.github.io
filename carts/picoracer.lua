@@ -15,7 +15,7 @@ cam_pos = {
     y = 0
 }
 camera_angle = 0
-seg_times = {}
+best_seg_times = {}
 best_lap_time = nil
 best_lap_driver = nil
 function camera(x, y)
@@ -508,7 +508,8 @@ function create_car(race)
         lap_times = {},
         time = "-----",
         best_time = nil,
-        verts={}
+        verts={},
+        seg_times={}
     }
     car.controls = {}
     car.pos = copyv(get_vec_from_vecmap(car.current_segment))
@@ -620,9 +621,10 @@ function create_car(race)
                 if segnextpoly and point_in_polygon(segnextpoly, self.pos) then
                     poly = get_segment(current_segment + 1,false,true)
                     current_segment = current_segment + 1
-                    if seg_times[current_segment] == nil then
-                        seg_times[current_segment] = time
+                    if best_seg_times[current_segment] == nil then
+                        best_seg_times[current_segment] = time
                     end
+                    self.seg_times[current_segment] = time
                     if current_segment > 0 and current_segment % mapsize == 0 and current_segment<=mapsize * self.race.lap_count then
                         -- new lap
                         local lap_time = time
@@ -1234,6 +1236,7 @@ function race()
         self.lap_count = LAP_COUNTS[lap_count]
         self.live_cars=16
         self.is_finished=false
+        self.panel_timer=-1
         sc1 = nil
         sc1timer = 0
         camera_angle = 0
@@ -1364,7 +1367,7 @@ function race()
 
         self.objects = {}
         self.ranks = {}
-        seg_times = {}
+        best_seg_times = {}
         best_lap_time = nil
         best_lap_driver = nil
         if self.race_mode == MODE_TIME_ATTACK and self.play_replay then
@@ -1508,6 +1511,10 @@ function race()
             end
         end
 
+        if self.panel_timer >= 0 then
+            self.panel_timer = self.panel_timer - 1
+        end
+
         -- record replay
         if self.record_replay then
             local c = player.controls
@@ -1633,9 +1640,33 @@ function race()
                 else
                     local lap_behind = ceil((car.current_segment - leader_seg)/mapsize)
                     car.time = lap_behind < 0 and lap_behind.." laps"
-                        or (seg_times[car.current_segment] and "+" .. format_time(t - seg_times[car.current_segment])
+                        or (best_seg_times[car.current_segment] and "+" .. format_time(t - best_seg_times[car.current_segment])
                         or "-----")
                 end
+            end
+        end
+        if self.panel_timer < 0 and player.current_segment > 0 and player.current_segment % mapsize == 0 and self.race_mode == MODE_RACE then
+            self.panel_timer=200
+            local placing = 1
+            local nplaces = 1
+            for _, obj in pairs(self.objects) do
+                if obj ~= player then
+                    nplaces = nplaces + 1
+                    if obj.current_segment > player.current_segment then
+                        placing = placing + 1
+                    end
+                end
+            end
+            self.panel_placing=placing
+            if placing > 1 then
+                local prev=self.ranks[placing-1]
+                self.panel_prev=prev
+                self.panel_prev_time="-"..format_time(self.time-prev.seg_times[player.current_segment])
+            end
+            if placing < 16 then
+                local next=self.ranks[placing+1]
+                self.panel_next=next
+                self.panel_next_time="+"..format_time(self.time - player.seg_times[next.current_segment])
             end
         end
     end
@@ -1854,20 +1885,7 @@ function race()
 
         camera()
 
-        -- get placing
-        local placing = 1
-        local nplaces = 1
-        for _, obj in pairs(self.objects) do
-            if obj ~= player then
-                nplaces = nplaces + 1
-                if obj.current_segment > player.current_segment then
-                    placing = placing + 1
-                end
-            end
-        end
-        if self.start_timer then
-            player.placing = placing
-        end
+        local lap = flr(player.current_segment / mapsize) + 1
 
         -- car dashboard
         if not self.completed then
@@ -1888,15 +1906,23 @@ function race()
                 gfx.blit(66, spritey, 21 * (player.boost / 100), 4, gfx.SCREEN_WIDTH - 61, gfx.SCREEN_HEIGHT - 11, 0, 0,
                     false, false, 1, 1, 1)
             end
-            if self.race_mode == MODE_RACE then
-                gfx.activate_font(1, 124, 249, 100, 10, 10, 10, "1234567890")
-                gprint("" .. player.placing, gfx.SCREEN_WIDTH - 40 - (player.placing > 9 and 5 or 0), gfx.SCREEN_HEIGHT - 40, 7)
-                gfx.activate_font(gfx.SYSTEM_LAYER, 0, 0, 512, 32, 8, 8, "")
+            if self.race_mode == MODE_RACE and self.panel_timer >= 0 then
+                -- stand panel
+                local x=gfx.SCREEN_WIDTH-90
+                local y=50
+                gfx.rectangle(x,y,85,44,0.2,0.2,0.2)
+                gprint("P"..self.panel_placing,x+3,y+3,10)
+                if self.panel_placing > 1 then
+                    gprint(self.panel_prev_time.." "..self.panel_prev.driver.short_name,x+3,y+13,10)
+                end
+                if self.panel_placing < 16 then
+                    gprint(self.panel_next_time.." "..self.panel_next.driver.short_name,x+3,y+23,10)
+                end
+                gprint("Lap "..lap,x+3,y+33,10)
             end
         end
 
         -- ranking board
-        local lap = flr(player.current_segment / mapsize) + 1
         local y = 1
         if not self.completed then
             if self.race_mode == MODE_RACE then
