@@ -509,7 +509,8 @@ function create_car(race)
         time = "-----",
         best_time = nil,
         verts={},
-        seg_times={}
+        seg_times={},
+        ccut_timer=-1
     }
     car.controls = {}
     car.pos = copyv(get_vec_from_vecmap(car.current_segment))
@@ -531,6 +532,9 @@ function create_car(race)
         end
         if controls.right then
             angle = angle - self.steer * 0.3
+        end
+        if self.ccut_timer >= 0 then
+            self.ccut_timer = self.ccut_timer - 1
         end
         -- brake
         local sb_left
@@ -660,20 +664,36 @@ function create_car(race)
                         self.wrong_way = self.wrong_way + 1
                     else
                         -- completely lost the player
-                        self.lost_count = self.lost_count + 1
-                        -- current_segment+=1 -- try to find the car next frame
-                        if self.lost_count > 30 then
-                            -- lost for too long, bring them back to the last known good position
-                            local v = get_data_from_vecmap(self.last_good_seg)
-                            self.pos = copyv(v)
-                            self.current_segment = self.last_good_seg - 1
-                            self.vel = vec(0, 0)
-                            self.angle = v.dir
-                            self.wrong_way = 0
-                            self.accel = 1
-                            self.lost_count = 0
-                            self.trails = cbufnew(32)
-                            return
+                        local found=false
+                        for seg=0,mapsize-1 do
+                            local pseg = self.last_good_seg+seg
+                            local seglostpoly=get_segment(pseg, true)
+                            if seglostpoly and point_in_polygon(seglostpoly, self.pos) then
+                                poly=get_segment(pseg,false,true)
+                                current_segment=pseg
+                                found=true
+                                if current_segment - self.last_good_seg > 2 then
+                                    self.ccut_timer=200
+                                end
+                                break;
+                            end
+                        end
+                        if not found then
+                            self.lost_count = self.lost_count + 1
+                            -- current_segment+=1 -- try to find the car next frame
+                            if self.lost_count > 30 then
+                                -- lost for too long, bring them back to the last known good position
+                                local v = get_data_from_vecmap(self.last_good_seg)
+                                self.pos = copyv(v)
+                                self.current_segment = self.last_good_seg - 1
+                                self.vel = vec(0, 0)
+                                self.angle = v.dir
+                                self.wrong_way = 0
+                                self.accel = 1
+                                self.lost_count = 0
+                                self.trails = cbufnew(32)
+                                return
+                            end
                         end
                     end
                 end
@@ -745,6 +765,9 @@ function create_car(race)
                 create_smoke(current_segment,vecsub(self.pos, scalev(self.vel, 0.5)), self.vel, 4)
             end
         end
+        if self.ccut_timer >= 0 then
+            self.vel=scalev(self.vel,0.8)
+        end
         for i=1,#car_verts do
             self.verts[i] = rotate_point(vecadd(self.pos, car_verts[i]), angle, self.pos)
         end
@@ -760,9 +783,13 @@ function create_car(race)
         self.current_segment = current_segment
         if abs(current_segment-player.current_segment) < 10 then
             local caccel = accel/cars[intro.car].maxacc
-            if (caccel > 0.8 and speed < 10) or caccel > 1.4 or (controls.brake and speed < 7 and speed > 2) then
+            local spawn_pos=vecsub(self.pos, scalev(self.vel, 0.5))
+            if (self.ccut_timer < 0 and caccel > 0.8 and speed < 10) or (controls.brake and speed < 7 and speed > 2) then
                 local col = ground_type==1 and 3 or (ground_type==2 and 4 or 22)
-                create_smoke(current_segment,vecsub(self.pos, scalev(self.vel, 0.5)), self.vel, col)
+                create_smoke(current_segment, spawn_pos, self.vel, col)
+            end
+            if speed > 25 and ground_type == 0 and rnd(10) < 4 then
+                create_spark(current_segment, spawn_pos, scalev(normalize(self.vel),0.8), false)
             end
         end
         if car.current_segment >= mapsize * car.race.lap_count then
@@ -1373,6 +1400,7 @@ function race()
                 end
             end
         end
+        -- keep only signs when all 3 (150,100,50) exists
         local expected=3
         for i=1,#vecmap do
             local v=vecmap[i]
@@ -1943,6 +1971,14 @@ function race()
                     gprint(self.panel_next_time.." "..self.panel_next.driver.short_name,x+3,y+23,10)
                 end
                 gprint("Lap "..lap,x+3,y+33,10)
+            end
+            if player.ccut_timer >= 0 then
+                local x=gfx.SCREEN_WIDTH-92
+                gfx.rectangle(x,50,90,60,0.2,0.2,0.2)
+                printc("Warning!",x+45,53,8)
+                printc("Corner",x+45,63,9)
+                printc("cutting",x+45,73,9)
+                gfx.blit(115,224,26,16,x+45-13,83,0,0,false,false,1,1,1)
             end
         end
 
