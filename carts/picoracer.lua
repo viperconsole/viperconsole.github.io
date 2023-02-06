@@ -368,7 +368,7 @@ dt = 0.033333
 particles = {}
 smokes = {}
 mapsize = 250
-function create_spark(segment, pos, speed)
+function create_spark(segment, pos, speed, grass)
     for _,p in pairs(particles) do
         if not p.enabled then
             p.x=pos.x
@@ -378,6 +378,7 @@ function create_spark(segment, pos, speed)
             p.ttl = 30
             p.seg=segment
             p.enabled=true
+            p.grass=grass
             return
         end
     end
@@ -387,14 +388,15 @@ function create_spark(segment, pos, speed)
         xv = -speed.x + (rnd(2) - 1) / 2,
         yv = -speed.y + (rnd(2) - 1) / 2,
         ttl = 30,
-        seg=segment
+        seg=segment,
+        grass=grass
     }
     function p:draw()
-        line(self.x, self.y, self.x - self.xv, self.y - self.yv, self.ttl > 20 and 10 or (self.ttl > 10 and 9 or 8))
+        line(self.x, self.y, self.x - self.xv, self.y - self.yv, self.grass and 3 or (self.ttl > 20 and 10 or (self.ttl > 10 and 9 or 8)))
     end
     table.insert(particles,p)
 end
-function create_smoke(segment, pos, speed)
+function create_smoke(segment, pos, speed,color)
     for _,s in pairs(smokes) do
         if not s.enabled then
             s.x=pos.x
@@ -405,6 +407,7 @@ function create_smoke(segment, pos, speed)
             s.seg = segment
             s.enabled = true
             s.ttl = SMOKE_LIFE
+            s.col=color
             return
         end
     end
@@ -416,12 +419,14 @@ function create_smoke(segment, pos, speed)
         ttl = SMOKE_LIFE,
         r = math.random(2, 4),
         seg = segment,
-        enabled = true
+        enabled = true,
+        col=color
     }
     function p:draw()
         local p = cam2screen(vec(self.x, self.y))
-        local rgb = self.ttl / (2.0*SMOKE_LIFE)
-        gfx.disk(p.x, p.y, self.r * (2 - rgb), rgb, rgb, rgb)
+        local rgb = self.ttl / SMOKE_LIFE
+        local col=PAL[self.col]
+        gfx.disk(p.x, p.y, self.r * (2 - rgb), col.r*rgb, col.g*rgb, col.b*rgb)
     end
     table.insert(smokes,p)
 end
@@ -689,7 +694,7 @@ function create_car(race)
                         end
                         vel = vecsub(vel, scalev(rv, pen))
                         accel = accel * (1.0 - (pen / 10))
-                        create_spark(self.current_segment, point, rv)
+                        create_spark(self.current_segment, point, rv, false)
                         self.collision = self.collision + pen
                         if self.is_player then
                             if pen > 2 then
@@ -709,6 +714,34 @@ function create_car(race)
         self.vel = vecadd(vel, scalev(car_dir, accel))
         self.pos = vecadd(self.pos, scalev(self.vel, 0.3))
         self.vel = scalev(self.vel, 0.9 * (495+self.perf)/500)
+        local v=get_data_from_vecmap(self.current_segment)
+        local sidepos=dot(vecsub(self.pos,v),v.side)
+        local ground_type = sidepos >36 and v.ltyp or (sidepos < -36 and v.rtyp or 0)
+        if self.is_player and speed > 1 and frame%flr(60/speed) == 0 then
+            if (v.has_lkerb and sidepos <= 36 and sidepos >= 24)
+                or (v.has_rkerb and sidepos >= -36 and sidepos <= -24) then
+                -- on kerbs
+                sfx(12)
+            end
+        end
+        if ground_type==1 then
+            --grass
+            local r=rnd(10)
+            if r < 4 then
+                self.vel=scalev(self.vel,0.9)
+                angle = wrap(angle,1) * (980+rnd(40)) / 1000
+            end
+            if r < speed then
+                create_spark(self.current_segment,self.pos,scalev(normalize(self.vel),0.3),true)
+            end
+        elseif ground_type==2 then
+            -- sand
+            self.vel=scalev(self.vel,0.8)
+            angle = angle + (self.angle-angle) * 0.5
+            if speed > 4 then
+                create_smoke(current_segment,vecsub(self.pos, scalev(self.vel, 0.5)), self.vel, 4)
+            end
+        end
         for i=1,#car_verts do
             self.verts[i] = rotate_point(vecadd(self.pos, car_verts[i]), angle, self.pos)
         end
@@ -725,7 +758,8 @@ function create_car(race)
         if abs(current_segment-player.current_segment) < 10 then
             local caccel = accel/cars[intro.car].maxacc
             if (caccel > 0.8 and speed < 10) or caccel > 1.4 or (controls.brake and speed < 7 and speed > 2) then
-                create_smoke(current_segment,vecsub(self.pos, scalev(self.vel, 0.5)), self.vel)
+                local col = ground_type==1 and 3 or (ground_type==2 and 4 or 22)
+                create_smoke(current_segment,vecsub(self.pos, scalev(self.vel, 0.5)), self.vel, col)
             end
         end
         if car.current_segment >= mapsize * car.race.lap_count then
@@ -1508,7 +1542,7 @@ function race()
                                     p = p * 1.5
                                     obj.vel = vecadd(obj.vel, scalev(rv, p))
                                     obj2.vel = vecsub(obj2.vel, scalev(rv, p))
-                                    create_spark(obj.current_segment, point, rv)
+                                    create_spark(obj.current_segment, point, rv,false)
                                     obj.collision = obj.collision + flr(p)
                                     obj2.collision = obj2.collision + flr(p)
                                     if obj.is_player or obj2.is_player then
@@ -1571,7 +1605,7 @@ function race()
         -- lerp_angle
         local diff=wrap(player.angle-camera_angle,1)
         local dist=wrap(2*diff,1) - diff
-        camera_angle = camera_angle + dist * 0.04
+        camera_angle = camera_angle + dist * 0.05
 
         -- car times
         if frame % 100 == 0 then
@@ -2426,7 +2460,7 @@ SFX =
      "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
      "PAT 16 A.20F5 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
      "PAT 16 A.40F5 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+     "PAT 4 C.08F3 ......",
      "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
      "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
      "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
