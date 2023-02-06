@@ -640,6 +640,7 @@ function create_car(race)
                         self.delta_time = self.delta_time + lap_time
                         if best_lap_time == nil or lap_time < best_lap_time then
                             best_lap_time = lap_time
+                            self.race.best_lap_timer=100
                             if best_lap_driver ~= nil then
                                 best_lap_driver.is_best = false
                             end
@@ -1265,6 +1266,7 @@ function race()
         self.live_cars=16
         self.is_finished=false
         self.panel_timer=-1
+        self.best_lap_timer=-1
         sc1 = nil
         sc1timer = 0
         camera_angle = 0
@@ -1502,6 +1504,9 @@ function race()
         frame = frame + 1
         if sc1timer > 0 then
             sc1timer = sc1timer - 1
+        end
+        if self.best_lap_timer >= 0 then
+            self.best_lap_timer = self.best_lap_timer-1
         end
 
         if self.completed then
@@ -1938,6 +1943,7 @@ function race()
         camera()
 
         local lap = flr(player.current_segment / mapsize) + 1
+        printr(gfx.fps().." fps",gfx.SCREEN_WIDTH-1,1,7)
 
         -- car dashboard
         if not self.completed then
@@ -1980,6 +1986,13 @@ function race()
                 printc("cutting",x+45,73,9)
                 gfx.blit(115,224,26,16,x+45-13,83,0,0,false,false,1,1,1)
             end
+        end
+        if self.race_mode==MODE_RACE and self.best_lap_timer >= 0 then
+            local x=200
+            local y=0
+            gfx.rectangle(x,y,100,18,0.2,0.2,0.2)
+            printc("Best lap "..best_lap_driver.short_name,x+50,y+1,9)
+            printc(format_time(best_lap_time),x+50,y+9,9)
         end
 
         -- ranking board
@@ -2088,7 +2101,6 @@ function race()
         if player.collision > 0 or self.completed then
             player.collision = player.collision - 0.1
         end
-        printr(gfx.fps().." fps",gfx.SCREEN_WIDTH-1,1,7)
     end
     return race
 end
