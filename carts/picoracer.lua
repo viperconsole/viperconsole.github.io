@@ -625,7 +625,8 @@ function create_car(race)
                         best_seg_times[current_segment] = time
                     end
                     self.seg_times[current_segment] = time
-                    if current_segment > 0 and current_segment % mapsize == 0 and current_segment<=mapsize * self.race.lap_count then
+                    if current_segment > 0 and current_segment % mapsize == 0
+                        and (self.race.race_mode==MODE_TIME_ATTACK or current_segment<=mapsize * self.race.lap_count) then
                         -- new lap
                         local lap_time = time
                         if self.race.race_mode == MODE_RACE then
