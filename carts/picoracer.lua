@@ -740,7 +740,7 @@ function create_car(race)
         self.vel = scalev(self.vel, 0.9 * (495+self.perf)/500)
         local v=get_data_from_vecmap(self.current_segment)
         local sidepos=dot(vecsub(self.pos,v),v.side)
-        local ground_type = sidepos >36 and v.ltyp or (sidepos < -36 and v.rtyp or 0)
+        local ground_type = sidepos >36 and (v.ltyp & 7) or (sidepos < -36 and (v.rtyp & 7) or 0)
         if self.is_player and speed > 1 and frame%flr(60/speed) == 0 then
             if (v.has_lkerb and sidepos <= 36 and sidepos >= 24)
                 or (v.has_rkerb and sidepos >= -36 and sidepos <= -24) then
@@ -888,7 +888,7 @@ function init()
     snd.new_instrument(INST_PHASER)
     snd.new_instrument(INST_ENGINE)
     gfx.set_active_layer(1)
-    gfx.set_layer_size(1, 224, 259)
+    gfx.set_layer_size(1, 244, 259)
     gfx.load_img("picoracer", "picoracer/picoracer.png")
     gfx.set_sprite_layer(1)
     gfx.show_layer(3)
@@ -1355,8 +1355,8 @@ function race()
                 -- track borders (including kerbs)
                 v.left_track = vecadd(v,scalev(v.side,v.w))
                 v.right_track = vecsub(v,scalev(v.side,v.w))
-                v.left_inner_rail = vecadd(v.left_track,scalev(v.side,v.ltyp==0 and 4 or 40))
-                v.right_inner_rail = vecsub(v.right_track,scalev(v.side,v.rtyp==0 and 4 or 40))
+                v.left_inner_rail = vecadd(v.left_track,scalev(v.side,v.ltyp & 7==0 and 4 or 40))
+                v.right_inner_rail = vecsub(v.right_track,scalev(v.side,v.rtyp & 7==0 and 4 or 40))
                 if v.has_lrail then
                     v.left_outer_rail = vecadd(v.left_inner_rail,scalev(v.side,4))
                 end
@@ -1780,8 +1780,8 @@ function race()
             if lastv then
                 if onscreen(v) or onscreen(lastv) or onscreen(v.right_inner_rail) or onscreen(v.left_inner_rail)
                     or onscreen(lastv.right_inner_rail) or onscreen(lastv.left_inner_rail) then
-                    local ltyp=v.ltyp
-                    local rtyp=v.rtyp
+                    local ltyp=v.ltyp & 7
+                    local rtyp=v.rtyp & 7
                     local rtrack=v.right_track
                     local ltrack=v.left_track
                     local last_rtrack=lastv.right_track
@@ -1869,6 +1869,33 @@ function race()
                             linevec(p, vecadd(p, smallfront), 7)
                             linevec(p2, vecadd(p2, smallfront), 7)
                         end
+                    end
+                    -- track side objects
+                    local lobj = v.ltyp//8
+                    local robj = v.rtyp//8
+                    if lobj == 1 then
+                        local p = vecadd(li_rail,scalev(v.side,8))
+                        local p2 = vecadd(p,scalev(v.side,10))
+                        local p3 = vecadd(p,scalev(v.front,-32))
+                        local p4 = vecadd(p2,scalev(v.front,-32))
+                        quadfill(p,p2,p3,p4,22)
+                        local p2s=cam2screen(vecadd(vecadd(p,scalev(v.side,5)),scalev(v.front,-16)))
+                        gfx.blit(224,0,20,60,p2s.x-10,p2s.y-30,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        p=vecadd(p,scalev(v.side,50))
+                        p3=vecadd(p3,scalev(v.side,50))
+                        quadfill(p,p2,p3,p4,seg%2==0 and 20 or 4)
+                    end
+                    if robj == 1 then
+                        local p = vecsub(ri_rail,scalev(v.side,8))
+                        local p2 = vecsub(p,scalev(v.side,10))
+                        local p3 = vecadd(p,scalev(v.front,-32))
+                        local p4 = vecadd(p2,scalev(v.front,-32))
+                        quadfill(p,p2,p3,p4,22)
+                        local p2s=cam2screen(vecadd(vecsub(p,scalev(v.side,5)),scalev(v.front,-16)))
+                        gfx.blit(224,0,20,60,p2s.x-10,p2s.y-30,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        p=vecsub(p,scalev(v.side,50))
+                        p3=vecsub(p3,scalev(v.side,50))
+                        quadfill(p,p2,p3,p4,seg%2==0 and 20 or 4)
                     end
 
                     if v.lpanel ~= nil then
@@ -2341,10 +2368,10 @@ function get_segment(seg, enlarge, for_collision)
     local lastfront=lastv.front
     local lastside = lastv.side
 
-    local lastwl = (for_collision and not lastv.has_lrail) and 200 or (lastv.ltyp==0 and lastv.w or lastv.w+40)
-    local lastwr = (for_collision and not lastv.has_rrail) and 200 or (lastv.rtyp==0 and lastv.w or lastv.w+40)
-    local wl = (for_collision and not v.has_lrail) and 200 or (v.ltyp==0 and v.w or v.w+40)
-    local wr = (for_collision and not v.has_rrail) and 200 or (v.rtyp==0 and v.w or v.w+40)
+    local lastwl = (for_collision and not lastv.has_lrail) and 200 or (lastv.ltyp & 7==0 and lastv.w or lastv.w+40)
+    local lastwr = (for_collision and not lastv.has_rrail) and 200 or (lastv.rtyp & 7==0 and lastv.w or lastv.w+40)
+    local wl = (for_collision and not v.has_lrail) and 200 or (v.ltyp & 7==0 and v.w or v.w+40)
+    local wr = (for_collision and not v.has_rrail) and 200 or (v.rtyp & 7==0 and v.w or v.w+40)
     if enlarge then
         lastwl = lastwl * 2.5
         lastwr = lastwr * 2.5
@@ -2486,11 +2513,12 @@ function lerpv(a, b, t)
 end
 
 TRACKS = {
-    [0] = {1337, 14, 128, 32, 1,0,0,0, 10, 128, 32, 1,0,0,0, 10, 128, 32, 1,1,0,-1, 3, 120, 32, 1,1,-1,3, 3, 140, 32, 1,2,3,0, 6, 126, 32, 1,0,1,0,
-        6, 128, 32, 1,0,0,0, 8, 126, 32, 2,0,0,0, 6, 127,32, 2,0,0,0, 9, 128, 32, 0,0,0,0, 1, 128, 32, 1,0,1,0, 2, 137, 32, 1,3,1,0, 3, 123, 32, 2,3,0,0, 10, 128, 32, 0,0,0,0,
+    [0] = {1337, 10, 128, 32, 9,0,0,0, 4, 128, 32, 1,0,0,0,  10, 128, 32, 9,0,0,0, 2, 128, 32, 1,1,0,0, 4, 128, 32, 9,1,0,0, 4, 128, 32, 1,1,0,-1, 3, 120, 32, 1,1,-1,3, 3, 140, 32, 1,10,3,0, 2,
+        126, 32, 1,0,0,0, 2, 126, 32, 9,0,1,0, 2, 126, 32, 1,0,0,0,
+        6, 128, 32, 1,0,0,0, 8, 126, 32, 2,0,0,0, 6, 127,32, 2,0,0,0, 9, 128, 32, 0,0,0,0, 1, 128, 32, 1,0,1,0, 2, 137, 32, 1,3,1,0, 3, 123, 32, 2,3,0,0, 2, 128, 32, 0,8,0,0, 8, 128, 32, 0,0,0,0,
         9, 125, 32, 2,0,0,0, 8, 128, 32, 1,0,0,0, 4, 123.0, 32, 2,0,0,0,  4, 128, 32, 2,0,0,0, 8, 128, 32, 0,0,0,0, 5, 129, 32, 0,0,0,0, 16, 128, 32, 0,0,0,0, 5, 131, 32, 1,2,0,0,
-        7, 125, 32,2,1,0,0,  6, 131, 32,1,2,0,0,  37, 128, 32,0,0,0,0,  5, 121.1, 32,3,0,0,0,  7, 127.1, 32,3,0,0,0,  8, 126.8,32, 2,0,0,0,
-        12, 128.0, 32, 0,0,0,0, 0, 0, 0,0,0,0,0},
+        7, 125, 32,2,1,0,0,  6, 131, 32,1,10,0,0,  2, 128, 32,0,0,0,0, 6, 128, 32,0,8,0,0, 21, 128, 32,0,0,0,0, 8, 128, 32,8,0,0,0,  5, 121.1, 32,3,0,0,0,  7, 127.1, 32,3,0,0,0,  6, 126.8,32, 2,0,0,0, 2, 126.8,32, 10,0,0,0,
+        12, 128.0, 32, 8,0,0,0,  0, 0, 0,0,0,0,0},
     {10, 128, 32, 10, 125, 32, 10, 127, 32, 6, 127, 32, 6, 121, 32, 6, 120, 32, 6, 120, 32, 6, 120, 32, 6, 125, 32, 6,
      135, 32, 6, 131, 32, 6, 129, 32, 6, 130, 32, 6, 131, 32, 6, 130, 32, 6, 129, 32, 6, 128, 32, 6, 125, 32, 6, 125,
      32, 6, 124, 32, 6, 124, 32, 6, 123, 32, 6, 121, 32, 6, 127, 32, 6, 136, 32, 6, 128, 32, 6, 128, 32, 6, 126, 32, 6,
