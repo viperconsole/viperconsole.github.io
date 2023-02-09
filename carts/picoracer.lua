@@ -15,7 +15,11 @@ LAYER_SHADOW=4
 LAYER_CARS=5
 LAYER_SHADOW2=6
 LAYER_TOP=7
+OBJ_TRIBUNE=1
+OBJ_TRIBUNE2=2
+OBJ_TREE=3
 SHADOW_DELTA={x=-10,y=10}
+SHADOW_COL={r=162.0/255,g=136.0/255,b=121.0/255} -- correspond to palette 22
 cam_pos = {
     x = 0,
     y = 0
@@ -770,7 +774,9 @@ function create_car(race)
             local r=rnd(10)
             if r < 4 then
                 self.vel=scalev(self.vel,0.9)
-                angle = wrap(angle,1) * (980+rnd(40)) / 1000
+                local angle_vel_impact=min(5.0,speed) / 5.0
+                local da = math.random(-20,20) * angle_vel_impact
+                angle = wrap(angle,1) * (1000+da) / 1000
             end
             if r < speed then
                 create_spark(self.current_segment,self.pos,scalev(normalize(self.vel),0.3),true)
@@ -799,6 +805,7 @@ function create_car(race)
         self.speed = speed -- used for showing speedo
         self.angle = angle
         self.current_segment = current_segment
+        local player=self.race.player
         if abs(current_segment-player.current_segment) < 10 then
             local caccel = accel/cars[intro.car].maxacc
             local spawn_pos=vecsub(self.pos, scalev(self.vel, 0.5))
@@ -1910,7 +1917,7 @@ function race()
                     -- track side objects
                     local lobj = v.ltyp//8
                     local robj = v.rtyp//8
-                    if lobj == 1 then
+                    if lobj == OBJ_TRIBUNE then
                         local p = vecadd(li_rail,scalev(v.side,8))
                         local p2 = vecadd(p,scalev(v.side,10))
                         local p3 = vecadd(p,scalev(v.front,-32))
@@ -1930,8 +1937,37 @@ function race()
                         p4 = vecadd(p4,sd)
                         quadfill(p,p2,p3,p4,22)
                         gfx.set_active_layer(0)
+                    elseif lobj == OBJ_TRIBUNE2 then
+                        local p = vecadd(li_rail,scalev(v.side,8))
+                        local p2 = vecadd(p,scalev(v.side,40))
+                        local p3 = vecadd(p,scalev(v.front,-32))
+                        local p4 = vecadd(p2,scalev(v.front,-32))
+                        quadfill(p,p2,p3,p4,22)
+                        gfx.set_active_layer(LAYER_CARS)
+                        local p2s=cam2screen(vecadd(vecadd(p,scalev(v.side,5)),scalev(v.front,-16)))
+                        gfx.blit(244,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        local p2s=cam2screen(vecadd(vecadd(p,scalev(v.side,15)),scalev(v.front,-16)))
+                        gfx.blit(264,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        local p2s=cam2screen(vecadd(vecadd(p,scalev(v.side,25)),scalev(v.front,-16)))
+                        gfx.blit(244,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        local p2s=cam2screen(vecadd(vecadd(p,scalev(v.side,35)),scalev(v.front,-16)))
+                        gfx.blit(264,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        gfx.set_active_layer(LAYER_SHADOW)
+                        local sd=scalev(SHADOW_DELTA,0.1)
+                        local r=SHADOW_COL.r
+                        local g=SHADOW_COL.g
+                        local b=SHADOW_COL.b
+                        local p2s=cam2screen(vecadd(vecadd(vecadd(p,scalev(v.side,5)),scalev(v.front,-16)),sd))
+                        gfx.blit(284,0,20,60,p2s.x,p2s.y,0,0,false,false,r,g,b,from_pico_angle(camera_angle-v.dir))
+                        local p2s=cam2screen(vecadd(vecadd(vecadd(p,scalev(v.side,15)),scalev(v.front,-16)),sd))
+                        gfx.blit(304,0,20,60,p2s.x,p2s.y,0,0,false,false,r,g,b,from_pico_angle(camera_angle-v.dir))
+                        local p2s=cam2screen(vecadd(vecadd(vecadd(p,scalev(v.side,25)),scalev(v.front,-16)),sd))
+                        gfx.blit(284,0,20,60,p2s.x,p2s.y,0,0,false,false,r,g,b,from_pico_angle(camera_angle-v.dir))
+                        local p2s=cam2screen(vecadd(vecadd(vecadd(p,scalev(v.side,35)),scalev(v.front,-16)),sd))
+                        gfx.blit(304,0,20,60,p2s.x,p2s.y,0,0,false,false,r,g,b,from_pico_angle(camera_angle-v.dir))
+                        gfx.set_active_layer(0)
                     end
-                    if robj == 1 then
+                    if robj == OBJ_TRIBUNE then
                         local p = vecsub(ri_rail,scalev(v.side,8))
                         local p2 = vecsub(p,scalev(v.side,10))
                         local p3 = vecadd(p,scalev(v.front,-32))
@@ -1950,6 +1986,35 @@ function race()
                         p3 = vecadd(p3,sd)
                         p4 = vecadd(p4,sd)
                         quadfill(p,p2,p3,p4,22)
+                        gfx.set_active_layer(0)
+                    elseif robj == OBJ_TRIBUNE2 then
+                        local p = vecsub(ri_rail,scalev(v.side,8))
+                        local p2 = vecsub(p,scalev(v.side,40))
+                        local p3 = vecadd(p,scalev(v.front,-32))
+                        local p4 = vecadd(p2,scalev(v.front,-32))
+                        quadfill(p,p2,p3,p4,22)
+                        gfx.set_active_layer(LAYER_CARS)
+                        local p2s=cam2screen(vecadd(vecsub(p,scalev(v.side,5)),scalev(v.front,-16)))
+                        gfx.blit(244,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        local p2s=cam2screen(vecadd(vecsub(p,scalev(v.side,15)),scalev(v.front,-16)))
+                        gfx.blit(264,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        local p2s=cam2screen(vecadd(vecsub(p,scalev(v.side,25)),scalev(v.front,-16)))
+                        gfx.blit(244,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        local p2s=cam2screen(vecadd(vecsub(p,scalev(v.side,35)),scalev(v.front,-16)))
+                        gfx.blit(264,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        gfx.set_active_layer(LAYER_SHADOW)
+                        local sd=scalev(SHADOW_DELTA,0.1)
+                        local r=SHADOW_COL.r
+                        local g=SHADOW_COL.g
+                        local b=SHADOW_COL.b
+                        local p2s=cam2screen(vecadd(vecadd(vecsub(p,scalev(v.side,5)),scalev(v.front,-16)),sd))
+                        gfx.blit(244,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        local p2s=cam2screen(vecadd(vecadd(vecsub(p,scalev(v.side,15)),scalev(v.front,-16)),sd))
+                        gfx.blit(264,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        local p2s=cam2screen(vecadd(vecadd(vecsub(p,scalev(v.side,25)),scalev(v.front,-16)),sd))
+                        gfx.blit(244,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        local p2s=cam2screen(vecadd(vecadd(vecsub(p,scalev(v.side,35)),scalev(v.front,-16)),sd))
+                        gfx.blit(264,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
                         gfx.set_active_layer(0)
                     end
 
@@ -2571,11 +2636,25 @@ function lerpv(a, b, t)
 end
 
 TRACKS = {
-    [0] = {1337, 10, 128, 32, 9,0,0,0, 4, 128, 32, 1,0,0,0,  10, 128, 32, 9,0,0,0, 2, 128, 32, 1,1,0,0, 4, 128, 32, 9,1,0,0, 4, 128, 32, 1,1,0,-1, 3, 120, 32, 1,1,-1,3, 3, 140, 32, 1,10,3,0, 2,
-        126, 32, 1,0,0,0, 2, 126, 32, 9,0,1,0, 2, 126, 32, 1,0,0,0,
-        6, 128, 32, 1,0,0,0, 8, 126, 32, 2,0,0,0, 6, 127,32, 2,0,0,0, 9, 128, 32, 0,0,0,0, 1, 128, 32, 1,0,1,0, 2, 137, 32, 1,3,1,0, 3, 123, 32, 2,3,0,0, 2, 128, 32, 0,8,0,0, 8, 128, 32, 0,0,0,0,
-        9, 125, 32, 2,0,0,0, 8, 128, 32, 1,0,0,0, 4, 123.0, 32, 2,0,0,0,  4, 128, 32, 2,0,0,0, 8, 128, 32, 0,0,0,0, 5, 129, 32, 0,0,0,0, 16, 128, 32, 0,0,0,0, 5, 131, 32, 1,2,0,0,
-        7, 125, 32,2,1,0,0,  6, 131, 32,1,10,0,0,  2, 128, 32,0,0,0,0, 6, 128, 32,0,8,0,0, 21, 128, 32,0,0,0,0, 8, 128, 32,8,0,0,0,  5, 121.1, 32,3,0,0,0,  7, 127.1, 32,3,0,0,0,  6, 126.8,32, 2,0,0,0, 2, 126.8,32, 10,0,0,0,
+    [0] = {1337, 10, 128, 32, 9,0,0,0, 4, 128, 32, 1,0,0,0,  10, 128, 32, 9,0,0,0, 2, 128, 32, 1,1,0,0, 4, 128, 32, 17,1,0,0, 4, 128, 32, 1,1,0,-1,
+        -- prima variante
+        3, 120, 32, 1,1,-1,3, 3, 140, 32, 1,17,3,0,
+        -- curva biassono
+        2, 126, 32, 1,0,0,0, 2, 126, 32, 17,0,1,0, 2, 126, 32, 1,0,0,0,
+        6, 128, 32, 1,0,0,0, 8, 126, 32, 2,0,0,0, 6, 127,32, 2,0,0,0, 9, 128, 32, 0,0,0,0, 1, 128, 32, 1,0,1,0,
+        -- seconda variante
+        2, 137, 32, 1,3,1,0, 3, 123, 32, 2,3,0,0, 2, 128, 32, 0,16,0,0, 8, 128, 32, 0,0,0,0,
+        -- prima curva di lesmo
+        9, 125, 32, 2,0,0,0, 8, 128, 32, 1,0,0,0,
+        -- seconda curva di lesmo
+        4, 123.0, 32, 2,0,0,0,  4, 128, 32, 2,0,0,0, 8, 128, 32, 0,0,0,0,
+        -- curva del serraglio
+        5, 129, 32, 0,0,0,0, 16, 128, 32, 0,0,0,0,
+        -- variante ascari
+        5, 131, 32, 1,2,0,0,
+        7, 125, 32,2,1,0,0,  6, 131, 32,1,18,0,0,  2, 128, 32,0,0,0,0, 6, 128, 32,0,8,0,0, 21, 128, 32,0,0,0,0, 6, 128, 32,16,0,0,0,  2, 128, 32,8,0,0,0,
+        -- curva parabolica
+        5, 121.1, 32,3,0,0,0,  7, 127.1, 32,3,0,0,0,  6, 126.8,32, 2,0,0,0, 2, 126.8,32, 10,0,0,0,
         12, 128.0, 32, 8,0,0,0,  0, 0, 0,0,0,0,0},
     {10, 128, 32, 10, 125, 32, 10, 127, 32, 6, 127, 32, 6, 121, 32, 6, 120, 32, 6, 120, 32, 6, 120, 32, 6, 125, 32, 6,
      135, 32, 6, 131, 32, 6, 129, 32, 6, 130, 32, 6, 131, 32, 6, 130, 32, 6, 129, 32, 6, 128, 32, 6, 125, 32, 6, 125,
