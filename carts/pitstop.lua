@@ -872,18 +872,6 @@ function create_car(race)
         linevec(c, a, color)
         draw_tires(v[4], v[5], v[6], v[7], 0)
         circfill(v[12].x, v[12].y, 1, self.driver.helmet)
-        local circ = rotate_point(vecadd(self.pos, trail_offset), angle, self.pos)
-        local outc = 12
-        if self.boost and self.boost < 30 then
-            outc = self.boost < 15 and 8 or 9
-        end
-        local cx, cy = circ.x, circ.y
-        if self.cooldown > 0 then
-            circfill(cx, cy, frame % 8 < 4 and 1 or 0, 8)
-        else
-            circfill(cx, cy, self.boosting and frame % 2 == 0 and 4 or 2, outc)
-            circfill(cx, cy, self.boosting and frame % 2 == 0 and 2 or 1, 7)
-        end
         -- shadow
         local sd=scalev(SHADOW_DELTA,0.1)
         local sv={}
