@@ -1958,13 +1958,13 @@ function race()
                         local g=SHADOW_COL.g
                         local b=SHADOW_COL.b
                         local p2s=cam2screen(vecadd(vecadd(vecadd(p,scalev(v.side,5)),scalev(v.front,-16)),sd))
-                        gfx.blit(284,0,20,60,p2s.x,p2s.y,0,0,false,false,r,g,b,from_pico_angle(camera_angle-v.dir))
+                        gfx.blit_col(244,0,20,60,p2s.x,p2s.y,0,0,false,false,r,g,b,from_pico_angle(camera_angle-v.dir))
                         local p2s=cam2screen(vecadd(vecadd(vecadd(p,scalev(v.side,15)),scalev(v.front,-16)),sd))
-                        gfx.blit(304,0,20,60,p2s.x,p2s.y,0,0,false,false,r,g,b,from_pico_angle(camera_angle-v.dir))
+                        gfx.blit_col(264,0,20,60,p2s.x,p2s.y,0,0,false,false,r,g,b,from_pico_angle(camera_angle-v.dir))
                         local p2s=cam2screen(vecadd(vecadd(vecadd(p,scalev(v.side,25)),scalev(v.front,-16)),sd))
-                        gfx.blit(284,0,20,60,p2s.x,p2s.y,0,0,false,false,r,g,b,from_pico_angle(camera_angle-v.dir))
+                        gfx.blit_col(244,0,20,60,p2s.x,p2s.y,0,0,false,false,r,g,b,from_pico_angle(camera_angle-v.dir))
                         local p2s=cam2screen(vecadd(vecadd(vecadd(p,scalev(v.side,35)),scalev(v.front,-16)),sd))
-                        gfx.blit(304,0,20,60,p2s.x,p2s.y,0,0,false,false,r,g,b,from_pico_angle(camera_angle-v.dir))
+                        gfx.blit_col(264,0,20,60,p2s.x,p2s.y,0,0,false,false,r,g,b,from_pico_angle(camera_angle-v.dir))
                         gfx.set_active_layer(0)
                     end
                     if robj == OBJ_TRIBUNE then
@@ -2008,13 +2008,13 @@ function race()
                         local g=SHADOW_COL.g
                         local b=SHADOW_COL.b
                         local p2s=cam2screen(vecadd(vecadd(vecsub(p,scalev(v.side,5)),scalev(v.front,-16)),sd))
-                        gfx.blit(244,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        gfx.blit_col(244,0,20,60,p2s.x,p2s.y,0,0,false,false,r,g,b,from_pico_angle(camera_angle-v.dir))
                         local p2s=cam2screen(vecadd(vecadd(vecsub(p,scalev(v.side,15)),scalev(v.front,-16)),sd))
-                        gfx.blit(264,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        gfx.blit_col(264,0,20,60,p2s.x,p2s.y,0,0,false,false,r,g,b,from_pico_angle(camera_angle-v.dir))
                         local p2s=cam2screen(vecadd(vecadd(vecsub(p,scalev(v.side,25)),scalev(v.front,-16)),sd))
-                        gfx.blit(244,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        gfx.blit_col(244,0,20,60,p2s.x,p2s.y,0,0,false,false,r,g,b,from_pico_angle(camera_angle-v.dir))
                         local p2s=cam2screen(vecadd(vecadd(vecsub(p,scalev(v.side,35)),scalev(v.front,-16)),sd))
-                        gfx.blit(264,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        gfx.blit_col(264,0,20,60,p2s.x,p2s.y,0,0,false,false,r,g,b,from_pico_angle(camera_angle-v.dir))
                         gfx.set_active_layer(0)
                     end
 

@@ -184,6 +184,17 @@ Source and destination cannot be the same layer.
     * `r,g,b` : multiply the sprite colors with this color
     * `angle` : an optional rotation angle in radians
 
+* `blit_col(sx,sy,sw,sh, dx,dy,dw,dh, hflip,vflip, r,g,b, angle)`
+    * blit a rectangular zone from the current sprite layer to the active layer replacing all non transparent pixels with r,g,b.
+    * This function is useful for example if you want to blit a sprite with all white pixels for a hit effect, or to black for drop shadow effects.
+    * `sx,sy` : top left pixel position in the spritesheet
+    * `sw,sh` : rectangular zone size in the spritesheet in pixels
+    * `dx,dy` : destination on active pixel buffer (top left position if angle==nil, else center position)
+    * `dw,dh` : destination size in pixel (if 0,0, uses the source size). The sprite will be stretched to fill dw,dh
+    * `hflip, vflip` : whether to flip the sprite horizontally or vertically
+    * `r,g,b` : replace all sprite's pixels with this color
+    * `angle` : an optional rotation angle in radians
+
 ### <a name="h2.5"></a>2.5. Tile map
 TODO
 
