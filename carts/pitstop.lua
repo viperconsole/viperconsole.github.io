@@ -1,7 +1,5 @@
--- pico racer 2048
+-- inspired by pico racer 2048
 -- by impbox software
---
--- viper port by jice
 X_OFFSET = 130
 Y_OFFSET = 0
 MINIMAP_START = -10
@@ -926,7 +924,7 @@ function init()
     snd.new_instrument(INST_TRIBUNE)
     gfx.set_active_layer(1)
     gfx.set_layer_size(1, 384, 259)
-    gfx.load_img("picoracer", "picoracer/picoracer.png")
+    gfx.load_img("pitstop", "pitstop/pitstop.png")
     gfx.set_sprite_layer(1)
     gfx.show_layer(LAYER_SMOKE) -- smoke fx
     gfx.set_layer_operation(3, gfx.LAYEROP_ADD)
@@ -2851,4 +2849,4 @@ INST_ORGAN = "INST OVERTONE 0.5 TRIANGLE 0.75 NAM organ"
 INST_NOISE = "INST NOISE 1.0 NOISE_COLOR 0.2 NAM noise"
 INST_PHASER = "INST OVERTONE 0.5 METALIZER 1.0 TRIANGLE 0.7 NAM phaser"
 INST_ENGINE = "INST OVERTONE 1.0 METALIZER 1.0 TRIANGLE 1.0 NAM engine"
-INST_TRIBUNE="SAMPLE ID 01 FILE picoracer/tribune.wav FREQ 17000 LOOP_START 0 LOOP_END 102013"
+INST_TRIBUNE="SAMPLE ID 01 FILE pitstop/tribune.wav FREQ 17000 LOOP_START 0 LOOP_END 102013"
