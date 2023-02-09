@@ -16,6 +16,7 @@ LAYER_TOP=7
 OBJ_TRIBUNE=1
 OBJ_TRIBUNE2=2
 OBJ_TREE=3
+OBJ_BRIDGE=4
 SHADOW_DELTA={x=-10,y=10}
 SHADOW_COL={r=162.0/255,g=136.0/255,b=121.0/255} -- correspond to palette 22
 cam_pos = {
@@ -1909,7 +1910,7 @@ function race()
                     local wseg = wrap(seg, mapsize)
                     if wseg > mapsize - #drivers//2-3 then
                         local side = scalev(v.side, 12)
-                        local smallfront = scalev(v.front, -2)
+                        local smallfront = scalev(v.front, -12)
                         local lfront = scalev(v.front, -10)
                         local p = vecadd(vecadd(lastv.right_kerb, side), lfront)
                         if wseg ~= mapsize-1 then
@@ -2009,6 +2010,14 @@ function race()
                                 gfx.blit_col(224,110,40,40,p.x,p.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
                             end
                         end
+                        gfx.set_active_layer(0)
+                    elseif lobj == OBJ_BRIDGE then
+                        p=cam2screen(v)
+                        gfx.set_active_layer(LAYER_TOP)
+                        gfx.blit(141,224,182,30,p.x,p.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        gfx.set_active_layer(LAYER_SHADOW2)
+                        p=cam2screen(vecadd(v,SHADOW_DELTA))
+                        gfx.blit_col(141,224,182,30,p.x,p.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
                         gfx.set_active_layer(0)
                     end
                     if robj == OBJ_TRIBUNE then
@@ -2712,7 +2721,7 @@ TRACKS = {
         3, 120, 32, 1,1,-1,3, 3, 140, 32, 1,17,3,0,
         -- curva biassono
         2, 126, 32, 1,0,0,0, 2, 126, 32, 17,24,1,0, 2, 126, 32, 25,24,0,0,
-        6, 128, 32, 25,24,0,0, 8, 126, 32, 26,24,0,0, 6, 127,32, 26,24,0,0, 9, 128, 32, 0,24,0,0, 1, 128, 32, 25,24,1,0,
+        6, 128, 32, 25,24,0,0, 8, 126, 32, 26,24,0,0, 6, 127,32, 26,24,0,0, 6, 128, 32, 0,24,0,0, 1, 128, 32, 32,24,0,0, 2, 128, 32, 0,24,0,0, 1, 128, 32, 25,24,1,0,
         -- seconda variante
         2, 137, 32, 25,27,1,0, 3, 123, 32, 26,27,0,0, 2, 128, 32, 24,16,0,0, 8, 128, 32, 24,24,0,0,
         -- prima curva di lesmo
@@ -2723,10 +2732,11 @@ TRACKS = {
         5, 129, 32, 24,24,0,0, 16, 128, 32, 24,24,0,0,
         -- variante ascari
         5, 131, 32, 25,26,0,0,
-        7, 125, 32,26,25,0,0,  6, 131, 32,25,18,0,0,  2, 128, 32,0,0,0,0, 6, 128, 32,0,8,0,0, 19, 128, 32,0,0,0,0, 2, 128, 32,24,24,0,0, 6, 128, 32,16,24,0,0,  2, 128, 32,8,0,0,0,
+        7, 125, 32,26,25,0,0,  6, 131, 32,25,18,0,0,  2, 128, 32,0,0,0,0, 6, 128, 32,0,8,0,0, 9, 128, 32,0,0,0,0, 1, 128, 32,32,0,0,0, 7, 128, 32,0,0,0,0, 1,128, 32,32,0,0,0, 1, 128, 32,0,0,0,0,
+        2, 128, 32,24,24,0,0, 6, 128, 32,16,24,0,0,  2, 128, 32,8,0,0,0,
         -- curva parabolica
         5, 121.1, 32,27,0,0,0,  7, 127.1, 32,27,0,0,0,  6, 126.8,32, 26,24,0,0, 2, 126.8,32, 10,24,0,0,
-        12, 128.0, 32, 8,24,0,0,  0, 0, 0,0,0,0,0},
+        6, 128.0, 32, 8,24,0,0, 6, 128.0, 32, 8,0,0,0,  0, 0, 0,0,0,0,0},
     {10, 128, 32, 10, 125, 32, 10, 127, 32, 6, 127, 32, 6, 121, 32, 6, 120, 32, 6, 120, 32, 6, 120, 32, 6, 125, 32, 6,
      135, 32, 6, 131, 32, 6, 129, 32, 6, 130, 32, 6, 131, 32, 6, 130, 32, 6, 129, 32, 6, 128, 32, 6, 125, 32, 6, 125,
      32, 6, 124, 32, 6, 124, 32, 6, 123, 32, 6, 121, 32, 6, 127, 32, 6, 136, 32, 6, 128, 32, 6, 128, 32, 6, 126, 32, 6,
