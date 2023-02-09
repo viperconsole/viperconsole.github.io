@@ -10,6 +10,12 @@ SMOKE_LIFE = 80
 DATA_PER_SEGMENT=8
 DATA_PER_SECTION=7
 LAP_COUNTS = {1, 3, 5, 15}
+LAYER_SMOKE=3
+LAYER_SHADOW=4
+LAYER_CARS=5
+LAYER_SHADOW2=6
+LAYER_TOP=7
+SHADOW_DELTA={x=-10,y=10}
 cam_pos = {
     x = 0,
     y = 0
@@ -41,6 +47,15 @@ function btnp(num, player)
 end
 function cls()
     local c = PAL[21]
+    gfx.set_active_layer(LAYER_TOP)
+    gfx.clear(0,0,0)
+    gfx.set_active_layer(LAYER_SHADOW)
+    gfx.clear(0,0,0)
+    gfx.set_active_layer(LAYER_SHADOW2)
+    gfx.clear(0,0,0)
+    gfx.set_active_layer(LAYER_CARS)
+    gfx.clear(0,0,0)
+    gfx.set_active_layer(0)
     gfx.clear(c.r, c.g, c.b)
 end
 function sspr(x, y, w, h, dx, dy, dw, dh, hflip, vflip)
@@ -149,25 +164,27 @@ function cam2screen(p)
     }
 end
 
-function draw_tires(p1, p2, p3, p4)
+function draw_tires(p1, p2, p3, p4, col)
     local x = scalev(normalize(vecsub(p3, p1)), 1.5)
     local y = scalev(normalize(vecsub(p2, p1)), 0.7)
-    quadfill(vecsub(vecsub(p1, x), y), vecadd(vecsub(p1, x), y), vecsub(vecadd(p1, x), y), vecadd(vecadd(p1, x), y), 0)
-    quadfill(vecsub(vecsub(p2, x), y), vecadd(vecsub(p2, x), y), vecsub(vecadd(p2, x), y), vecadd(vecadd(p2, x), y), 0)
-    quadfill(vecsub(vecsub(p3, x), y), vecadd(vecsub(p3, x), y), vecsub(vecadd(p3, x), y), vecadd(vecadd(p3, x), y), 0)
-    quadfill(vecsub(vecsub(p4, x), y), vecadd(vecsub(p4, x), y), vecsub(vecadd(p4, x), y), vecadd(vecadd(p4, x), y), 0)
+    quadfill(vecsub(vecsub(p1, x), y), vecadd(vecsub(p1, x), y), vecsub(vecadd(p1, x), y), vecadd(vecadd(p1, x), y), col)
+    quadfill(vecsub(vecsub(p2, x), y), vecadd(vecsub(p2, x), y), vecsub(vecadd(p2, x), y), vecadd(vecadd(p2, x), y), col)
+    quadfill(vecsub(vecsub(p3, x), y), vecadd(vecsub(p3, x), y), vecsub(vecadd(p3, x), y), vecadd(vecadd(p3, x), y), col)
+    quadfill(vecsub(vecsub(p4, x), y), vecadd(vecsub(p4, x), y), vecsub(vecadd(p4, x), y), vecadd(vecadd(p4, x), y), col)
 end
 
-function trifill(p1, p2, p3, pal)
+function trifill(p1, p2, p3, pal, transf)
     local col = PAL[flr(pal)]
-    p1 = cam2screen(p1)
-    p2 = cam2screen(p2)
-    p3 = cam2screen(p3)
+    if transf == nil or transf==true then
+        p1 = cam2screen(p1)
+        p2 = cam2screen(p2)
+        p3 = cam2screen(p3)
+    end
     gfx.triangle(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, col.r, col.g, col.b)
 end
-function quadfill(p1, p2, p3, p4, pal)
-    trifill(p1, p2, p3, pal)
-    trifill(p2, p3, p4, pal)
+function quadfill(p1, p2, p3, p4, pal, transf)
+    trifill(p1, p2, p3, pal, transf)
+    trifill(p2, p3, p4, pal, transf)
 end
 
 function circfill(x, y, r, pal)
@@ -824,11 +841,11 @@ function create_car(race)
         trifill(a, b, c, color < 16 and (color + 16) or (color - 16)) -- hull
         trifill(v[13], v[14], v[15], self.color2)
         trifill(v[16], v[17], v[18], self.color2)
-        -- hull outlin
+        -- hull outline
         linevec(a, b, color)
         linevec(b, c, color)
         linevec(c, a, color)
-        draw_tires(v[4], v[5], v[6], v[7])
+        draw_tires(v[4], v[5], v[6], v[7], 0)
         circfill(v[12].x, v[12].y, 1, self.driver.helmet)
         local circ = rotate_point(vecadd(self.pos, trail_offset), angle, self.pos)
         local outc = 12
@@ -842,7 +859,18 @@ function create_car(race)
             circfill(cx, cy, self.boosting and frame % 2 == 0 and 4 or 2, outc)
             circfill(cx, cy, self.boosting and frame % 2 == 0 and 2 or 1, 7)
         end
-
+        -- shadow
+        local sd=scalev(SHADOW_DELTA,0.1)
+        local sv={}
+        for i=1,#v do
+            sv[i] = vecadd(v[i],sd)
+        end
+        gfx.set_active_layer(LAYER_SHADOW)
+        linevec(sv[6],sv[7],22)
+        quadfill(sv[8], sv[9], sv[10], sv[11], 22)
+        trifill(sv[1], sv[2], sv[3], 22)
+        draw_tires(sv[4], sv[5], sv[6], sv[7], 22)
+        gfx.set_active_layer(LAYER_CARS)
     end
 
     function car:draw_trails()
@@ -878,6 +906,7 @@ function init()
         snd.new_pattern(sfx)
     end
     snd.reserve_channel(1) -- reserved for engine sound
+    snd.reserve_channel(2) -- reserved for tribunes
     snd.new_instrument(INST_TRIANGLE)
     snd.new_instrument(INST_TILTED)
     snd.new_instrument(INST_SAW)
@@ -887,12 +916,19 @@ function init()
     snd.new_instrument(INST_NOISE)
     snd.new_instrument(INST_PHASER)
     snd.new_instrument(INST_ENGINE)
+    snd.new_instrument(INST_TRIBUNE)
     gfx.set_active_layer(1)
-    gfx.set_layer_size(1, 244, 259)
+    gfx.set_layer_size(1, 384, 259)
     gfx.load_img("picoracer", "picoracer/picoracer.png")
     gfx.set_sprite_layer(1)
-    gfx.show_layer(3)
+    gfx.show_layer(LAYER_SMOKE) -- smoke fx
     gfx.set_layer_operation(3, gfx.LAYEROP_ADD)
+    gfx.show_layer(LAYER_SHADOW) -- shadow
+    gfx.set_layer_operation(LAYER_SHADOW, gfx.LAYEROP_MULTIPLY)
+    gfx.show_layer(LAYER_CARS)
+    gfx.show_layer(LAYER_SHADOW2) -- shadow
+    gfx.set_layer_operation(LAYER_SHADOW2, gfx.LAYEROP_MULTIPLY)
+    gfx.show_layer(LAYER_TOP) -- roofs & ui
     gfx.set_active_layer(0)
     trail_offset = vec(-6, 0)
     intro:init()
@@ -1010,12 +1046,8 @@ difficulty_names = {
 function intro:draw()
     cls()
     sspr(0, 20, 224, 204, 80, 0)
-    draw_intro_minimap(-60, 3, 0.025, 6)
-    printr("x - accel", 303, 60, 6)
-    printr("c - brake", 303, 70, 6)
-    printr("up - boost", 303, 80, 6)
-    printr("< > - steer", 303, 90, 6)
-    printr("esc -  menu", 303, 100, 6)
+    draw_intro_minimap(-80, -58, 0.015, 6)
+    printr("x/c/arrows/esc", 300, 45, 6)
 
     local c = frame % 16 < 8 and 8 or 9
     printr("Mode", 202, 2, 6)
@@ -1023,7 +1055,7 @@ function intro:draw()
     printr("Track", 202, 12, 6)
     printr(difficulty_names[difficulty], 304, 12, self.option == 2 and c or 9)
     if self.game_mode < 3 then
-        printr("Difficulty", 202, 22, 6)
+        printr("Level", 202, 22, 6)
         printr(cars[self.car].name, 304, 22, self.option == 3 and c or 9)
     end
     if self.game_mode == 1 then
@@ -1357,6 +1389,7 @@ function race()
                 v.right_track = vecsub(v,scalev(v.side,v.w))
                 v.left_inner_rail = vecadd(v.left_track,scalev(v.side,v.ltyp & 7==0 and 4 or 40))
                 v.right_inner_rail = vecsub(v.right_track,scalev(v.side,v.rtyp & 7==0 and 4 or 40))
+                v.tribune=2
                 if v.has_lrail then
                     v.left_outer_rail = vecadd(v.left_inner_rail,scalev(v.side,4))
                 end
@@ -1471,6 +1504,7 @@ function race()
         }
         table.insert(self.ranks, p)
         p.perf = teams[p.driver.team].perf
+        --snd.play_note(17000, v.tribune, 9, 2)
 
         if self.race_mode == MODE_RACE then
             for i = 1, #drivers do
@@ -1517,6 +1551,7 @@ function race()
             end
         elseif inp_menu_pressed() then
             snd.stop_note(1)
+            snd.stop_note(2)
             set_game_mode(paused_menu(self))
             return
         end
@@ -1651,6 +1686,7 @@ function race()
         if not self.completed and self.race_mode == MODE_RACE and player.race_finished then
             -- completed
             snd.stop_note(1)
+            snd.stop_note(2)
             self.completed = true
             self.completed_countdown = 5
         end
@@ -1748,13 +1784,14 @@ function race()
                 self.panel_next_time="+"..format_time(self.time - player.seg_times[next.current_segment])
             end
         end
+        local v = get_data_from_vecmap(player.current_segment)
     end
 
     function race:draw()
         player = self.player
         time = self.time
+        gfx.set_active_layer(0)
         cls()
-
         local tp = cbufget(player.trails, player.trails._size - 8) or player.pos
         local trail = clampv(vecsub(player.pos, tp), 34)
         camera_pos = vecadd(player.pos, trail)
@@ -1880,10 +1917,19 @@ function race()
                         local p4 = vecadd(p2,scalev(v.front,-32))
                         quadfill(p,p2,p3,p4,22)
                         local p2s=cam2screen(vecadd(vecadd(p,scalev(v.side,5)),scalev(v.front,-16)))
-                        gfx.blit(224,0,20,60,p2s.x-10,p2s.y-30,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        gfx.blit(224,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
                         p=vecadd(p,scalev(v.side,50))
                         p3=vecadd(p3,scalev(v.side,50))
+                        gfx.set_active_layer(LAYER_TOP)
                         quadfill(p,p2,p3,p4,seg%2==0 and 20 or 4)
+                        gfx.set_active_layer(LAYER_SHADOW2)
+                        local sd=SHADOW_DELTA
+                        p = vecadd(p,sd)
+                        p2 = vecadd(p2,sd)
+                        p3 = vecadd(p3,sd)
+                        p4 = vecadd(p4,sd)
+                        quadfill(p,p2,p3,p4,22)
+                        gfx.set_active_layer(0)
                     end
                     if robj == 1 then
                         local p = vecsub(ri_rail,scalev(v.side,8))
@@ -1892,20 +1938,29 @@ function race()
                         local p4 = vecadd(p2,scalev(v.front,-32))
                         quadfill(p,p2,p3,p4,22)
                         local p2s=cam2screen(vecadd(vecsub(p,scalev(v.side,5)),scalev(v.front,-16)))
-                        gfx.blit(224,0,20,60,p2s.x-10,p2s.y-30,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        gfx.blit(224,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
                         p=vecsub(p,scalev(v.side,50))
                         p3=vecsub(p3,scalev(v.side,50))
+                        gfx.set_active_layer(LAYER_TOP)
                         quadfill(p,p2,p3,p4,seg%2==0 and 20 or 4)
+                        gfx.set_active_layer(LAYER_SHADOW2)
+                        local sd=SHADOW_DELTA
+                        p = vecadd(p,sd)
+                        p2 = vecadd(p2,sd)
+                        p3 = vecadd(p3,sd)
+                        p4 = vecadd(p4,sd)
+                        quadfill(p,p2,p3,p4,22)
+                        gfx.set_active_layer(0)
                     end
 
                     if v.lpanel ~= nil then
                         local p=cam2screen(v.left_inner_rail)
                         local y=214+10*v.lpanel
-                        panels[#panels+1]={y,p.x-12,p.y-5,v.dir}
+                        panels[#panels+1]={y,p.x,p.y,v.dir}
                     elseif v.rpanel ~= nil then
                         local p=cam2screen(v.right_inner_rail)
                         local y=214+10*v.rpanel
-                        panels[#panels+1]={y,p.x-12,p.y-5,v.dir}
+                        panels[#panels+1]={y,p.x,p.y,v.dir}
                     end
                 end
             end
@@ -1923,6 +1978,7 @@ function race()
             gfx.blit(91,p[1],24,10,p[2],p[3],0,0,false,false,1,1,1,from_pico_angle(camera_angle-p[4]))
         end
         -- draw objects
+        gfx.set_active_layer(LAYER_CARS)
         for _, obj in pairs(self.objects) do
             local oseg=player_lap_seg(obj.current_segment)
             if abs(oseg-player.current_segment) <10 then
@@ -1935,7 +1991,7 @@ function race()
                 p:draw()
             end
         end
-        gfx.set_active_layer(3)
+        gfx.set_active_layer(LAYER_SMOKE)
         gfx.clear(0, 0, 0)
         if not self.completed then
             for _, p in pairs(smokes) do
@@ -1951,7 +2007,7 @@ function race()
         -- quadfill(seg[1],seg[2],seg[4],seg[3],12)
         -- local seg=get_segment(player.current_segment,false,true)
         -- quadfill(seg[1],seg[2],seg[4],seg[3],8)
-        gfx.set_active_layer(0)
+        gfx.set_active_layer(LAYER_TOP)
         -- draw_minimap
         if not self.completed then
             local lastv = nil
@@ -2200,9 +2256,11 @@ function paused_menu(game)
             elseif selected == 2 then
                 set_game_mode(game)
                 snd.stop_note(1)
+                snd.stop_note(2)
                 game:restart()
             elseif selected == 3 then
                 snd.stop_note(1)
+                snd.stop_note(2)
                 set_game_mode(intro)
             end
         end
@@ -2641,3 +2699,4 @@ INST_ORGAN = "INST OVERTONE 0.5 TRIANGLE 0.75 NAM organ"
 INST_NOISE = "INST NOISE 1.0 NOISE_COLOR 0.2 NAM noise"
 INST_PHASER = "INST OVERTONE 0.5 METALIZER 1.0 TRIANGLE 0.7 NAM phaser"
 INST_ENGINE = "INST OVERTONE 1.0 METALIZER 1.0 TRIANGLE 1.0 NAM engine"
+INST_TRIBUNE="SAMPLE ID 01 FILE picoracer/tribune.wav FREQ 17000 LOOP_START 0 LOOP_END 102013"

@@ -178,7 +178,7 @@ Source and destination cannot be the same layer.
     * blit a rectangular zone from the current sprite layer to the active layer
     * `sx,sy` : top left pixel position in the spritesheet
     * `sw,sh` : rectangular zone size in the spritesheet in pixels
-    * `dx,dy` : destination on active pixel buffer
+    * `dx,dy` : destination on active pixel buffer (top left position if angle==nil, else center position)
     * `dw,dh` : destination size in pixel (if 0,0, uses the source size). The sprite will be stretched to fill dw,dh
     * `hflip, vflip` : whether to flip the sprite horizontally or vertically
     * `r,g,b` : multiply the sprite colors with this color
@@ -254,7 +254,7 @@ Sample instrument properties :
    * `SUSTAIN` : duration of sustain phase
    * `RELEASE` : duration of release phase
 
-* `newInstrument(description)` : create a new instrument, return a numerical id for the instrument that can be used in the song patterns (the first is 0 then it is incremented for each new instrument).
+* `new_instrument(description)` : create a new instrument, return a numerical id for the instrument that can be used in the song patterns (the first is 0 then it is incremented for each new instrument).
 
    For oscillator instruments, the description starts with the `INST` keyword followed with a list of parameters. It should end with the `NAM` parameter with the instrument name.
    Example:
