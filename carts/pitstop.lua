@@ -224,19 +224,22 @@ boost_critical_thresh = 15
 
 cars = {{
     name = "Easy",
-    maxacc = 1.5,
+    maxacc = 2.0,
     steer = 0.0225,
-    accsqr = 0.1
+    accsqr = 0.1,
+    player_adv=0.2
 }, {
     name = "Medium",
-    maxacc = 2.1,
+    maxacc = 2.2,
     steer = 0.0185,
-    accsqr = 0.16
+    accsqr = 0.1,
+    player_adv=0.1
 }, {
     name = "Hard",
     maxacc = 2.4,
     steer = 0.0165,
-    accsqr = 0.2
+    accsqr = 0.1,
+    player_adv=0
 }}
 
 teams = {
@@ -489,7 +492,7 @@ function ai_controls(car)
                 c.right = diff < -steer / 3
                 c.left = diff > steer / 3
                 c.brake = abs(diff) > steer
-                c.boost = car.boost > 24 - self.riskiness and (abs(diff) < steer / 2 or car.accel < 0.5)
+                c.boost = false --car.boost > 24 - self.riskiness and (abs(diff) < steer / 2 or car.accel < 0.5)
                 self.decisions = self.decisions - 1
             end
         else
@@ -757,7 +760,23 @@ function create_car(race)
         local car_dir = vec(cos(angle), sin(angle))
         self.vel = vecadd(vel, scalev(car_dir, accel))
         self.pos = vecadd(self.pos, scalev(self.vel, 0.3))
-        self.vel = scalev(self.vel, 0.9 * (495+self.perf)/500)
+        -- aspiration
+        local asp=0
+        for i=1,#self.race.objects do
+            local car=self.race.objects[i]
+            local seg=wrap(self.current_segment,mapsize)
+            local car_seg=wrap(car.current_segment,mapsize)
+            if car ~= self and car_seg-seg <= 3 and car_seg-seg > 0 then
+                local perp=perpendicular(car_dir)
+                local dist=dot(vecsub(car.pos,self.pos),perp)
+                if abs(dist) <= 10 then
+                    asp = 3
+                    break
+                end
+            end
+        end
+
+        self.vel = scalev(self.vel, 0.9 * (495+self.perf + asp)/500)
         local v=get_data_from_vecmap(self.current_segment)
         local sidepos=dot(vecsub(self.pos,v),v.side)
         local ground_type = sidepos >36 and (v.ltyp & 7) or (sidepos < -36 and (v.rtyp & 7) or 0)
@@ -808,7 +827,7 @@ function create_car(race)
         if abs(current_segment-player.current_segment) < 10 then
             local caccel = accel/cars[intro.car].maxacc
             local spawn_pos=vecsub(self.pos, scalev(self.vel, 0.5))
-            if (self.ccut_timer < 0 and caccel > 0.8 and speed < 10) or (controls.brake and speed < 7 and speed > 2) then
+            if (self.ccut_timer < 0 and speed > 1 and caccel/speed > 0.07) or (controls.brake and speed < 9 and speed > 2) then
                 local col = ground_type==1 and 3 or (ground_type==2 and 4 or 22)
                 create_smoke(current_segment, spawn_pos, self.vel, col)
             end
@@ -1052,7 +1071,7 @@ difficulty_names = {
 function intro:draw()
     cls()
     sspr(0, 20, 224, 204, 80, 0)
-    draw_intro_minimap(-80, -58, 0.015, 6)
+    draw_intro_minimap(-75, -58, 0.015, 6)
     printr("x/c/arrows/esc", 300, 45, 6)
 
     local c = frame % 16 < 8 and 8 or 9
@@ -1116,6 +1135,7 @@ function map_menu(game)
                 set_game_mode(race)
                 return
             elseif selected == 3 then
+                camera_angle = 0.25
                 set_game_mode(intro)
             end
         end
@@ -1515,6 +1535,7 @@ function race()
         p.pos = vecadd(p.pos, scalev(v.side, 15))
         p.angle = v.dir
         p.rank = 1
+        p.maxacc = p.maxacc + cars[intro.car].player_adv
         camera_angle = v.dir
         p.driver = {
             name = "Player",
@@ -1590,7 +1611,7 @@ function race()
             else
                 controls.left = inp.left() > 0.1
                 controls.right = inp.right() > 0.1
-                controls.boost = inp_boost()
+                controls.boost = false --inp_boost()
                 controls.accel = inp_accel()
                 controls.brake = inp_brake()
             end
@@ -2406,6 +2427,7 @@ function paused_menu(game)
             elseif selected == 3 then
                 snd.stop_note(1)
                 snd.stop_note(2)
+                camera_angle = 0.25
                 set_game_mode(intro)
             end
         end
@@ -2415,8 +2437,8 @@ function paused_menu(game)
         rectfill(115, 40, 233, 88, 1)
         gprint("Paused", 120, 44, 7)
         gprint("Continue", 120, 56, selected == 1 and frame % 4 < 2 and 7 or 6)
-        gprint("Restart race", 120, 62, selected == 2 and frame % 4 < 2 and 7 or 6)
-        gprint("Exit", 120, 70, selected == 3 and frame % 4 < 2 and 7 or 6)
+        gprint("Restart race", 120, 66, selected == 2 and frame % 4 < 2 and 7 or 6)
+        gprint("Exit", 120, 76, selected == 3 and frame % 4 < 2 and 7 or 6)
     end
     return m
 end
@@ -2442,6 +2464,7 @@ function completed_menu(game)
                 set_game_mode(game)
                 game:restart()
             else
+                camera_angle = 0.25
                 set_game_mode(intro)
             end
         end
@@ -2716,7 +2739,7 @@ function lerpv(a, b, t)
 end
 
 TRACKS = {
-    [0] = {1337, 10, 128, 32, 9,0,0,0, 4, 128, 32, 25,0,0,0,  10, 128, 32, 9,0,0,0, 2, 128, 32, 1,1,0,0, 4, 128, 32, 17,25,0,0, 2, 128, 32, 25,25,0,-1, 2, 128, 32, 1,1,0,-1,
+    [0] = {1337, 4, 128, 32, 25,0,0,0,  10, 128, 32, 9,0,0,0, 2, 128, 32, 1,1,0,0, 4, 128, 32, 17,25,0,0, 2, 128, 32, 25,25,0,-1, 2, 128, 32, 1,1,0,-1,
         -- prima variante
         3, 120, 32, 1,1,-1,3, 3, 140, 32, 1,17,3,0,
         -- curva biassono
@@ -2736,7 +2759,7 @@ TRACKS = {
         2, 128, 32,24,24,0,0, 6, 128, 32,16,24,0,0,  2, 128, 32,8,0,0,0,
         -- curva parabolica
         5, 121.1, 32,27,0,0,0,  7, 127.1, 32,27,0,0,0,  6, 126.8,32, 26,24,0,0, 2, 126.8,32, 10,24,0,0,
-        6, 128.0, 32, 8,24,0,0, 6, 128.0, 32, 8,0,0,0,  0, 0, 0,0,0,0,0},
+        6, 128.0, 32, 8,24,0,0, 6, 128.0, 32, 8,0,0,0,   10, 128, 32, 9,0,0,0, 0, 0, 0,0,0,0,0},
     {10, 128, 32, 10, 125, 32, 10, 127, 32, 6, 127, 32, 6, 121, 32, 6, 120, 32, 6, 120, 32, 6, 120, 32, 6, 125, 32, 6,
      135, 32, 6, 131, 32, 6, 129, 32, 6, 130, 32, 6, 131, 32, 6, 130, 32, 6, 129, 32, 6, 128, 32, 6, 125, 32, 6, 125,
      32, 6, 124, 32, 6, 124, 32, 6, 123, 32, 6, 121, 32, 6, 127, 32, 6, 136, 32, 6, 128, 32, 6, 128, 32, 6, 126, 32, 6,
