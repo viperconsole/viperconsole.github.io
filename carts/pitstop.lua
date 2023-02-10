@@ -943,6 +943,7 @@ function init()
     gfx.set_layer_operation(LAYER_SHADOW2, gfx.LAYEROP_MULTIPLY)
     gfx.show_layer(LAYER_TOP) -- roofs & ui
     gfx.set_active_layer(0)
+    gfx.show_mouse_cursor(false)
     trail_offset = vec(-6, 0)
     intro:init()
     set_game_mode(intro)
@@ -1094,6 +1095,7 @@ function mapeditor:init()
     scale = 0.05
     camera_angle = 0.25
     self.sec = #mapsections
+    gfx.show_mouse_cursor(true)
 end
 
 function map_menu(game)
@@ -1110,6 +1112,7 @@ function map_menu(game)
         selected = max(min(selected, 3), 1)
         if inp.action1_pressed() then
             if selected == 1 then
+                gfx.show_mouse_cursor(false)
                 set_game_mode(game)
             elseif selected == 2 then
                 print ("1337,")
@@ -1120,10 +1123,12 @@ function map_menu(game)
                 print("0,0,0,0,0,0,0")
                 local race = race()
                 race:init(difficulty, 2)
+                gfx.show_mouse_cursor(false)
                 set_game_mode(race)
                 return
             elseif selected == 3 then
                 camera_angle = 0.25
+                gfx.show_mouse_cursor(false)
                 set_game_mode(intro)
             end
         end
