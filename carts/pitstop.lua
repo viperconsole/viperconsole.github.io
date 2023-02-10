@@ -511,7 +511,7 @@ function create_car(race)
         vel = vec(),
         angle = 0,
         trails = cbufnew(32),
-        current_segment = race.race_mode == MODE_RACE and -3 or -5,
+        current_segment = race.race_mode == MODE_RACE and -1 or -5,
         boost = 100,
         cooldown = 0,
         wrong_way = 0,
@@ -1472,7 +1472,7 @@ function race()
                 end
             end
         end
-        -- keep only signs when all 3 (150,100,50) exists
+        -- keep only signs when all 3 (150,100,50) exist
         local expected=3
         for i=1,#vecmap do
             local v=vecmap[i]
@@ -1528,7 +1528,7 @@ function race()
         self.player = p
         p.is_player = true
         local v = get_data_from_vecmap(p.current_segment)
-        p.pos = vecadd(p.pos, scalev(v.side, 15))
+        p.pos = vecadd(vecadd(p.pos, scalev(v.side, 14)),scalev(v.front,-6))
         p.angle = v.dir
         p.rank = 1
         p.maxacc = p.maxacc + cars[intro.car].player_adv
@@ -1547,16 +1547,16 @@ function race()
         if self.race_mode == MODE_RACE then
             for i = 1, #drivers do
                 local ai_car = create_car(self)
-                ai_car.current_segment = -3 - i // 2
+                ai_car.current_segment = -1 - i // 2
                 ai_car.driver = drivers[i]
                 ai_car.color = teams[ai_car.driver.team].color
                 ai_car.color2 = teams[ai_car.driver.team].color2
                 ai_car.perf=teams[ai_car.driver.team].perf
                 ai_car.driver.is_best = false
                 local v = get_data_from_vecmap(ai_car.current_segment)
-                ai_car.pos = vecadd(v, scalev(v.side, i % 2 == 0 and 15 or -15))
+                ai_car.pos = vecadd(vecadd(v, scalev(v.side, i % 2 == 0 and 14 or -14)),scalev(v.front,-6))
                 if i % 2 == 1 then
-                    ai_car.pos = vecadd(ai_car.pos, scalev(v.front,-15))
+                    ai_car.pos = vecadd(ai_car.pos, scalev(v.front,-14))
                 end
                 ai_car.angle = v.dir
                 local oldupdate = ai_car.update
@@ -1927,25 +1927,21 @@ function race()
                     end
                     -- starting grid
                     local wseg = wrap(seg, mapsize)
-                    if wseg > mapsize - #drivers//2-3 then
+                    if wseg > mapsize - #drivers//2-2 then
                         local side = scalev(v.side, 12)
                         local smallfront = scalev(v.front, -12)
-                        local lfront = scalev(v.front, -10)
-                        local p = vecadd(vecadd(lastv.right_kerb, side), lfront)
-                        if wseg ~= mapsize-1 then
-                            local p2 = vecadd(p, side)
-                            linevec(p, p2, 7)
-                            linevec(p, vecadd(p, smallfront), 7)
-                            linevec(p2, vecadd(p2, smallfront), 7)
-                        end
-                        lfront = scalev(v.front, -24)
-                        p = vecadd(vecsub(lastv.left_kerb, side), lfront)
-                        if wseg ~= mapsize - #drivers//2-2 then
-                            local p2 = vecsub(p, side)
-                            linevec(p, p2, 7)
-                            linevec(p, vecadd(p, smallfront), 7)
-                            linevec(p2, vecadd(p2, smallfront), 7)
-                        end
+                        local lfront = scalev(v.front, 31)
+                        local p = vecadd(vecsub(lastv.left_kerb, side), lfront)
+                        local p2 = vecsub(p, side)
+                        linevec(p, p2, 7)
+                        linevec(p, vecadd(p, smallfront), 7)
+                        linevec(p2, vecadd(p2, smallfront), 7)
+                        lfront = scalev(v.front, 17)
+                        p = vecadd(vecadd(lastv.right_kerb, side), lfront)
+                        p2 = vecadd(p, side)
+                        linevec(p, p2, 7)
+                        linevec(p, vecadd(p, smallfront), 7)
+                        linevec(p2, vecadd(p2, smallfront), 7)
                     end
                     -- track side objects
                     local sr=SHADOW_COL.r
