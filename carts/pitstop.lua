@@ -872,6 +872,7 @@ function create_car(race)
         linevec(c, a, color)
         draw_tires(v[4], v[5], v[6], v[7], 0)
         circfill(v[12].x, v[12].y, 1, self.driver.helmet)
+        quadfill(v[19], v[20], v[21], v[22], color) -- rear wing
         -- shadow
         local sd=scalev(SHADOW_DELTA,0.1)
         local sv={}
@@ -883,6 +884,7 @@ function create_car(race)
         quadfill(sv[8], sv[9], sv[10], sv[11], 22)
         trifill(sv[1], sv[2], sv[3], 22)
         draw_tires(sv[4], sv[5], sv[6], sv[7], 22)
+        quadfill(v[19], v[20], v[21], v[22], 22)
         gfx.set_active_layer(LAYER_CARS)
     end
 
@@ -913,7 +915,8 @@ function init()
     vec(-3, -3), vec(-3, 3), vec(2, -3), vec(2, 3), -- tires positions
     vec(4, -3), vec(4, 3), vec(5, -3), vec(5, 3), -- front wing
     vec(0, 0), -- pilot helmet position
-    vec(-4, -3), vec(0, -1.5), vec(-4, 0), vec(-4, 3), vec(0, 1.5), vec(-4, 0) -- second color
+    vec(-4, -3), vec(0, -1.5), vec(-4, 0), vec(-4, 3), vec(0, 1.5), vec(-4, 0), -- second color
+    vec(-3, -3), vec(-3, 3), vec(-5, -3), vec(-5, 3), -- rear wing
     }
     for _, sfx in pairs(SFX) do
         snd.new_pattern(sfx)
@@ -931,7 +934,7 @@ function init()
     snd.new_instrument(INST_ENGINE)
     snd.new_instrument(INST_TRIBUNE)
     gfx.set_active_layer(1)
-    gfx.set_layer_size(1, 384, 259)
+    gfx.set_layer_size(1, 384, 264)
     gfx.load_img("pitstop", "pitstop/pitstop.png")
     gfx.set_sprite_layer(1)
     gfx.show_layer(LAYER_SMOKE) -- smoke fx
@@ -1441,8 +1444,8 @@ function race()
         for seg,v in pairs(vecmap) do
             local v2=get_data_from_vecmap(seg)
             local curve = abs(v2.dir - v.dir) * 100
-            v.has_rkerb = curve > 2 and (v2.dir < v.dir or curve >= 4)
-            v.has_lkerb = curve > 2 and (v2.dir > v.dir or curve >= 4)
+            v.has_rkerb = (seg ~= 1 and seg ~= #vecmap and curve > 2) and (v2.dir < v.dir or curve >= 4)
+            v.has_lkerb = (seg ~= 1 and seg ~= #vecmap and curve > 2) and (v2.dir > v.dir or curve >= 4)
             local rkerbw = v.has_rkerb and 8 or 0
             local lkerbw = v.has_lkerb and 8 or 0
             v.left_kerb = vecsub(v.left_track, scalev(v.side,lkerbw))
@@ -1677,7 +1680,7 @@ function race()
                 obj:update(self.completed, self.time)
             end
         end
-        if self.race_mode == MODE_TIME_ATTACK and player.current_segment % mapsize == 0 then
+        if self.race_mode == MODE_TIME_ATTACK and player.current_segment % mapsize == 0 and self.time > 20 then
             self.time = 0
         end
         -- car to car collision
@@ -1888,9 +1891,6 @@ function race()
                     -- ground
                     local ground = seg % 2 == 0 and 5 or 32
                     quadfill(lastv.right_kerb, lastv.left_kerb, v.right_kerb, v.left_kerb, ground)
-                    if seg % mapsize == 0 then
-                        linevec(lastv.right_kerb, lastv.left_kerb, 10) -- start/end markers
-                    end
                     -- kerbs
                     local midleft = midpoint(ltrack, last_ltrack)
                     local midleft_kerb = midpoint(v.left_kerb, lastv.left_kerb)
@@ -1919,6 +1919,11 @@ function race()
                     end
                     if has_lrail then
                         linevec(last_left_rail, v.left_outer_rail, track_color)
+                    end
+                    -- starting line
+                    if seg % mapsize == 0 then
+                        p=cam2screen(vecadd(v,scalev(v.front,-6)))
+                        gfx.blit(162,254,110,6,p.x,p.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
                     end
                     -- starting grid
                     local wseg = wrap(seg, mapsize)
