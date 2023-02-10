@@ -17,6 +17,7 @@ OBJ_TRIBUNE=1
 OBJ_TRIBUNE2=2
 OBJ_TREE=3
 OBJ_BRIDGE=4
+OBJ_BRIDGE2=5
 SHADOW_DELTA={x=-10,y=10}
 SHADOW_COL={r=162.0/255,g=136.0/255,b=121.0/255} -- correspond to palette 22
 cam_pos = {
@@ -934,7 +935,7 @@ function init()
     snd.new_instrument(INST_ENGINE)
     snd.new_instrument(INST_TRIBUNE)
     gfx.set_active_layer(1)
-    gfx.set_layer_size(1, 384, 264)
+    gfx.set_layer_size(1, 384, 320)
     gfx.load_img("pitstop", "pitstop/pitstop.png")
     gfx.set_sprite_layer(1)
     gfx.show_layer(LAYER_SMOKE) -- smoke fx
@@ -2034,6 +2035,24 @@ function race()
                         p=cam2screen(vecadd(v,SHADOW_DELTA))
                         gfx.blit_col(141,224,182,30,p.x,p.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
                         gfx.set_active_layer(0)
+                    elseif lobj == OBJ_BRIDGE2 then
+                        p=cam2screen(v)
+                        local p2 = vecadd(v,scalev(v.side,-48))
+                        local cp2=cam2screen(p2)
+                        gfx.blit(141,224,8,30,cp2.x,cp2.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        local p3 = vecadd(v,scalev(v.side,48))
+                        local cp3=cam2screen(p3)
+                        gfx.blit(315,224,8,30,cp3.x,cp3.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        gfx.set_active_layer(LAYER_TOP)
+                        gfx.blit(141,260,182,11,p.x,p.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        gfx.set_active_layer(LAYER_SHADOW2)
+                        p=cam2screen(vecadd(v,SHADOW_DELTA))
+                        p2=cam2screen(vecadd(p2,SHADOW_DELTA))
+                        p3=cam2screen(vecadd(p3,SHADOW_DELTA))
+                        gfx.blit_col(141,260,182,11,p.x,p.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
+                        gfx.blit_col(141,224,8,30,p2.x,p2.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
+                        gfx.blit_col(315,224,8,30,p3.x,p3.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
+                        gfx.set_active_layer(0)
                     end
                     if robj == OBJ_TRIBUNE then
                         local p = vecsub(ri_rail,scalev(v.side,8))
@@ -2753,7 +2772,7 @@ TRACKS = {
         2, 128, 32,24,24,0,0, 6, 128, 32,16,24,0,0,  2, 128, 32,8,0,0,0,
         -- curva parabolica
         5, 121.1, 32,27,0,0,0,  7, 127.1, 32,27,0,0,0,  6, 126.8,32, 26,24,0,0, 2, 126.8,32, 10,24,0,0,
-        6, 128.0, 32, 8,24,0,0, 6, 128.0, 32, 8,0,0,0,   10, 128, 32, 9,0,0,0, 0, 0, 0,0,0,0,0},
+        6, 128.0, 32, 8,24,0,0, 5, 128.0, 32, 8,0,0,0, 1, 128.0, 32, 40,0,0,0,  10, 128, 32, 9,0,0,0, 0, 0, 0,0,0,0,0},
     {10, 128, 32, 10, 125, 32, 10, 127, 32, 6, 127, 32, 6, 121, 32, 6, 120, 32, 6, 120, 32, 6, 120, 32, 6, 125, 32, 6,
      135, 32, 6, 131, 32, 6, 129, 32, 6, 130, 32, 6, 131, 32, 6, 130, 32, 6, 129, 32, 6, 128, 32, 6, 125, 32, 6, 125,
      32, 6, 124, 32, 6, 124, 32, 6, 123, 32, 6, 121, 32, 6, 127, 32, 6, 136, 32, 6, 128, 32, 6, 128, 32, 6, 126, 32, 6,
