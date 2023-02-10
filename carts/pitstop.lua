@@ -24,7 +24,11 @@ cam_pos = {
     x = 0,
     y = 0
 }
+MINIMAP_RACE_OFFSET={x=340, y=120}
+MINIMAP_EDITOR_OFFSET={x=340,y=20}
+minimap_offset=MINIMAP_RACE_OFFSET
 camera_angle = 0
+camera_scale = 1
 best_seg_times = {}
 best_lap_time = nil
 best_lap_driver = nil
@@ -142,7 +146,7 @@ function world2minimap(p)
     p = vecsub(p, cam_pos)
     p = rotate_point(p, -camera_angle + 0.25, vec(0, 0))
     p = scalev(p, 0.05)
-    p = vecadd(p, vec(340, 120))
+    p = vecadd(p, minimap_offset)
     return p
 end
 
@@ -160,7 +164,7 @@ function minimap_disk(p, c)
 end
 
 function cam2screen(p)
-    p = vecsub(p, cam_pos)
+    p = scalev(vecsub(p, cam_pos),camera_scale)
     p = vecadd(rotate_point(p, -camera_angle + 0.25, vec(0, 0)), vec(64, 64))
     return {
         x = p.x * 224 / 128 + X_OFFSET,
@@ -208,6 +212,14 @@ function mid(x, y, z)
     else
         return z
     end
+end
+function gblit(x,y,w,h,p,r,g,b,dir)
+    local p=cam2screen(p)
+    gfx.blit(x,y,w,h,p.x,p.y,w*camera_scale,h*camera_scale,false,false,r,g,b,from_pico_angle(camera_angle-dir))
+end
+function gblit_col(x,y,w,h,p,r,g,b,dir)
+    local p=cam2screen(p)
+    gfx.blit_col(x,y,w,h,p.x,p.y,w*camera_scale,h*camera_scale,false,false,r,g,b,from_pico_angle(camera_angle-dir))
 end
 function gprint(msg, px, py, col)
     local c = math.floor(col)
@@ -689,21 +701,8 @@ function create_car(race)
                         self.wrong_way = self.wrong_way + 1
                     else
                         -- completely lost the player
-                        local found=false
-                        for seg=0,mapsize-1 do
-                            local pseg = self.last_good_seg+seg
-                            local seglostpoly=get_segment(pseg, true)
-                            if seglostpoly and point_in_polygon(seglostpoly, self.pos) then
-                                poly=get_segment(pseg,false,true)
-                                current_segment=pseg
-                                found=true
-                                if current_segment - self.last_good_seg > 2 then
-                                    self.ccut_timer=200
-                                end
-                                break;
-                            end
-                        end
-                        if not found then
+                        current_segment=find_segment_from_pos(self.pos,self.last_good_seg)
+                        if current_segment == nil then
                             self.lost_count = self.lost_count + 1
                             -- current_segment+=1 -- try to find the car next frame
                             if self.lost_count > 30 then
@@ -711,6 +710,7 @@ function create_car(race)
                                 local v = get_data_from_vecmap(self.last_good_seg)
                                 self.pos = copyv(v)
                                 self.current_segment = self.last_good_seg - 1
+                                current_segment = self.current_segment
                                 self.vel = vec(0, 0)
                                 self.angle = v.dir
                                 self.wrong_way = 0
@@ -718,6 +718,11 @@ function create_car(race)
                                 self.lost_count = 0
                                 self.trails = cbufnew(32)
                                 return
+                            end
+                        else
+                            poly=get_segment(current_segment,false,true)
+                            if current_segment - self.last_good_seg > 2 then
+                                self.ccut_timer = 150
                             end
                         end
                     end
@@ -841,8 +846,8 @@ function create_car(race)
             car.race.is_finished=true
         end
     end
-    function car:draw_minimap()
-        local seg = player_lap_seg(self.current_segment)
+    function car:draw_minimap(player)
+        local seg = car_lap_seg(self.current_segment, player)
         local pseg = player.current_segment
         if seg >= pseg + MINIMAP_START and seg < pseg + MINIMAP_END then
             minimap_disk(self.pos, self.color)
@@ -1098,8 +1103,13 @@ mapeditor = {
 function mapeditor:init()
     scale = 0.05
     camera_angle = 0.25
+    camera()
     self.sec = #mapsections
     gfx.show_mouse_cursor(true)
+    self.race=race()
+    self.race:init(1,MODE_EDITOR,1)
+    camera_angle = 0.25
+    self.display=0
 end
 
 function map_menu(game)
@@ -1116,9 +1126,10 @@ function map_menu(game)
         selected = max(min(selected, 3), 1)
         if inp.action1_pressed() then
             if selected == 1 then
-                gfx.show_mouse_cursor(false)
                 set_game_mode(game)
             elseif selected == 2 then
+                camera_scale = 1
+                minimap_offset=MINIMAP_RACE_OFFSET
                 print ("1337,")
                 for i = 1, #mapsections do
                     local ms = mapsections[i]
@@ -1131,6 +1142,8 @@ function map_menu(game)
                 set_game_mode(race)
                 return
             elseif selected == 3 then
+                camera_scale = 1
+                minimap_offset=MINIMAP_RACE_OFFSET
                 camera_angle = 0.25
                 gfx.show_mouse_cursor(false)
                 set_game_mode(intro)
@@ -1199,17 +1212,42 @@ function mapeditor:update()
         cs[3] = cs[3] + 1
         -- NUMPAD +/- : zoom
     elseif inp.key_pressed(inp.KEY_NUMPADMINUS) then
-        scale = scale * 0.9
+        if self.display == 0 then
+            scale = scale * 0.9
+        else
+            camera_scale = camera_scale * 0.9
+        end
     elseif inp.key_pressed(inp.KEY_NUMPADPLUS) then
-        scale = scale * 1.1
+        if self.display == 0 then
+            scale = scale * 1.1
+        else
+            camera_scale = camera_scale * 1.1
+        end
     elseif inp.key_pressed(inp.KEY_HOME) then
         self.sec = self.sec == 1 and #mapsections or self.sec - 1
+        local seg=get_segment_from_section(self.sec)
+        cam_pos = get_vec_from_vecmap(seg)
+        self.race.player.pos = cam_pos
+        self.race.player.current_segment=seg
     elseif inp.key_pressed(inp.KEY_END) then
         self.sec = self.sec == #mapsections and 1 or self.sec + 1
+        local seg=get_segment_from_section(self.sec)
+        cam_pos = get_vec_from_vecmap(seg)
+        self.race.player.pos = cam_pos
+        self.race.player.current_segment=seg
     elseif inp.key_pressed(inp.KEY_ESCAPE) then
         -- test map todo: open menu
         set_game_mode(map_menu(self))
         return
+    elseif inp.key_pressed(inp.KEY_TAB) then
+        self.display = 1-self.display
+        if self.display == 0 then
+            camera_scale = 1
+            minimap_offset=MINIMAP_RACE_OFFSET
+        else
+            camera_scale = 0.2
+            minimap_offset=MINIMAP_EDITOR_OFFSET
+        end
     end
     cs[2] = mid(0, cs[2], 255)
     cs[1] = mid(0, cs[1], 255)
@@ -1263,28 +1301,34 @@ end
 
 function mapeditor:draw()
     cls()
-    self.sec_pos = draw_editor_minimap(30 + self.mapoffx + self.mouseoffx + self.mdragx,
-        self.mapoffy - 10 + self.mouseoffy + self.mdragy, scale, 6, self.sec)
+    if self.display == 0 then
+        self.sec_pos = draw_editor_minimap(30 + self.mapoffx + self.mouseoffx + self.mdragx,
+            self.mapoffy - 10 + self.mouseoffy + self.mdragy, scale, 6, self.sec)
+    else
+        self.race:draw()
+    end
     local pos = self.sec_pos[self.sec]
     self.mapoffx = pos[1]
     self.mapoffy = pos[2]
     gprint("section " .. self.sec .. '/' .. #mapsections .. " seg " .. mapsections[self.sec][1], 122, 1, 7)
-    gfx.blit(162, 8, 12, 12, 17, 4, 0, 0, false, false, 1, 1, 1)
+    gfx.blit(162, 8, 12, 12, 17, 3, 0, 0, false, false, 1, 1, 1)
     gprint("  delete", 17, 5, 7)
-    gfx.blit(174, 8, 12, 12, 17, 16, 0, 0, false, false, 1, 1, 1)
+    gfx.blit(174, 8, 12, 12, 17, 15, 0, 0, false, false, 1, 1, 1)
     gprint("  add", 17, 17, 7)
-    gfx.blit(66, 8, 24, 12, 5, 28, 0, 0, false, false, 1, 1, 1)
+    gfx.blit(66, 8, 24, 12, 5, 27, 0, 0, false, false, 1, 1, 1)
     gprint("    length", 1, 29, 7)
-    gfx.blit(90, 8, 24, 12, 5, 40, 0, 0, false, false, 1, 1, 1)
+    gfx.blit(90, 8, 24, 12, 5, 39, 0, 0, false, false, 1, 1, 1)
     gprint("    curve", 1, 41, 7)
-    gfx.blit(138, 8, 24, 12, 5, 52, 0, 0, false, false, 1, 1, 1)
+    gfx.blit(138, 8, 24, 12, 5, 51, 0, 0, false, false, 1, 1, 1)
     gprint("    zoom", 1, 53, 7)
-    gfx.blit(114, 8, 24, 12, 5, 64, 0, 0, false, false, 1, 1, 1)
+    gfx.blit(114, 8, 24, 12, 5, 63, 0, 0, false, false, 1, 1, 1)
     gprint("    width", 1, 65, 7)
-    gfx.blit(186, 8, 24, 12, 5, 76, 0, 0, false, false, 1, 1, 1)
+    gfx.blit(186, 8, 24, 12, 5, 75, 0, 0, false, false, 1, 1, 1)
     gprint("    section", 1, 77, 7)
-    gfx.blit(54, 8, 12, 12, 17, 88, 0, 0, false, false, 1, 1, 1)
-    gprint("  menu", 17, 87, 7)
+    gfx.blit(54, 8, 12, 12, 17, 87, 0, 0, false, false, 1, 1, 1)
+    gprint("  menu", 17, 89, 7)
+    gfx.blit(210, 8, 12, 12, 17, 99, 0, 0, false, false, 1, 1, 1)
+    gprint("  display", 17, 102, 7)
 end
 
 function load_map()
@@ -1344,7 +1388,6 @@ function race()
             local rskiprail_first = max(0,ms[7])
             local lskiprail_last = max(0,-ms[6])
             local rskiprail_last = max(0,-ms[7])
-
             if length == 0 then
                 break
             end
@@ -1404,7 +1447,8 @@ function race()
                     ltyp = ltyp,
                     rtyp = rtyp,
                     has_lrail = (lskiprail_first<= 0 and length >= lskiprail_last),
-                    has_rrail = (rskiprail_first<= 0 and length >= rskiprail_last)
+                    has_rrail = (rskiprail_first<= 0 and length >= rskiprail_last),
+                    section=i
                 }
                 if ltyp // 8 == OBJ_TREE then
                     v.ltrees={}
@@ -1656,6 +1700,11 @@ function race()
         if self.start_timer then
             local before = flr(self.time)
             self.time = self.time + dt
+            if self.time < 0 then
+                camera_scale = ease_in_out_cubic(4+self.time,0.6,0.5,4.0)
+            else
+                camera_scale=1
+            end
             if self.time < 1.0 then
                 local after = flr(self.time)
                 if after ~= before then
@@ -1733,7 +1782,7 @@ function race()
         -- particles
         for _,p in pairs(particles) do
             if p.enabled then
-                if abs(player_lap_seg(p.seg) - player.current_segment) > 10 then
+                if abs(car_lap_seg(p.seg,self.player) - player.current_segment) > 10 then
                     p.enabled=false
                 else
                     p.x = p.x + p.xv
@@ -1749,7 +1798,7 @@ function race()
         end
         for _,p in pairs(smokes) do
             if p.enabled then
-                if abs(player_lap_seg(p.seg) - player.current_segment) > 10 then
+                if abs(car_lap_seg(p.seg,self.player) - player.current_segment) > 10 then
                     p.enabled=false
                 else
                     p.x = p.x + p.xv
@@ -1823,26 +1872,30 @@ function race()
                 self.panel_next_time="+"..format_time(self.time - player.seg_times[next.current_segment])
             end
         end
-        local v = get_data_from_vecmap(player.current_segment)
+        if self.time >= 0 then
+            local target=1.5-0.8 * (self.player.speed/23)
+            camera_scale=camera_scale + (target-camera_scale)*0.2
+        end
     end
 
     function race:draw()
-        player = self.player
-        time = self.time
+        local player = self.player
+        local time = self.time
         gfx.set_active_layer(0)
         cls()
         local tp = cbufget(player.trails, player.trails._size - 8) or player.pos
         local trail = clampv(vecsub(player.pos, tp), 34)
-        camera_pos = vecadd(player.pos, trail)
-        if player.collision > 0 then
-            camera(camera_pos.x + rnd(3) - 2, camera_pos.y + rnd(3) - 2)
-        else
-            local c = lerpv(camera_lastpos, camera_pos, 1)
-            camera(c.x, c.y)
+        if self.race_mode ~= MODE_EDITOR then
+            local camera_pos = vecadd(player.pos, trail)
+            if player.collision > 0 then
+                camera(camera_pos.x + rnd(3) - 2, camera_pos.y + rnd(3) - 2)
+            else
+                local c = lerpv(camera_lastpos, camera_pos, 1)
+                camera(c.x, c.y)
+            end
+
+            camera_lastpos = copyv(camera_pos)
         end
-
-        camera_lastpos = copyv(camera_pos)
-
         local current_segment = player.current_segment
         -- draw track
 
@@ -1915,16 +1968,16 @@ function race()
                     if rtyp ~= 0 then
                         linevec(last_rtrack, rtrack, 10)
                     end
-                    if has_rrail then
+                    if has_rrail and last_right_rail then
                         linevec(last_right_rail, v.right_outer_rail, track_color)
                     end
-                    if has_lrail then
+                    if has_lrail and last_left_rail then
                         linevec(last_left_rail, v.left_outer_rail, track_color)
                     end
                     -- starting line
                     if seg % mapsize == 0 then
                         p=cam2screen(vecadd(v,scalev(v.front,-6)))
-                        gfx.blit(162,254,110,6,p.x,p.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        gfx.blit(162,254,110,6,p.x,p.y,110*camera_scale,6*camera_scale,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
                     end
                     -- starting grid
                     local wseg = wrap(seg, mapsize)
@@ -1957,8 +2010,8 @@ function race()
                         local p3 = vecadd(p,scalev(v.front,-32))
                         local p4 = vecadd(p2,scalev(v.front,-32))
                         quadfill(p,p2,p3,p4,22)
-                        local p2s=cam2screen(vecadd(vecadd(p,scalev(v.side,5)),scalev(v.front,-16)))
-                        gfx.blit(224,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        local p2s=vecadd(vecadd(p,scalev(v.side,5)),scalev(v.front,-16))
+                        gblit(224,0,20,60,p2s,1,1,1,v.dir)
                         p=vecadd(p,scalev(v.side,50))
                         p3=vecadd(p3,scalev(v.side,50))
                         gfx.set_active_layer(LAYER_TOP)
@@ -1976,26 +2029,31 @@ function race()
                         local p2 = vecadd(p,scalev(v.side,40))
                         local p3 = vecadd(p,scalev(v.front,-32))
                         local p4 = vecadd(p2,scalev(v.front,-32))
-                        quadfill(p,p2,p3,p4,22)
                         gfx.set_active_layer(LAYER_CARS)
-                        local p2s=cam2screen(vecadd(vecadd(p,scalev(v.side,5)),scalev(v.front,-16)))
-                        gfx.blit(244,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
-                        local p2s=cam2screen(vecadd(vecadd(p,scalev(v.side,15)),scalev(v.front,-16)))
-                        gfx.blit(264,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
-                        local p2s=cam2screen(vecadd(vecadd(p,scalev(v.side,25)),scalev(v.front,-16)))
-                        gfx.blit(244,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
-                        local p2s=cam2screen(vecadd(vecadd(p,scalev(v.side,35)),scalev(v.front,-16)))
-                        gfx.blit(264,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        quadfill(p,p2,p3,p4,22)
                         gfx.set_active_layer(LAYER_SHADOW)
+                        p2=vecadd(p2,SHADOW_DELTA)
+                        p4=vecadd(p4,SHADOW_DELTA)
+                        quadfill(p,p2,p3,p4,22)
+                        gfx.set_active_layer(LAYER_TOP)
+                        local p2s=vecadd(vecadd(p,scalev(v.side,5)),scalev(v.front,-16))
+                        gblit(244,0,20,60,p2s,1,1,1,v.dir)
+                        local p2s=vecadd(vecadd(p,scalev(v.side,15)),scalev(v.front,-16))
+                        gblit(264,0,20,60,p2s,1,1,1,v.dir)
+                        local p2s=vecadd(vecadd(p,scalev(v.side,25)),scalev(v.front,-16))
+                        gblit(244,0,20,60,p2s,1,1,1,v.dir)
+                        local p2s=vecadd(vecadd(p,scalev(v.side,35)),scalev(v.front,-16))
+                        gblit(264,0,20,60,p2s,1,1,1,v.dir)
+                        gfx.set_active_layer(LAYER_SHADOW2)
                         local sd=scalev(SHADOW_DELTA,0.1)
-                        local p2s=cam2screen(vecadd(vecadd(vecadd(p,scalev(v.side,5)),scalev(v.front,-16)),sd))
-                        gfx.blit_col(244,0,20,60,p2s.x,p2s.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
-                        local p2s=cam2screen(vecadd(vecadd(vecadd(p,scalev(v.side,15)),scalev(v.front,-16)),sd))
-                        gfx.blit_col(264,0,20,60,p2s.x,p2s.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
-                        local p2s=cam2screen(vecadd(vecadd(vecadd(p,scalev(v.side,25)),scalev(v.front,-16)),sd))
-                        gfx.blit_col(244,0,20,60,p2s.x,p2s.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
-                        local p2s=cam2screen(vecadd(vecadd(vecadd(p,scalev(v.side,35)),scalev(v.front,-16)),sd))
-                        gfx.blit_col(264,0,20,60,p2s.x,p2s.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
+                        local p2s=vecadd(vecadd(vecadd(p,scalev(v.side,5)),scalev(v.front,-16)),sd)
+                        gblit_col(244,0,20,60,p2s,sr,sg,sb,v.dir)
+                        local p2s=vecadd(vecadd(vecadd(p,scalev(v.side,15)),scalev(v.front,-16)),sd)
+                        gblit_col(264,0,20,60,p2s,sr,sg,sb,v.dir)
+                        local p2s=vecadd(vecadd(vecadd(p,scalev(v.side,25)),scalev(v.front,-16)),sd)
+                        gblit_col(244,0,20,60,p2s,sr,sg,sb,v.dir)
+                        local p2s=vecadd(vecadd(vecadd(p,scalev(v.side,35)),scalev(v.front,-16)),sd)
+                        gblit_col(264,0,20,60,p2s,sr,sg,sb,v.dir)
                         gfx.set_active_layer(0)
                     elseif lobj == OBJ_TREE then
                         gfx.set_active_layer(LAYER_TOP)
@@ -2003,13 +2061,12 @@ function race()
                             local typ=v.ltrees[i].typ
                             local tree_pos=v.ltrees[i].p
                             local p = vecsub(vecsub(li_rail,scalev(v.side,tree_pos.x-10)),scalev(v.front,tree_pos.y))
-                            p=cam2screen(p)
                             if typ == 1 then
-                                gfx.blit(224,60,20,20,p.x,p.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                                gblit(224,60,20,20,p,1,1,1,v.dir)
                             elseif typ == 2 then
-                                gfx.blit(224,80,30,30,p.x,p.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                                gblit(224,80,30,30,p,1,1,1,v.dir)
                             elseif typ == 3 then
-                                gfx.blit(224,110,40,40,p.x,p.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                                gblit(224,110,40,40,p,1,1,1,v.dir)
                             end
                         end
                         gfx.set_active_layer(LAYER_SHADOW2)
@@ -2017,41 +2074,36 @@ function race()
                             local typ=v.ltrees[i].typ
                             local tree_pos=v.ltrees[i].p
                             local p = vecadd(vecsub(vecsub(li_rail,scalev(v.side,tree_pos.x-10)),scalev(v.front,tree_pos.y)),SHADOW_DELTA)
-                            p=cam2screen(p)
                             if typ == 1 then
-                                gfx.blit_col(224,60,20,20,p.x,p.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
+                                gblit_col(224,60,20,20,p,sr,sg,sb,v.dir)
                             elseif typ == 2 then
-                                gfx.blit_col(224,80,30,30,p.x,p.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
+                                gblit_col(224,80,30,30,p,sr,sg,sb,v.dir)
                             elseif typ == 3 then
-                                gfx.blit_col(224,110,40,40,p.x,p.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
+                                gblit_col(224,110,40,40,p,sr,sg,sb,v.dir)
                             end
                         end
                         gfx.set_active_layer(0)
                     elseif lobj == OBJ_BRIDGE then
-                        p=cam2screen(v)
                         gfx.set_active_layer(LAYER_TOP)
-                        gfx.blit(141,224,182,30,p.x,p.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        gblit(141,224,182,30,v,1,1,1,v.dir)
                         gfx.set_active_layer(LAYER_SHADOW2)
-                        p=cam2screen(vecadd(v,SHADOW_DELTA))
-                        gfx.blit_col(141,224,182,30,p.x,p.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
+                        local p=vecadd(v,SHADOW_DELTA)
+                        gblit_col(141,224,182,30,p,sr,sg,sb,v.dir)
                         gfx.set_active_layer(0)
                     elseif lobj == OBJ_BRIDGE2 then
-                        p=cam2screen(v)
                         local p2 = vecadd(v,scalev(v.side,-48))
-                        local cp2=cam2screen(p2)
-                        gfx.blit(141,224,8,30,cp2.x,cp2.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        gblit(141,224,8,30,p2,1,1,1,v.dir)
                         local p3 = vecadd(v,scalev(v.side,48))
-                        local cp3=cam2screen(p3)
-                        gfx.blit(315,224,8,30,cp3.x,cp3.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        gblit(315,224,8,30,p3,1,1,1,v.dir)
                         gfx.set_active_layer(LAYER_TOP)
-                        gfx.blit(141,260,182,11,p.x,p.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        gblit(141,260,182,11,v,1,1,1,v.dir)
                         gfx.set_active_layer(LAYER_SHADOW2)
-                        p=cam2screen(vecadd(v,SHADOW_DELTA))
-                        p2=cam2screen(vecadd(p2,SHADOW_DELTA))
-                        p3=cam2screen(vecadd(p3,SHADOW_DELTA))
-                        gfx.blit_col(141,260,182,11,p.x,p.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
-                        gfx.blit_col(141,224,8,30,p2.x,p2.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
-                        gfx.blit_col(315,224,8,30,p3.x,p3.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
+                        local p=vecadd(v,SHADOW_DELTA)
+                        p2=vecadd(p2,SHADOW_DELTA)
+                        p3=vecadd(p3,SHADOW_DELTA)
+                        gblit_col(141,260,182,11,p,sr,sg,sb,v.dir)
+                        gblit_col(141,224,8,30,p2,sr,sg,sb,v.dir)
+                        gblit_col(315,224,8,30,p3,sr,sg,sb,v.dir)
                         gfx.set_active_layer(0)
                     end
                     if robj == OBJ_TRIBUNE then
@@ -2060,8 +2112,8 @@ function race()
                         local p3 = vecadd(p,scalev(v.front,-32))
                         local p4 = vecadd(p2,scalev(v.front,-32))
                         quadfill(p,p2,p3,p4,22)
-                        local p2s=cam2screen(vecadd(vecsub(p,scalev(v.side,5)),scalev(v.front,-16)))
-                        gfx.blit(224,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        local p2s=vecadd(vecsub(p,scalev(v.side,5)),scalev(v.front,-16))
+                        gblit(224,0,20,60,p2s,1,1,1,v.dir)
                         p=vecsub(p,scalev(v.side,50))
                         p3=vecsub(p3,scalev(v.side,50))
                         gfx.set_active_layer(LAYER_TOP)
@@ -2079,26 +2131,31 @@ function race()
                         local p2 = vecsub(p,scalev(v.side,40))
                         local p3 = vecadd(p,scalev(v.front,-32))
                         local p4 = vecadd(p2,scalev(v.front,-32))
-                        quadfill(p,p2,p3,p4,22)
                         gfx.set_active_layer(LAYER_CARS)
-                        local p2s=cam2screen(vecadd(vecsub(p,scalev(v.side,5)),scalev(v.front,-16)))
-                        gfx.blit(244,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
-                        local p2s=cam2screen(vecadd(vecsub(p,scalev(v.side,15)),scalev(v.front,-16)))
-                        gfx.blit(264,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
-                        local p2s=cam2screen(vecadd(vecsub(p,scalev(v.side,25)),scalev(v.front,-16)))
-                        gfx.blit(244,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
-                        local p2s=cam2screen(vecadd(vecsub(p,scalev(v.side,35)),scalev(v.front,-16)))
-                        gfx.blit(264,0,20,60,p2s.x,p2s.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        quadfill(p,p2,p3,p4,22)
                         gfx.set_active_layer(LAYER_SHADOW)
+                        p2=vecadd(p2,SHADOW_DELTA)
+                        p4=vecadd(p4,SHADOW_DELTA)
+                        quadfill(p,p2,p3,p4,22)
+                        gfx.set_active_layer(LAYER_TOP)
+                        local p2s=vecadd(vecsub(p,scalev(v.side,5)),scalev(v.front,-16))
+                        gblit(244,0,20,60,p2s,1,1,1,v.dir)
+                        local p2s=vecadd(vecsub(p,scalev(v.side,15)),scalev(v.front,-16))
+                        gblit(264,0,20,60,p2s,1,1,1,v.dir)
+                        local p2s=vecadd(vecsub(p,scalev(v.side,25)),scalev(v.front,-16))
+                        gblit(244,0,20,60,p2s,1,1,1,v.dir)
+                        local p2s=vecadd(vecsub(p,scalev(v.side,35)),scalev(v.front,-16))
+                        gblit(264,0,20,60,p2s,1,1,1,v.dir)
+                        gfx.set_active_layer(LAYER_SHADOW2)
                         local sd=scalev(SHADOW_DELTA,0.1)
-                        local p2s=cam2screen(vecadd(vecadd(vecsub(p,scalev(v.side,5)),scalev(v.front,-16)),sd))
-                        gfx.blit_col(244,0,20,60,p2s.x,p2s.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
-                        local p2s=cam2screen(vecadd(vecadd(vecsub(p,scalev(v.side,15)),scalev(v.front,-16)),sd))
-                        gfx.blit_col(264,0,20,60,p2s.x,p2s.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
-                        local p2s=cam2screen(vecadd(vecadd(vecsub(p,scalev(v.side,25)),scalev(v.front,-16)),sd))
-                        gfx.blit_col(244,0,20,60,p2s.x,p2s.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
-                        local p2s=cam2screen(vecadd(vecadd(vecsub(p,scalev(v.side,35)),scalev(v.front,-16)),sd))
-                        gfx.blit_col(264,0,20,60,p2s.x,p2s.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
+                        local p2s=vecadd(vecadd(vecsub(p,scalev(v.side,5)),scalev(v.front,-16)),sd)
+                        gblit_col(244,0,20,60,p2s,sr,sg,sb,v.dir)
+                        local p2s=vecadd(vecadd(vecsub(p,scalev(v.side,15)),scalev(v.front,-16)),sd)
+                        gblit_col(264,0,20,60,p2s,sr,sg,sb,v.dir)
+                        local p2s=vecadd(vecadd(vecsub(p,scalev(v.side,25)),scalev(v.front,-16)),sd)
+                        gblit_col(244,0,20,60,p2s,sr,sg,sb,v.dir)
+                        local p2s=vecadd(vecadd(vecsub(p,scalev(v.side,35)),scalev(v.front,-16)),sd)
+                        gblit_col(264,0,20,60,p2s,sr,sg,sb,v.dir)
                         gfx.set_active_layer(0)
                     elseif robj == OBJ_TREE then
                         gfx.set_active_layer(LAYER_TOP)
@@ -2106,13 +2163,12 @@ function race()
                             local typ=v.rtrees[i].typ
                             local tree_pos=v.rtrees[i].p
                             local p = vecsub(vecsub(ri_rail,scalev(v.side,tree_pos.x+10)),scalev(v.front,tree_pos.y))
-                            p=cam2screen(p)
                             if typ == 1 then
-                                gfx.blit(224,60,20,20,p.x,p.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                                gblit(224,60,20,20,p,1,1,1,v.dir)
                             elseif typ == 2 then
-                                gfx.blit(224,80,30,30,p.x,p.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                                gblit(224,80,30,30,p,1,1,1,v.dir)
                             elseif typ == 3 then
-                                gfx.blit(224,110,40,40,p.x,p.y,0,0,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                                gblit(224,110,40,40,p,1,1,1,v.dir)
                             end
                         end
                         gfx.set_active_layer(LAYER_SHADOW2)
@@ -2120,26 +2176,25 @@ function race()
                             local typ=v.rtrees[i].typ
                             local tree_pos=v.rtrees[i].p
                             local p = vecadd(vecsub(vecsub(ri_rail,scalev(v.side,tree_pos.x+10)),scalev(v.front,tree_pos.y)),SHADOW_DELTA)
-                            p=cam2screen(p)
                             if typ == 1 then
-                                gfx.blit_col(224,60,20,20,p.x,p.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
+                                gblit_col(224,60,20,20,p,sr,sg,sb,v.dir)
                             elseif typ == 2 then
-                                gfx.blit_col(224,80,30,30,p.x,p.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
+                                gblit_col(224,80,30,30,p,sr,sg,sb,v.dir)
                             elseif typ == 3 then
-                                gfx.blit_col(224,110,40,40,p.x,p.y,0,0,false,false,sr,sg,sb,from_pico_angle(camera_angle-v.dir))
+                                gblit_col(224,110,40,40,p,sr,sg,sb,v.dir)
                             end
                         end
                         gfx.set_active_layer(0)
                     end
 
                     if v.lpanel ~= nil then
-                        local p=cam2screen(v.left_inner_rail)
+                        local p=v.left_inner_rail
                         local y=214+10*v.lpanel
-                        panels[#panels+1]={y,p.x,p.y,v.dir}
+                        panels[#panels+1]={y=y,p=p,dir=v.dir}
                     elseif v.rpanel ~= nil then
-                        local p=cam2screen(v.right_inner_rail)
+                        local p=v.right_inner_rail
                         local y=214+10*v.rpanel
-                        panels[#panels+1]={y,p.x,p.y,v.dir}
+                        panels[#panels+1]={y=y,p=p,dir=v.dir}
                     end
                 end
             end
@@ -2154,12 +2209,12 @@ function race()
 
         for i=1,#panels do
             local p=panels[i]
-            gfx.blit(91,p[1],24,10,p[2],p[3],0,0,false,false,1,1,1,from_pico_angle(camera_angle-p[4]))
+            gblit(91,p.y,24,10,p.p,1,1,1,p.dir)
         end
         -- draw objects
         gfx.set_active_layer(LAYER_CARS)
         for _, obj in pairs(self.objects) do
-            local oseg=player_lap_seg(obj.current_segment)
+            local oseg=car_lap_seg(obj.current_segment, self.player)
             if abs(oseg-player.current_segment) <10 then
                 obj:draw()
             end
@@ -2198,17 +2253,15 @@ function race()
                 lastv = v
             end
             for _, car in pairs(self.objects) do
-                car:draw_minimap()
+                car:draw_minimap(self.player)
             end
         end
-
-        camera()
 
         local lap = flr(player.current_segment / mapsize) + 1
         printr(gfx.fps().." fps",gfx.SCREEN_WIDTH-1,1,7)
 
         -- car dashboard
-        if not self.completed then
+        if not self.completed and self.race_mode ~= MODE_EDITOR then
             gfx.blit(0, 224, 66, 35, gfx.SCREEN_WIDTH - 66, gfx.SCREEN_HEIGHT - 35, 0, 0, false, false, 1, 1, 1)
             printc("" .. flr(player.speed * 10), 370, 210, 28)
             gfx.blit(66, 224, 25 * min(1, player.speed / 15), 8, gfx.SCREEN_WIDTH - 28, gfx.SCREEN_HEIGHT - 23, 0, 0,
@@ -2560,9 +2613,6 @@ function side_of_line(v1, v2, px, py)
     return (px - v1.x) * (v2.y - v1.y) - (py - v1.y) * (v2.x - v1.x)
 end
 
-function player_lap_seg(s1)
-    return car_lap_seg(s1,player)
-end
 function car_lap_seg(s1, s2)
     local pseg=s2.current_segment
     while abs(s1+mapsize - pseg) < abs(s1-pseg) do
@@ -2584,10 +2634,28 @@ function wrap(input, max)
     return input
 end
 
+function get_segment_from_section(sec)
+    for i=1,#vecmap do
+        if vecmap[i].section==sec then
+            return i
+        end
+    end
+    return -1
+end
 function get_vec_from_vecmap(seg)
     seg = wrap(seg, mapsize)
     local v = vecmap[seg+1]
     return vec(v.x,v.y)
+end
+
+function find_segment_from_pos(pos, last_good_seg)
+    for seg=0,mapsize-1 do
+        local pseg = last_good_seg and last_good_seg+seg or seg+1
+        local seglostpoly=get_segment(pseg, true)
+        if seglostpoly and point_in_polygon(seglostpoly, pos) then
+            return pseg
+        end
+    end
 end
 
 function get_data_from_vecmap(seg)
