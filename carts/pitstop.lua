@@ -25,7 +25,7 @@ cam_pos = {
     y = 0
 }
 MINIMAP_RACE_OFFSET={x=340, y=120}
-MINIMAP_EDITOR_OFFSET={x=340,y=20}
+MINIMAP_EDITOR_OFFSET={x=340,y=200}
 minimap_offset=MINIMAP_RACE_OFFSET
 camera_angle = 0
 camera_scale = 1
@@ -203,6 +203,13 @@ end
 function rectfill(x0, y0, x1, y1, pal)
     local col = PAL[flr(pal)]
     gfx.rectangle(x0, y0, x1 - x0 + 1, y1 - y0 + 1, col.r, col.g, col.b)
+end
+function rect(x0,y0,w,h,pal)
+    local col = PAL[flr(pal)]
+    gfx.line(x0,y0,x0+w-1,y0,col.r,col.g,col.b)
+    gfx.line(x0,y0+h-1,x0+w-1,y0+h-1,col.r,col.g,col.b)
+    gfx.line(x0+w-1,y0,x0+w-1,y0+h-1,col.r,col.g,col.b)
+    gfx.line(x0,y0,x0,y0+h-1,col.r,col.g,col.b)
 end
 function mid(x, y, z)
     if (x <= y and y <= z) or (z <= y and y <= x) then
@@ -785,7 +792,8 @@ function create_car(race)
         self.vel = scalev(self.vel, 0.9 * (495+self.perf + asp)/500)
         local v=get_data_from_vecmap(self.current_segment)
         local sidepos=dot(vecsub(self.pos,v),v.side)
-        local ground_type = sidepos >36 and (v.ltyp & 7) or (sidepos < -36 and (v.rtyp & 7) or 0)
+        local ground_type = sidepos >32 and (v.ltyp & 7) or (sidepos < -32 and (v.rtyp & 7) or 0)
+        local ground_type_inner = sidepos >36 and (v.ltyp & 7) or (sidepos < -36 and (v.rtyp & 7) or 0)
         if self.is_player and speed > 1 and frame%flr(60/speed) == 0 then
             if (v.has_lkerb and sidepos <= 36 and sidepos >= 24)
                 or (v.has_rkerb and sidepos >= -36 and sidepos <= -24) then
@@ -796,7 +804,7 @@ function create_car(race)
         if ground_type==1 then
             --grass
             local r=rnd(10)
-            if r < 4 then
+            if r < 4 and ground_type_inner == 1 then
                 self.vel=scalev(self.vel,0.9)
                 local angle_vel_impact=min(5.0,speed) / 5.0
                 local da = math.random(-20,20) * angle_vel_impact
@@ -807,9 +815,11 @@ function create_car(race)
             end
         elseif ground_type==2 then
             -- sand
-            self.vel=scalev(self.vel,0.8)
-            angle = angle + (self.angle-angle) * 0.5
-            if speed > 4 then
+            if ground_type_inner == 2 then
+                self.vel=scalev(self.vel,0.8)
+                angle = angle + (self.angle-angle) * 0.5
+            end
+            if speed > 2 then
                 create_smoke(current_segment,vecsub(self.pos, scalev(self.vel, 0.5)), self.vel, 4)
             end
         end
@@ -1069,7 +1079,7 @@ difficulty_names = {
 function intro:draw()
     cls()
     sspr(0, 20, 224, 204, 80, 0)
-    draw_intro_minimap(-75, -58, 0.015, 6)
+    draw_intro_minimap(-95, -62, 0.015, 6)
     printr("x/c/arrows/esc", 300, 45, 6)
 
     local c = frame % 16 < 8 and 8 or 9
@@ -1097,12 +1107,10 @@ mapeditor = {
     mouseoffx = 0,
     mouseoffy = 0,
     mdragx = 0,
-    mdragy = 0,
-    sec_pos = nil
+    mdragy = 0
 }
 function mapeditor:init()
     scale = 0.05
-    camera_angle = 0.25
     camera()
     self.sec = #mapsections
     gfx.show_mouse_cursor(true)
@@ -1182,15 +1190,19 @@ function mapeditor:update()
         self.drag = false
     end
     -- left/right : change section curve
-    if inp.left_pressed() then
+    if inp.right_pressed() then
         cs[2] = cs[2] - (inp.key(inp.KEY_LSHIFT) and 0.1 or 1)
-    elseif inp.right_pressed() then
+        self.race:generate_track()
+    elseif inp.left_pressed() then
         cs[2] = cs[2] + (inp.key(inp.KEY_LSHIFT) and 0.1 or 1)
+        self.race:generate_track()
         -- up/down : change section length
     elseif inp.up_pressed() then
         cs[1] = cs[1] + 1
+        self.race:generate_track()
     elseif inp.down_pressed() then
         cs[1] = cs[1] - 1
+        self.race:generate_track()
         -- action2 : delete last section
     elseif inp.action2_pressed() then
         if self.sec > 1 then
@@ -1200,16 +1212,20 @@ function mapeditor:update()
                 table.remove(mapsections, self.sec)
             end
             self.sec = self.sec - 1
+            self.race:generate_track()
         end
         -- action1 : duplicate last section
     elseif inp.action1_pressed() then
-        mapsections[#mapsections + 1] = {cs[1], cs[2], cs[3],0,0}
+        mapsections[#mapsections + 1] = {cs[1], cs[2], cs[3],0,0,0,0}
         self.sec = #mapsections
+        self.race:generate_track()
         -- pageup/pagedown : change section width
     elseif inp.key_pressed(inp.KEY_PAGEDOWN) then
         cs[3] = cs[3] - 1
+        self.race:generate_track()
     elseif inp.key_pressed(inp.KEY_PAGEUP) then
         cs[3] = cs[3] + 1
+        self.race:generate_track()
         -- NUMPAD +/- : zoom
     elseif inp.key_pressed(inp.KEY_NUMPADMINUS) then
         if self.display == 0 then
@@ -1226,15 +1242,19 @@ function mapeditor:update()
     elseif inp.key_pressed(inp.KEY_HOME) then
         self.sec = self.sec == 1 and #mapsections or self.sec - 1
         local seg=get_segment_from_section(self.sec)
-        cam_pos = get_vec_from_vecmap(seg)
-        self.race.player.pos = cam_pos
+        self.race.player.pos = get_vec_from_vecmap(seg)
         self.race.player.current_segment=seg
+        if self.display == 1 then
+            cam_pos = self.race.player.pos
+        end
     elseif inp.key_pressed(inp.KEY_END) then
         self.sec = self.sec == #mapsections and 1 or self.sec + 1
         local seg=get_segment_from_section(self.sec)
-        cam_pos = get_vec_from_vecmap(seg)
-        self.race.player.pos = cam_pos
+        self.race.player.pos = get_vec_from_vecmap(seg)
         self.race.player.current_segment=seg
+        if self.display == 1 then
+            cam_pos = self.race.player.pos
+        end
     elseif inp.key_pressed(inp.KEY_ESCAPE) then
         -- test map todo: open menu
         set_game_mode(map_menu(self))
@@ -1244,16 +1264,38 @@ function mapeditor:update()
         if self.display == 0 then
             camera_scale = 1
             minimap_offset=MINIMAP_RACE_OFFSET
+            camera()
         else
             camera_scale = 0.2
             minimap_offset=MINIMAP_EDITOR_OFFSET
+            local seg=get_segment_from_section(self.sec)
+            self.race.player.pos = get_vec_from_vecmap(seg)
+            self.race.player.current_segment=seg
+            cam_pos = self.race.player.pos
         end
     end
-    cs[2] = mid(0, cs[2], 255)
-    cs[1] = mid(0, cs[1], 255)
+end
+function compute_minimap_offset(scale)
+    local x,y,minx,miny=0,0,0,0
+    local dir = 0
+    for i = 1, #mapsections do
+        local ms = mapsections[i]
+        local last_section = i == #mapsections
+        for seg = 1, ms[1] do
+            dir = dir + (ms[2] - 128) / 100
+            x = x + cos(dir) * 28 * scale
+            y = y + sin(dir) * 28 * scale
+            minx=min(minx,x)
+            miny=min(miny,y)
+        end
+    end
+    return minx,miny
 end
 function draw_intro_minimap(sx, sy, scale, col)
-    local x, y = sx, sy
+    local minx,miny=compute_minimap_offset(scale)
+    local dx=sx-minx
+    local dy=sy-miny
+    local x, y = 0, 0
     local lastx, lasty = x, y
     local dir = 0
     for i = 1, #mapsections do
@@ -1265,70 +1307,99 @@ function draw_intro_minimap(sx, sy, scale, col)
             y = y + sin(dir) * 28 * scale
             if last_section then
                 local coef = seg / ms[1]
-                x = (1 - coef) * x + coef * sx
-                y = (1 - coef) * y + coef * sy
+                x = (1 - coef) * x
+                y = (1 - coef) * y
             end
-            line(lastx, lasty, x, y, #mapsections == i and 3 or col)
+            line(lastx+dx, lasty+dy, x+dx, y+dy, #mapsections == i and 3 or col)
             lastx, lasty = x, y
         end
     end
 end
 function draw_editor_minimap(sx, sy, scale, col, sec)
-    local x, y = sx, sy
+    local minx,miny=compute_minimap_offset(scale)
+    local dx=sx-minx
+    local dy=sy-miny
+    local x, y = 0,0
     local lastx, lasty = x, y
     local dir = 0
-    local sec_pos = {{0, 0}}
+    local sec_x,sec_y =0,0
     for i = 1, #mapsections do
         ms = mapsections[i]
-        local last_section = i == #mapsections
         local highlighted = i == sec
         for seg = 1, ms[1] do
             dir = dir + (ms[2] - 128) / 100
             x = x + cos(dir) * 28 * scale
             y = y + sin(dir) * 28 * scale
-            if last_section and sec == nil then
-                local coef = seg / ms[1]
-                x = (1 - coef) * x + coef * sx
-                y = (1 - coef) * y + coef * sy
-            end
-            line(lastx, lasty, x, y, highlighted and 9 or (#mapsections == i and 3 or col))
+            line(lastx+dx, lasty+dy, x+dx, y+dy, highlighted and 9 or (#mapsections == i and 3 or col))
             lastx, lasty = x, y
         end
-        table.insert(sec_pos, {sx - x, sy - y})
+        if i==sec then
+            sec_x,sec_y = x,y
+        end
     end
-    return sec_pos
+    return sec_x,sec_y
 end
 
 function mapeditor:draw()
     cls()
     if self.display == 0 then
-        self.sec_pos = draw_editor_minimap(30 + self.mapoffx + self.mouseoffx + self.mdragx,
-            self.mapoffy - 10 + self.mouseoffy + self.mdragy, scale, 6, self.sec)
+        local sec_x,sec_y = draw_editor_minimap(self.mapoffx + self.mouseoffx + self.mdragx -65,
+            self.mapoffy - 20 + self.mouseoffy + self.mdragy, scale, 6, self.sec)
+        self.mapoffx = -sec_x
+        self.mapoffy = -sec_y
     else
         self.race:draw()
     end
-    local pos = self.sec_pos[self.sec]
-    self.mapoffx = pos[1]
-    self.mapoffy = pos[2]
-    gprint("section " .. self.sec .. '/' .. #mapsections .. " seg " .. mapsections[self.sec][1], 122, 1, 7)
-    gfx.blit(162, 8, 12, 12, 17, 3, 0, 0, false, false, 1, 1, 1)
-    gprint("  delete", 17, 5, 7)
-    gfx.blit(174, 8, 12, 12, 17, 15, 0, 0, false, false, 1, 1, 1)
-    gprint("  add", 17, 17, 7)
-    gfx.blit(66, 8, 24, 12, 5, 27, 0, 0, false, false, 1, 1, 1)
-    gprint("    length", 1, 29, 7)
-    gfx.blit(90, 8, 24, 12, 5, 39, 0, 0, false, false, 1, 1, 1)
-    gprint("    curve", 1, 41, 7)
-    gfx.blit(138, 8, 24, 12, 5, 51, 0, 0, false, false, 1, 1, 1)
-    gprint("    zoom", 1, 53, 7)
-    gfx.blit(114, 8, 24, 12, 5, 63, 0, 0, false, false, 1, 1, 1)
-    gprint("    width", 1, 65, 7)
-    gfx.blit(186, 8, 24, 12, 5, 75, 0, 0, false, false, 1, 1, 1)
-    gprint("    section", 1, 77, 7)
-    gfx.blit(54, 8, 12, 12, 17, 87, 0, 0, false, false, 1, 1, 1)
-    gprint("  menu", 17, 89, 7)
-    gfx.blit(210, 8, 12, 12, 17, 99, 0, 0, false, false, 1, 1, 1)
-    gprint("  display", 17, 102, 7)
+    printc("section " .. self.sec .. '/' .. #mapsections, gfx.SCREEN_WIDTH/2, 1, 7)
+    local sec=mapsections[self.sec]
+    local sec_len,sec_dir,sec_width=sec[1],sec[2],sec[3]
+    local ltyp=sec[4]&3
+    local rtyp=sec[5]&3
+    local cols={21,27,15,5}
+    local lcol=PAL[cols[ltyp+1]]
+    local rcol=PAL[cols[rtyp+1]]
+    local lobj=sec[4]//8
+    local robj=sec[5]//8
+    local lrail=sec[6]
+    local rrail=sec[7]
+    local objs={[0]="","tribune1","tribune2","tree","bridge","bridge2"}
+    printc("len "..sec_len.." dir "..sec_dir.." w "..sec_width,gfx.SCREEN_WIDTH/2,10,7)
+    printr("rail l "..lrail.." r "..rrail, gfx.SCREEN_WIDTH-1, 10,7)
+    printr("lobj "..objs[lobj],gfx.SCREEN_WIDTH-1,19,7)
+    printr("robj "..objs[robj],gfx.SCREEN_WIDTH-1,28,7)
+    gfx.rectangle(gfx.SCREEN_WIDTH/2-32,19,16,16,lcol.r,lcol.g,lcol.b)
+    rect(gfx.SCREEN_WIDTH/2-32,19,16,16,7)
+    gfx.rectangle(gfx.SCREEN_WIDTH/2+16,19,16,16,rcol.r,rcol.g,rcol.b)
+    rect(gfx.SCREEN_WIDTH/2+16,19,16,16,7)
+    local y=3
+    if self.display == 0 then
+        gfx.blit(162, 8, 12, 12, 17, y, 0, 0, false, false, 1, 1, 1)
+        gprint("  delete", 17, y+2, 7)
+        y=y+12
+        gfx.blit(174, 8, 12, 12, 17, y, 0, 0, false, false, 1, 1, 1)
+        gprint("  add", 17, y+2, 7)
+        y=y+12
+        gfx.blit(66, 8, 24, 12, 5, y, 0, 0, false, false, 1, 1, 1)
+        gprint("    length", 1, y+2, 7)
+        y=y+12
+        gfx.blit(90, 8, 24, 12, 5, y, 0, 0, false, false, 1, 1, 1)
+        gprint("    curve", 1, y+2, 7)
+        y=y+12
+        gfx.blit(138, 8, 24, 12, 5, y, 0, 0, false, false, 1, 1, 1)
+        gprint("    zoom", 1, y+2, 7)
+        y=y+12
+        gfx.blit(114, 8, 24, 12, 5, y, 0, 0, false, false, 1, 1, 1)
+        gprint("    width", 1, y+2, 7)
+        y=y+12
+    end
+    gfx.blit(186, 8, 24, 12, 5, y, 0, 0, false, false, 1, 1, 1)
+    gprint("    section", 1, y+2, 7)
+    y=y+12
+    gfx.blit(54, 8, 12, 12, 17, y, 0, 0, false, false, 1, 1, 1)
+    gprint("  menu", 17, y+2, 7)
+    y=y+12
+    gfx.blit(210, 8, 12, 12, 17, y, 0, 0, false, false, 1, 1, 1)
+    gprint("  display", 17, y+2, 7)
 end
 
 function load_map()
@@ -1359,21 +1430,10 @@ end
 
 function race()
     local race = {}
-    function race:init(difficulty, race_mode, lap_count)
-        self.race_mode = race_mode
-        self.lap_count = LAP_COUNTS[lap_count]
-        self.live_cars=16
-        self.is_finished=false
-        self.panel_timer=-1
-        self.best_lap_timer=-1
-        sc1 = nil
-        sc1timer = 0
-        camera_angle = 0
-
+    function race:generate_track()
         vecmap = {}
         local dir, mx, my = 0, 0, 0
         local lastdir = 0
-
         math.randomseed(0xdeadbeef)
         -- generate map
         for i, ms in pairs(mapsections) do
@@ -1542,7 +1602,19 @@ function race()
                 end
             end
         end
+    end
+    function race:init(difficulty, race_mode, lap_count)
+        self.race_mode = race_mode
+        self.lap_count = LAP_COUNTS[lap_count]
+        self.live_cars=16
+        self.is_finished=false
+        self.panel_timer=-1
+        self.best_lap_timer=-1
+        sc1 = nil
+        sc1timer = 0
+        camera_angle = 0
 
+        self:generate_track()
         self:restart()
     end
 
@@ -1897,6 +1969,7 @@ function race()
             camera_lastpos = copyv(camera_pos)
         end
         local current_segment = player.current_segment
+        local player_sec=get_data_from_vecmap(current_segment).section
         -- draw track
 
         local lastv,lastup,lastup2,lastup3,last_right_rail,lastdown,lastdown3,last_left_rail
@@ -2196,6 +2269,14 @@ function race()
                         local y=214+10*v.rpanel
                         panels[#panels+1]={y=y,p=p,dir=v.dir}
                     end
+                    if self.race_mode == MODE_EDITOR and v.section==player_sec then
+                        gfx.set_active_layer(LAYER_TOP)
+                        linevec(lastv.right_kerb,lastv.left_kerb,10)
+                        linevec(v.right_kerb,v.left_kerb,10)
+                        linevec(lastv.right_kerb,v.right_kerb,10)
+                        linevec(lastv.left_kerb,v.left_kerb,10)
+                        gfx.set_active_layer(0)
+                    end
                 end
             end
             if has_rrail then
@@ -2234,6 +2315,7 @@ function race()
                 end
             end
         end
+
         -- DEBUG : display segments collision shapes
         -- seg=get_segment(player.current_segment-1,false,true)
         -- quadfill(seg[1],seg[2],seg[4],seg[3],11)
@@ -2820,7 +2902,7 @@ function lerpv(a, b, t)
 end
 
 TRACKS = {
-    [0] = {1337, 4, 128, 32, 25,0,0,0,  10, 128, 32, 9,0,0,0, 2, 128, 32, 1,1,0,0, 4, 128, 32, 17,25,0,0, 2, 128, 32, 25,25,0,-1, 2, 128, 32, 1,1,0,-1,
+    [0] = {1337, 4, 128, 32, 25,0,0,0,  10, 128, 32, 9,0,0,0, 2, 128, 32, 1,1,0,0, 4, 128, 32, 17,25,0,0, 2, 128, 32, 25,25,0,0, 2, 128, 32, 1,1,0,-1,
         -- prima variante
         3, 120, 32, 1,1,-1,3, 3, 140, 32, 1,17,3,0,
         -- curva biassono
