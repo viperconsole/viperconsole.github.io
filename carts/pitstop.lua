@@ -1177,6 +1177,9 @@ end
 function mapeditor:update()
     local cs = mapsections[self.sec]
     local mx,my = inp.mouse_pos()
+    if self.display == 1 then
+        cam_pos=vecadd(cam_pos,scalev(vecsub(cam_target_pos,cam_pos),0.2))
+    end
     if inp.mouse_button(inp.MOUSE_LEFT) then
         if not self.drag then
             self.drag = true
@@ -1278,7 +1281,7 @@ function mapeditor:update()
         self.race.player.pos = get_vec_from_vecmap(seg)
         self.race.player.current_segment=seg
         if self.display == 1 then
-            cam_pos = self.race.player.pos
+            cam_target_pos = self.race.player.pos
         end
     elseif inp.key_pressed(inp.KEY_END) then
         self.sec = self.sec == #mapsections and 1 or self.sec + 1
@@ -1286,7 +1289,7 @@ function mapeditor:update()
         self.race.player.pos = get_vec_from_vecmap(seg)
         self.race.player.current_segment=seg
         if self.display == 1 then
-            cam_pos = self.race.player.pos
+            cam_target_pos = self.race.player.pos
         end
     elseif inp.key_pressed(inp.KEY_ESCAPE) then
         -- test map todo: open menu
@@ -1305,6 +1308,7 @@ function mapeditor:update()
             self.race.player.pos = get_vec_from_vecmap(seg)
             self.race.player.current_segment=seg
             cam_pos = self.race.player.pos
+            cam_target_pos=cam_pos
         end
     end
 end
