@@ -1,32 +1,31 @@
 -- inspired by pico racer 2048
 -- by impbox software
-X_OFFSET = 130
-Y_OFFSET = 0
-MINIMAP_START = -10
-MINIMAP_END = 20
-SMOKE_LIFE = 80
-DATA_PER_SEGMENT=8
-DATA_PER_SECTION=7
-LAP_COUNTS = {1, 3, 5, 15}
-LAYER_SMOKE=3
-LAYER_SHADOW=4
-LAYER_CARS=5
-LAYER_SHADOW2=6
-LAYER_TOP=7
-OBJ_TRIBUNE=1
-OBJ_TRIBUNE2=2
-OBJ_TREE=3
-OBJ_BRIDGE=4
-OBJ_BRIDGE2=5
-OBJ_COUNT=6
-SHADOW_DELTA={x=-10,y=10}
-SHADOW_COL={r=162.0/255,g=136.0/255,b=121.0/255} -- correspond to palette 22
+local X_OFFSET <const> = 130
+local MINIMAP_START <const> = -10
+local MINIMAP_END <const> = 20
+local SMOKE_LIFE <const> = 80
+local DATA_PER_SEGMENT <const> = 8
+local DATA_PER_SECTION <const> = 7
+local LAP_COUNTS <const> = {1, 3, 5, 15}
+local LAYER_SMOKE <const> = 3
+local LAYER_SHADOW <const> = 4
+local LAYER_CARS <const> = 5
+local LAYER_SHADOW2 <const> = 6
+local LAYER_TOP <const> = 7
+local OBJ_TRIBUNE <const> = 1
+local OBJ_TRIBUNE2 <const> = 2
+local OBJ_TREE <const> = 3
+local OBJ_BRIDGE <const> = 4
+local OBJ_BRIDGE2 <const> = 5
+local OBJ_COUNT <const> = 6
+local SHADOW_DELTA <const> = {x=-10,y=10}
+local SHADOW_COL <const> = {r=162.0/255,g=136.0/255,b=121.0/255} -- correspond to palette 22
 cam_pos = {
     x = 0,
     y = 0
 }
-MINIMAP_RACE_OFFSET={x=340, y=120}
-MINIMAP_EDITOR_OFFSET={x=340,y=200}
+local MINIMAP_RACE_OFFSET <const> = {x=340, y=120}
+local MINIMAP_EDITOR_OFFSET <const> = {x=340,y=200}
 minimap_offset=MINIMAP_RACE_OFFSET
 camera_angle = 0
 camera_scale = 1
@@ -52,9 +51,50 @@ end
 function inp_menu_pressed()
     return inp.pad_button_pressed(1, inp.XBOX360_SELECT) or inp.key_pressed(inp.KEY_ESCAPE)
 end
-function btnp(num, player)
-    -- TODO
+col = function(r, g, b)
+    return {
+        r = r / 255,
+        g = g / 255,
+        b = b / 255
+    }
 end
+-- pico8 palette
+local PAL <const> = {
+    [0] = col(0, 0, 1),
+    col(29, 43, 83),
+    col(126, 37, 83),
+    col(0, 135, 81),
+    col(171, 82, 54),
+    col(95, 87, 79),
+    col(194, 195, 199),
+    col(255, 241, 232),
+    col(255, 0, 77),
+    col(255, 163, 0),
+    col(255, 236, 39),
+    col(0, 228, 54),
+    col(41, 173, 255),
+    col(131, 118, 156),
+    col(255, 119, 168),
+    col(255, 204, 170),
+    col(11, 51, 16),
+    col(17, 29, 53),
+    col(66, 33, 54),
+    col(18, 83, 89),
+    col(116, 47, 41),
+    col(73, 51, 59),
+    col(162, 136, 121),
+    col(243, 239, 125),
+    col(190, 18, 80),
+    col(255, 108, 36),
+    col(168, 231, 46),
+    col(9, 181, 67),
+    col(6, 90, 181),
+    col(117, 70, 101),
+    col(255, 110, 89),
+    col(255, 157, 129),
+    col(92, 84, 76),
+}
+
 function cls()
     local c = PAL[21]
     gfx.set_active_layer(LAYER_TOP)
@@ -94,49 +134,7 @@ flr = math.floor
 ceil = math.ceil
 min = math.min
 max = math.max
-col = function(r, g, b)
-    return {
-        r = r / 255,
-        g = g / 255,
-        b = b / 255
-    }
-end
--- pico8 palette
-PAL = {
-    [0] = col(0, 0, 1),
-    col(29, 43, 83),
-    col(126, 37, 83),
-    col(0, 135, 81),
-    col(171, 82, 54),
-    col(95, 87, 79),
-    col(194, 195, 199),
-    col(255, 241, 232),
-    col(255, 0, 77),
-    col(255, 163, 0),
-    col(255, 236, 39),
-    col(0, 228, 54),
-    col(41, 173, 255),
-    col(131, 118, 156),
-    col(255, 119, 168),
-    col(255, 204, 170),
-    col(11, 51, 16),
-    col(17, 29, 53),
-    col(66, 33, 54),
-    col(18, 83, 89),
-    col(116, 47, 41),
-    col(73, 51, 59),
-    col(162, 136, 121),
-    col(243, 239, 125),
-    col(190, 18, 80),
-    col(255, 108, 36),
-    col(168, 231, 46),
-    col(9, 181, 67),
-    col(6, 90, 181),
-    col(117, 70, 101),
-    col(255, 110, 89),
-    col(255, 157, 129),
-    col(92, 84, 76),
-}
+
 function line(x1, y1, x2, y2, col)
     local c = flr(col)
     local p1 = cam2screen(vec(x1, y1))
@@ -170,7 +168,7 @@ function cam2screen(p)
     p = vecadd(rotate_point(p, -camera_angle + 0.25, vec(0, 0)), vec(64, 64))
     return {
         x = p.x * 224 / 128 + X_OFFSET,
-        y = p.y * 224 / 128 + Y_OFFSET
+        y = p.y * 224 / 128
     }
 end
 
@@ -238,13 +236,13 @@ function sfx(n)
     snd.play_pattern(n)
 end
 
-sfx_boost_cooldown = 33
-sfx_booster = 41
+local SFX_BOOST_COOLDOWN <const> = 33
+local SFX_BOOSTER <const> = 41
 
-boost_warning_thresh = 30
-boost_critical_thresh = 15
+local BOOST_WARNING_THRESH <const> = 30
+local BOOST_CRITICAL_THRESH <const> = 15
 
-cars = {{
+local CARS <const> = {{
     name = "Easy",
     maxacc = 2.0,
     steer = 0.0225,
@@ -264,7 +262,7 @@ cars = {{
     player_adv=0
 }}
 
-teams = {
+local TEAMS <const> = {
     ["Williamson"] = {
         color = 1,
         color2 = 10,
@@ -315,7 +313,7 @@ teams = {
     }
 }
 
-drivers = {{
+local DRIVERS <const> = {{
     name = "Anton Sanna",
     short_name = "ASA",
     skill = 8,
@@ -407,8 +405,7 @@ drivers = {{
     helmet = 30
 }}
 
-dt = 0.033333
--- globals
+local DT <const> = 0.033333 -- 1/30th of a second
 
 particles = {}
 smokes = {}
@@ -484,7 +481,7 @@ function ai_controls(car)
     }
     ai.car = car
     function ai:update()
-        self.decisions = self.decisions + dt * (self.skill + 4 + rnd(6))
+        self.decisions = self.decisions + DT * (self.skill + 4 + rnd(6))
         local c = car.controls
         local car = self.car
         if not car.current_segment then
@@ -527,7 +524,7 @@ function ai_controls(car)
 end
 
 function create_car(race)
-    c = cars[intro.car]
+    c = CARS[intro.car]
     local car = {
         race = race,
         vel = vec(),
@@ -614,18 +611,18 @@ function create_car(race)
                 self.cooldown = 25
                 accel = accel * 0.5
                 if self.is_player then
-                    sfx(sfx_boost_cooldown)
-                    sc1 = sfx_boost_cooldown
+                    sfx(SFX_BOOST_COOLDOWN)
+                    sc1 = SFX_BOOST_COOLDOWN
                 end
-            elseif self.is_player and (not (sc1 == sfx_booster and sc1timer > 0)) and sc1 ~= 39 and self.boost <=
-                boost_critical_thresh then
+            elseif self.is_player and (not (sc1 == SFX_BOOSTER and sc1timer > 0)) and sc1 ~= 39 and self.boost <=
+                BOOST_CRITICAL_THRESH then
                 sfx(39)
                 sc1 = 39
-            elseif self.is_player and (not (sc1 == sfx_booster and sc1timer > 0)) and sc1 ~= 37 and self.boost <=
-                boost_warning_thresh then
+            elseif self.is_player and (not (sc1 == SFX_BOOSTER and sc1timer > 0)) and sc1 ~= 37 and self.boost <=
+                BOOST_WARNING_THRESH then
                 sfx(37) -- start warning
                 sc1 = 37
-            elseif self.is_player and (not (sc1 == sfx_booster and sc1timer > 0)) and sc1 ~= 36 and sc1 ~= 37 then
+            elseif self.is_player and (not (sc1 == SFX_BOOSTER and sc1timer > 0)) and sc1 ~= 36 and sc1 ~= 37 then
                 sfx(36)
                 sc1 = 36
             end
@@ -843,7 +840,7 @@ function create_car(race)
         self.current_segment = current_segment
         local player=self.race.player
         if abs(current_segment-player.current_segment) < 10 then
-            local caccel = accel/cars[intro.car].maxacc
+            local caccel = accel/CARS[intro.car].maxacc
             local spawn_pos=vecsub(self.pos, scalev(self.vel, 0.5))
             if (self.ccut_timer < 0 and speed > 1 and caccel/speed > 0.07) or (controls.brake and speed < 9 and speed > 2) then
                 local col = ground_type==1 and 3 or (ground_type==2 and 4 or 22)
@@ -1094,7 +1091,7 @@ function intro:draw()
     printr(difficulty_names[difficulty], 304, 12, self.option == 2 and c or 9)
     if self.game_mode < 3 then
         printr("Level", 202, 22, 6)
-        printr(cars[self.car].name, 304, 22, self.option == 3 and c or 9)
+        printr(CARS[self.car].name, 304, 22, self.option == 3 and c or 9)
     end
     if self.game_mode == 1 then
         printr("Laps", 202, 32, 6)
@@ -1687,7 +1684,7 @@ function race()
         p.pos = vecadd(vecadd(p.pos, scalev(v.side, 14)),scalev(v.front,-6))
         p.angle = v.dir
         p.rank = 1
-        p.maxacc = p.maxacc + cars[intro.car].player_adv
+        p.maxacc = p.maxacc + CARS[intro.car].player_adv
         camera_angle = v.dir
         p.driver = {
             name = "Player",
@@ -1697,17 +1694,17 @@ function race()
             helmet = 0
         }
         table.insert(self.ranks, p)
-        p.perf = teams[p.driver.team].perf
+        p.perf = TEAMS[p.driver.team].perf
         --snd.play_note(17000, v.tribune, 9, 2)
 
         if self.race_mode == MODE_RACE then
-            for i = 1, #drivers do
+            for i = 1, #DRIVERS do
                 local ai_car = create_car(self)
                 ai_car.current_segment = -1 - i // 2
-                ai_car.driver = drivers[i]
-                ai_car.color = teams[ai_car.driver.team].color
-                ai_car.color2 = teams[ai_car.driver.team].color2
-                ai_car.perf=teams[ai_car.driver.team].perf
+                ai_car.driver = DRIVERS[i]
+                ai_car.color = TEAMS[ai_car.driver.team].color
+                ai_car.color2 = TEAMS[ai_car.driver.team].color2
+                ai_car.perf=TEAMS[ai_car.driver.team].perf
                 ai_car.driver.is_best = false
                 local v = get_data_from_vecmap(ai_car.current_segment)
                 ai_car.pos = vecadd(vecadd(v, scalev(v.side, i % 2 == 0 and 14 or -14)),scalev(v.front,-6))
@@ -1738,7 +1735,7 @@ function race()
         end
 
         if self.completed then
-            self.completed_countdown = self.completed_countdown - dt
+            self.completed_countdown = self.completed_countdown - DT
             if self.completed_countdown < 4 and (inp_menu_pressed() or self.live_cars==0) then
                 set_game_mode(completed_menu(self))
                 return
@@ -1810,7 +1807,7 @@ function race()
         end
         if self.start_timer then
             local before = flr(self.time)
-            self.time = self.time + dt
+            self.time = self.time + DT
             if self.time < 0 then
                 camera_scale = ease_in_out_cubic(4+self.time,0.6,0.5,4.0)
             else
@@ -2093,7 +2090,7 @@ function race()
                     end
                     -- starting grid
                     local wseg = wrap(seg, mapsize)
-                    if wseg > mapsize - #drivers//2-2 then
+                    if wseg > mapsize - #DRIVERS//2-2 then
                         local side = scalev(v.side, 12)
                         local smallfront = scalev(v.front, -12)
                         local lfront = scalev(v.front, 31)
@@ -2396,7 +2393,7 @@ function race()
                         0, 0, false, false, 1, 1, 1)
                 end
             else
-                local spritey = (player.boost < boost_warning_thresh and frame % 4 < 2) and 245 or 241
+                local spritey = (player.boost < BOOST_WARNING_THRESH and frame % 4 < 2) and 245 or 241
                 gfx.blit(66, spritey, 21 * (player.boost / 100), 4, gfx.SCREEN_WIDTH - 61, gfx.SCREEN_HEIGHT - 11, 0, 0,
                     false, false, 1, 1, 1)
             end
@@ -2471,12 +2468,12 @@ function race()
             end
         else
             -- race results
-            gfx.rectangle(30, 10, gfx.SCREEN_WIDTH - 52, (#drivers + 4) * 10, PAL[17].r, PAL[17].g, PAL[17].b)
+            gfx.rectangle(30, 10, gfx.SCREEN_WIDTH - 52, (#DRIVERS + 4) * 10, PAL[17].r, PAL[17].g, PAL[17].b)
             gprint("Classification          Time   Best", 61, 20, 6)
             gfx.line(30, 30, gfx.SCREEN_WIDTH - 22, 30, PAL[6].r, PAL[6].g, PAL[6].b)
             for rank, car in pairs(self.ranks) do
                 local y = 26 + rank * 10
-                gprint(string.format("%2d %s %15s  %7s", rank, teams[car.driver.team].short_name, car.driver.name,
+                gprint(string.format("%2d %s %15s  %7s", rank, TEAMS[car.driver.team].short_name, car.driver.name,
                     rank == 1 and format_time(car.delta_time) or car.time),
                     53, y, car.is_player and 7 or 22)
                 if car.best_time then
