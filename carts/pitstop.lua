@@ -18,6 +18,7 @@ OBJ_TRIBUNE2=2
 OBJ_TREE=3
 OBJ_BRIDGE=4
 OBJ_BRIDGE2=5
+OBJ_COUNT=6
 SHADOW_DELTA={x=-10,y=10}
 SHADOW_COL={r=162.0/255,g=136.0/255,b=121.0/255} -- correspond to palette 22
 cam_pos = {
@@ -1207,6 +1208,18 @@ function mapeditor:update()
             ltyp = (ltyp + 1) % 4
             cs[5] = (cs[5] & (~3)) + ltyp
             self.race:generate_track()
+        elseif inside_rect(mx,my,gfx.SCREEN_WIDTH-150,19,32,8) then
+            -- change left object type
+            local lobj=cs[4]//8
+            lobj = (lobj+1)%OBJ_COUNT
+            cs[4] = (cs[4]&3) + lobj*8
+            self.race:generate_track()
+        elseif inside_rect(mx,my,gfx.SCREEN_WIDTH-150,28,32,8) then
+            -- change right object type
+            local robj=cs[5]//8
+            robj = (robj+1)%OBJ_COUNT
+            cs[5] = (cs[5]&3) + robj*8
+            self.race:generate_track()
         end
     end
     -- left/right : change section curve
@@ -1385,9 +1398,9 @@ function mapeditor:draw()
     local objs={[0]="","tribune1","tribune2","tree","bridge","bridge2"}
     printc("len "..sec_len.." dir "..sec_dir.." w "..sec_width,gfx.SCREEN_WIDTH/2,10,7)
     printr("rail l "..lrail.." r "..rrail, gfx.SCREEN_WIDTH-1, 10,7)
-    printr("lobj "..objs[lobj],gfx.SCREEN_WIDTH-1,19,7)
-    printr("robj "..objs[robj],gfx.SCREEN_WIDTH-1,28,7)
     local mx,my=inp.mouse_pos()
+    gprint("lobj "..objs[lobj],gfx.SCREEN_WIDTH-150,19,inside_rect(mx,my,gfx.SCREEN_WIDTH-150,19,32,8) and 10 or 7)
+    gprint("robj "..objs[robj],gfx.SCREEN_WIDTH-150,28,inside_rect(mx,my,gfx.SCREEN_WIDTH-150,28,32,8) and 10 or 7)
 
     gfx.rectangle(gfx.SCREEN_WIDTH/2-32,19,16,16,lcol.r,lcol.g,lcol.b)
     rect(gfx.SCREEN_WIDTH/2-32,19,16,16,inside_rect(mx,my,gfx.SCREEN_WIDTH/2-32,19,16,16) and 10 or 7)
@@ -2701,7 +2714,7 @@ function onscreen(p)
 end
 
 function inside_rect(x,y,rx,ry,rw,rh)
-    return x >= rx and y >= ry and x <=rx+rw and ry <= ry+rh
+    return x >= rx and y >= ry and x <rx+rw and y <ry+rh
 end
 
 function length(v)
