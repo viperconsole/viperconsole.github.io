@@ -417,8 +417,14 @@ Functions :
 
 * `mouse_button_pressed(num)` : return true if mouse button num was pressed since the last game tick
 * `mouse_button_released(num)` : return true if mouse button num was released since the last game tick
-* `mouse_x()`: return the mouse horizontal position in pixels
-* `mouse_y()`: return the mouse vertical position in pixels
+* `mouse_pos()`: return the mouse position in pixels
+
+Example :
+
+```
+local mousex,mousey = inp.mouse_pos()
+```
+
 
 ### <a name="h4.3"></a>4.3. Gamepad API
 ***in beta***

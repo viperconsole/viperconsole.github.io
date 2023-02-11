@@ -32,6 +32,7 @@ camera_scale = 1
 best_seg_times = {}
 best_lap_time = nil
 best_lap_driver = nil
+mlb_pressed=false
 function camera(x, y)
     cam_pos.x = x or 0
     cam_pos.y = y or 0
@@ -977,8 +978,11 @@ function update()
     -- original game updates at 30fps, viper is 60fps
     -- update only every 2 ticks
     flipflop = not flipflop
+    -- do not lose press events
+    mlb_pressed = (flipflop and mlb_pressed) or inp.mouse_button_pressed(inp.MOUSE_LEFT)
     if flipflop then
         game_mode:update()
+        mlb_pressed=false
     end
 end
 
@@ -1171,16 +1175,17 @@ end
 
 function mapeditor:update()
     local cs = mapsections[self.sec]
+    local mx,my = inp.mouse_pos()
     if inp.mouse_button(inp.MOUSE_LEFT) then
         if not self.drag then
             self.drag = true
-            self.mousex = inp.mouse_x()
-            self.mousey = inp.mouse_y()
+            self.mousex = mx
+            self.mousey = my
             self.mdragx = 0
             self.mdragy = 0
         else
-            self.mdragx = inp.mouse_x() - self.mousex
-            self.mdragy = inp.mouse_y() - self.mousey
+            self.mdragx = mx - self.mousex
+            self.mdragy = my - self.mousey
         end
     elseif self.drag then
         self.mouseoffx = self.mouseoffx + self.mdragx
@@ -1188,6 +1193,21 @@ function mapeditor:update()
         self.mdragx = 0
         self.mdragy = 0
         self.drag = false
+    end
+    if mlb_pressed then
+        if inside_rect(mx,my,gfx.SCREEN_WIDTH/2-32,19,16,16) then
+            -- change left terrain type
+            local ltyp = cs[4]&3
+            ltyp = (ltyp + 1) % 4
+            cs[4] = (cs[4] & (~3)) + ltyp
+            self.race:generate_track()
+        elseif inside_rect(mx,my,gfx.SCREEN_WIDTH/2+16,19,16,16) then
+            -- change right terrain type
+            local ltyp = cs[5]&3
+            ltyp = (ltyp + 1) % 4
+            cs[5] = (cs[5] & (~3)) + ltyp
+            self.race:generate_track()
+        end
     end
     -- left/right : change section curve
     if inp.right_pressed() then
@@ -1367,10 +1387,12 @@ function mapeditor:draw()
     printr("rail l "..lrail.." r "..rrail, gfx.SCREEN_WIDTH-1, 10,7)
     printr("lobj "..objs[lobj],gfx.SCREEN_WIDTH-1,19,7)
     printr("robj "..objs[robj],gfx.SCREEN_WIDTH-1,28,7)
+    local mx,my=inp.mouse_pos()
+
     gfx.rectangle(gfx.SCREEN_WIDTH/2-32,19,16,16,lcol.r,lcol.g,lcol.b)
-    rect(gfx.SCREEN_WIDTH/2-32,19,16,16,7)
+    rect(gfx.SCREEN_WIDTH/2-32,19,16,16,inside_rect(mx,my,gfx.SCREEN_WIDTH/2-32,19,16,16) and 10 or 7)
     gfx.rectangle(gfx.SCREEN_WIDTH/2+16,19,16,16,rcol.r,rcol.g,rcol.b)
-    rect(gfx.SCREEN_WIDTH/2+16,19,16,16,7)
+    rect(gfx.SCREEN_WIDTH/2+16,19,16,16,inside_rect(mx,my,gfx.SCREEN_WIDTH/2+16,19,16,16) and 10 or 7)
     local y=3
     if self.display == 0 then
         gfx.blit(162, 8, 12, 12, 17, y, 0, 0, false, false, 1, 1, 1)
@@ -2676,6 +2698,10 @@ end
 function onscreen(p)
     p = cam2screen(p)
     return p.x >= -30 and p.x <= gfx.SCREEN_WIDTH + 30 and p.y >= -30 and p.y <= gfx.SCREEN_HEIGHT + 30
+end
+
+function inside_rect(x,y,rx,ry,rw,rh)
+    return x >= rx and y >= ry and x <=rx+rw and ry <= ry+rh
 end
 
 function length(v)

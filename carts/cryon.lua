@@ -740,8 +740,7 @@ function init()
 end
 
 function update()
-    g_mouse_x = inp.mouse_x()
-    g_mouse_y = inp.mouse_y()
+    g_mouse_x,g_mouse_y = inp.mouse_pos()
     g_screen:update()
 end
 
