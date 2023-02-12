@@ -17,7 +17,8 @@ local OBJ_TRIBUNE2 <const> = 2
 local OBJ_TREE <const> = 3
 local OBJ_BRIDGE <const> = 4
 local OBJ_BRIDGE2 <const> = 5
-local OBJ_COUNT <const> = 6
+local OBJ_STANDS <const> = 6
+local OBJ_COUNT <const> = 7
 local SHADOW_DELTA <const> = {x=-10,y=10}
 local SHADOW_COL <const> = {r=162.0/255,g=136.0/255,b=121.0/255} -- correspond to palette 22
 cam_pos = {
@@ -1404,7 +1405,7 @@ function mapeditor:draw()
     local robj=sec[5]//8
     local lrail=sec[6]
     local rrail=sec[7]
-    local objs={[0]="","tribune1","tribune2","tree","bridge","bridge2"}
+    local objs={[0]="","tribune1","tribune2","tree","bridge","bridge2","stands"}
     printc("len "..sec_len.." dir "..sec_dir.." w "..sec_width,gfx.SCREEN_WIDTH/2,10,7)
     printr("rail l "..lrail.." r "..rrail, gfx.SCREEN_WIDTH-1, 10,7)
     local mx,my=inp.mouse_pos()
@@ -2327,6 +2328,41 @@ function race()
                             end
                         end
                         gfx.set_active_layer(0)
+                    elseif robj == OBJ_STANDS then
+                        local p = vecsub(ri_rail,scalev(v.side,24))
+                        local p2 = vecsub(p,scalev(v.side,8))
+                        local p3 = vecadd(p,scalev(v.front,-33))
+                        local p4 = vecadd(p2,scalev(v.front,-33))
+                        linevec(p,p3,7)
+                        local perp=scalev(v.side,-4)
+                        p=vecadd(p2,perp)
+                        p3=vecadd(p4,perp)
+                        quadfill(p2,p4,p,p3,seg%2==0 and 7 or 28)
+                        perp = scalev(perp,4)
+                        p2=vecadd(p,perp)
+                        p4=vecadd(p3,perp)
+                        perp = scalev(perp,0.125)
+                        local perp2=scalev(v.front,-2)
+                        quadfill(p,p3,p2,p4,22)
+                        local lp=vecadd(vecadd(p,perp),perp2)
+                        local lp2=vecadd(vecsub(p2,perp),perp2)
+                        local lp3=vecadd(lp,perp2)
+                        local lp4=vecadd(lp2,perp2)
+                        linevec(lp,lp3,7)
+                        linevec(lp,lp2,7)
+                        linevec(lp2,lp4,7)
+                        gfx.set_active_layer(LAYER_TOP)
+                        perp=scalev(v.side,-32)
+                        p=vecadd(p2,perp)
+                        p3=vecadd(p4,perp)
+                        quadfill(p,p3,p2,p4,13)
+                        gfx.set_active_layer(LAYER_SHADOW2)
+                        p=vecsub(p,SHADOW_DELTA)
+                        p2=vecsub(p2,SHADOW_DELTA)
+                        p3=vecsub(p3,SHADOW_DELTA)
+                        p4=vecsub(p4,SHADOW_DELTA)
+                        quadfill(p,p3,p2,p4,22)
+                        gfx.set_active_layer(0)
                     end
 
                     if v.lpanel ~= nil then
@@ -2918,10 +2954,6 @@ function distance_from_line(p, v, w)
     return sqrt(distance_from_line2(p, v, w))
 end
 
-function vecinv(v)
-    return vec(-v.x, -v.y)
-end
-
 function point_in_polygon(pgon, t)
     local tx, ty = t.x, t.y
     local i, yflag0, yflag1, inside_flag
@@ -2975,7 +3007,7 @@ function lerpv(a, b, t)
 end
 
 TRACKS = {
-    [0] = {1337, 4, 128, 32, 25,0,0,0,  10, 128, 32, 9,0,0,0, 2, 128, 32, 1,1,0,0, 4, 128, 32, 17,25,0,0, 2, 128, 32, 25,25,0,0, 2, 128, 32, 1,1,0,-1,
+    [0] = {1337, 4, 128, 32, 25,48,0,0,  2, 128, 32, 9,48,0,0, 8, 128, 32, 9,0,0,0, 2, 128, 32, 1,1,0,0, 4, 128, 32, 17,25,0,0, 2, 128, 32, 25,25,0,0, 2, 128, 32, 1,1,0,-1,
         -- prima variante
         3, 120, 32, 1,1,-1,3, 3, 140, 32, 1,17,3,0,
         -- curva biassono
@@ -2995,7 +3027,7 @@ TRACKS = {
         2, 128, 32,24,24,0,0, 6, 128, 32,16,24,0,0,  2, 128, 32,8,0,0,0,
         -- curva parabolica
         5, 121.1, 32,27,0,0,0,  7, 127.1, 32,27,0,0,0,  6, 126.8,32, 26,24,0,0, 2, 126.8,32, 10,24,0,0,
-        6, 128.0, 32, 8,24,0,0, 5, 128.0, 32, 8,0,0,0, 1, 128.0, 32, 40,0,0,0,  10, 128, 32, 9,0,0,0, 0, 0, 0,0,0,0,0},
+        6, 128.0, 32, 8,24,0,0, 5, 128.0, 32, 8,0,0,0, 1, 128.0, 32, 40,0,0,0,  10, 128, 32, 9,48,0,0, 0, 0, 0,0,0,0,0},
     {10, 128, 32, 10, 125, 32, 10, 127, 32, 6, 127, 32, 6, 121, 32, 6, 120, 32, 6, 120, 32, 6, 120, 32, 6, 125, 32, 6,
      135, 32, 6, 131, 32, 6, 129, 32, 6, 130, 32, 6, 131, 32, 6, 130, 32, 6, 129, 32, 6, 128, 32, 6, 125, 32, 6, 125,
      32, 6, 124, 32, 6, 124, 32, 6, 123, 32, 6, 121, 32, 6, 127, 32, 6, 136, 32, 6, 128, 32, 6, 128, 32, 6, 126, 32, 6,
