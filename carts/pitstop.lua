@@ -18,7 +18,8 @@ local OBJ_TREE <const> = 3
 local OBJ_BRIDGE <const> = 4
 local OBJ_BRIDGE2 <const> = 5
 local OBJ_STANDS <const> = 6
-local OBJ_COUNT <const> = 7
+local OBJ_STANDLINE <const> = 7
+local OBJ_COUNT <const> = 8
 local SHADOW_DELTA <const> = {x=-10,y=10}
 local SHADOW_COL <const> = {r=162.0/255,g=136.0/255,b=121.0/255} -- correspond to palette 22
 cam_pos = {
@@ -1405,7 +1406,7 @@ function mapeditor:draw()
     local robj=sec[5]//8
     local lrail=sec[6]
     local rrail=sec[7]
-    local objs={[0]="","tribune1","tribune2","tree","bridge","bridge2","stands"}
+    local objs={[0]="","tribune1","tribune2","tree","bridge","bridge2","stands","standline"}
     printc("len "..sec_len.." dir "..sec_dir.." w "..sec_width,gfx.SCREEN_WIDTH/2,10,7)
     printr("rail l "..lrail.." r "..rrail, gfx.SCREEN_WIDTH-1, 10,7)
     local mx,my=inp.mouse_pos()
@@ -1874,6 +1875,26 @@ function race()
         gfx.set_active_layer(0)
     end
 
+    function race:draw_standline(ri_rail,side,front)
+        local p = vecsub(ri_rail,scalev(side,24))
+        local p2 = vecsub(p,scalev(side,32))
+        local p3 = vecadd(p,scalev(front,-33))
+        local p4 = vecadd(p2,scalev(front,-33))
+        quadfill(p2,p4,p,p3,27)
+        self:draw_rail(p,p3)
+    end
+
+    function race:draw_rail(p1,p2)
+        local side=perpendicular(normalize(vecsub(p2,p1)))
+        local p3=vecadd(p1,side)
+        local p4=vecadd(p2,side)
+        quadfill(p1,p2,p3,p4,22)
+        gfx.set_active_layer(LAYER_SHADOW)
+        local sd=scalev(SHADOW_DELTA,0.5)
+        quadfill(p3,p4,vecadd(p3,sd),vecadd(p4,sd),22)
+        gfx.set_active_layer(0)
+    end
+
     function race:update()
         frame = frame + 1
         if sc1timer > 0 then
@@ -2180,7 +2201,6 @@ function race()
                     local last_rtyp=lastv.rtyp & 7
                     local last_ltyp=lastv.ltyp & 7
                     -- edges
-                    local track_color = 6
                     if rtyp == 1 or rtyp == 0 and last_rtyp==1 then
                         -- grass
                         quadfill(last_rtrack,rtrack,last_ri_rail,ri_rail, 27)
@@ -2227,11 +2247,11 @@ function race()
                     end
                     if rtyp == 0 then
                         -- normal crash barriers
-                        linevec(last_rtrack, rtrack, track_color)
+                        linevec(last_rtrack, rtrack,6)
                     end
                     if ltyp == 0 then
                         -- normal crash barriers
-                        linevec(last_ltrack, ltrack, track_color)
+                        linevec(last_ltrack, ltrack,6)
                     end
                     if ltyp ~= 0 then
                         linevec(last_ltrack, ltrack, 10)
@@ -2240,10 +2260,10 @@ function race()
                         linevec(last_rtrack, rtrack, 10)
                     end
                     if has_rrail and last_right_rail then
-                        linevec(last_right_rail, v.right_outer_rail, track_color)
+                        self:draw_rail(last_right_rail, v.right_outer_rail)
                     end
                     if has_lrail and last_left_rail then
-                        linevec(last_left_rail, v.left_outer_rail, track_color)
+                        self:draw_rail(last_left_rail, v.left_outer_rail)
                     end
                     -- starting line
                     if seg % mapsize == 0 then
@@ -2304,6 +2324,8 @@ function race()
                         gfx.set_active_layer(0)
                     elseif lobj == OBJ_STANDS then
                         self:draw_stands(li_rail,vecinv(v.side),v.front,seg%2==0)
+                    elseif lobj == OBJ_STANDLINE then
+                        self:draw_standline(li_rail,vecinv(v.side),v.front)
                     end
                     if robj == OBJ_TRIBUNE then
                         self:draw_tribune(ri_rail,vecinv(v.side),v.front,v.dir, seg%2==0)
@@ -2313,6 +2335,8 @@ function race()
                         self:draw_tree(v.rtrees,ri_rail,v.side,v.front,v.dir)
                     elseif robj == OBJ_STANDS then
                         self:draw_stands(ri_rail,v.side,v.front, seg%2==0)
+                    elseif robj == OBJ_STANDLINE then
+                        self:draw_standline(ri_rail,v.side,v.front)
                     end
 
                     if v.lpanel ~= nil then
@@ -2981,7 +3005,7 @@ TRACKS = {
         2, 128, 32,24,24,0,0, 6, 128, 32,16,24,0,0,  2, 128, 32,8,0,0,0,
         -- curva parabolica
         5, 121.1, 32,27,0,0,0,  7, 127.1, 32,27,0,0,0,  6, 126.8,32, 26,24,0,0, 2, 126.8,32, 10,24,0,0,
-        6, 128.0, 32, 8,24,0,0, 5, 128.0, 32, 8,0,0,0, 1, 128.0, 32, 40,0,0,0,  10, 128, 32, 9,48,0,0, 0, 0, 0,0,0,0,0},
+        6, 128.0, 32, 8,24,0,0, 5, 128.0, 32, 8,56,0,0, 1, 128.0, 32, 40,56,0,0,  10, 128, 32, 9,48,0,0, 0, 0, 0,0,0,0,0},
     {10, 128, 32, 10, 125, 32, 10, 127, 32, 6, 127, 32, 6, 121, 32, 6, 120, 32, 6, 120, 32, 6, 120, 32, 6, 125, 32, 6,
      135, 32, 6, 131, 32, 6, 129, 32, 6, 130, 32, 6, 131, 32, 6, 130, 32, 6, 129, 32, 6, 128, 32, 6, 125, 32, 6, 125,
      32, 6, 124, 32, 6, 124, 32, 6, 123, 32, 6, 121, 32, 6, 127, 32, 6, 136, 32, 6, 128, 32, 6, 128, 32, 6, 126, 32, 6,
