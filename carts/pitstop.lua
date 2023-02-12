@@ -1198,27 +1198,27 @@ function mapeditor:update()
     if mlb_pressed then
         if inside_rect(mx,my,gfx.SCREEN_WIDTH/2-32,19,16,16) then
             -- change left terrain type
-            local ltyp = cs[4]&3
+            local ltyp = cs[4]&7
             ltyp = (ltyp + 1) % 4
-            cs[4] = (cs[4] & (~3)) + ltyp
+            cs[4] = (cs[4] & (~7)) + ltyp
             self.race:generate_track()
         elseif inside_rect(mx,my,gfx.SCREEN_WIDTH/2+16,19,16,16) then
             -- change right terrain type
-            local ltyp = cs[5]&3
+            local ltyp = cs[5]&7
             ltyp = (ltyp + 1) % 4
-            cs[5] = (cs[5] & (~3)) + ltyp
+            cs[5] = (cs[5] & (~7)) + ltyp
             self.race:generate_track()
         elseif inside_rect(mx,my,gfx.SCREEN_WIDTH-150,19,32,8) then
             -- change left object type
             local lobj=cs[4]//8
             lobj = (lobj+1)%OBJ_COUNT
-            cs[4] = (cs[4]&3) + lobj*8
+            cs[4] = (cs[4]&7) + lobj*8
             self.race:generate_track()
         elseif inside_rect(mx,my,gfx.SCREEN_WIDTH-150,28,32,8) then
             -- change right object type
             local robj=cs[5]//8
             robj = (robj+1)%OBJ_COUNT
-            cs[5] = (cs[5]&3) + robj*8
+            cs[5] = (cs[5]&7) + robj*8
             self.race:generate_track()
         end
     end
@@ -1484,6 +1484,7 @@ function race()
             local rskiprail_first = max(0,ms[7])
             local lskiprail_last = max(0,-ms[6])
             local rskiprail_last = max(0,-ms[7])
+            local segment_length
             if length == 0 then
                 break
             end
@@ -1544,7 +1545,8 @@ function race()
                     rtyp = rtyp,
                     has_lrail = (lskiprail_first<= 0 and length >= lskiprail_last),
                     has_rrail = (rskiprail_first<= 0 and length >= rskiprail_last),
-                    section=i
+                    section=i,
+                    segment_length=segment_length
                 }
                 if ltyp // 8 == OBJ_TREE then
                     v.ltrees={}
@@ -1585,8 +1587,18 @@ function race()
         for seg,v in pairs(vecmap) do
             local v2=get_data_from_vecmap(seg)
             local curve = abs(v2.dir - v.dir) * 100
-            v.has_rkerb = (seg ~= 1 and seg ~= #vecmap and curve > 2) and (v2.dir < v.dir or curve >= 4)
-            v.has_lkerb = (seg ~= 1 and seg ~= #vecmap and curve > 2) and (v2.dir > v.dir or curve >= 4)
+            local maybe_kerb =seg ~= 1 and seg ~= #vecmap and curve > 2
+            if maybe_kerb then
+                v.has_rkerb = (curve >= 4 or v2.dir < v.dir) and 1 or nil
+                v.has_lkerb = (curve >= 4 or v2.dir > v.dir) and 1 or nil
+                if v.segment_length==16 then
+                    if v2.dir < v.dir then
+                        v.has_rkerb = 2
+                    else
+                        v.has_lkerb = 2
+                    end
+                end
+            end
             local rkerbw = v.has_rkerb and 8 or 0
             local lkerbw = v.has_lkerb and 8 or 0
             v.left_kerb = vecsub(v.left_track, scalev(v.side,lkerbw))
@@ -2028,26 +2040,27 @@ function race()
                     local li_rail=v.left_inner_rail
                     local last_ri_rail=lastv.right_inner_rail
                     local last_li_rail=lastv.left_inner_rail
-
+                    local last_rtyp=lastv.rtyp & 7
+                    local last_ltyp=lastv.ltyp & 7
                     -- edges
                     local track_color = 6
-                    if rtyp == 1 then
+                    if rtyp == 1 or rtyp == 0 and last_rtyp==1 then
                         -- grass
                         quadfill(last_rtrack,rtrack,last_ri_rail,ri_rail, 27)
-                    elseif rtyp == 2 then
+                    elseif rtyp == 2 or rtyp == 0 and last_rtyp==2  then
                         -- sand
                         quadfill(last_rtrack,rtrack,last_ri_rail,ri_rail, 15)
-                    elseif rtyp == 3 then
+                    elseif rtyp == 3 or rtyp == 0 and last_rtyp==3  then
                         -- asphalt
                         quadfill(last_rtrack,rtrack,last_ri_rail,ri_rail, 5)
                     end
-                    if ltyp == 1 then
+                    if ltyp == 1  or ltyp == 0 and last_ltyp==1 then
                         -- grass
                         quadfill(last_ltrack,ltrack,last_li_rail,li_rail, 27)
-                    elseif ltyp == 2 then
+                    elseif ltyp == 2 or ltyp == 0 and last_ltyp==2 then
                         -- sand
                         quadfill(last_ltrack,ltrack,last_li_rail,li_rail, 15)
-                    elseif ltyp == 3 then
+                    elseif ltyp == 3 or ltyp == 0 and last_ltyp==3 then
                         -- asphalt
                         quadfill(last_ltrack,ltrack,last_li_rail,li_rail, 5)
                     end
@@ -2055,14 +2068,26 @@ function race()
                     local ground = seg % 2 == 0 and 5 or 32
                     quadfill(lastv.right_kerb, lastv.left_kerb, v.right_kerb, v.left_kerb, ground)
                     -- kerbs
-                    local midleft = midpoint(ltrack, last_ltrack)
-                    local midleft_kerb = midpoint(v.left_kerb, lastv.left_kerb)
-                    quadfill(v.left_kerb, ltrack, midleft_kerb, midleft, 7)
-                    quadfill(last_ltrack, midleft, lastv.left_kerb, midleft_kerb, 8)
-                    local midright = midpoint(rtrack, last_rtrack)
-                    local midright_kerb = midpoint(v.right_kerb, lastv.right_kerb)
-                    quadfill(v.right_kerb, rtrack, midright_kerb, midright, 7)
-                    quadfill(midright_kerb, midright, lastv.right_kerb, last_rtrack, 8)
+                    if v.has_lkerb or lastv.has_lkerb then
+                        if v.has_lkerb == 1 or lastv.has_lkerb == 1 then
+                            local midleft = midpoint(ltrack, last_ltrack)
+                            local midleft_kerb = midpoint(v.left_kerb, lastv.left_kerb)
+                            quadfill(v.left_kerb, ltrack, midleft_kerb, midleft, 7)
+                            quadfill(last_ltrack, midleft, lastv.left_kerb, midleft_kerb, 8)
+                        else
+                            quadfill(v.left_kerb, ltrack, lastv.left_kerb, last_ltrack, seg%2==0 and 7 or 8)
+                        end
+                    end
+                    if v.has_rkerb or lastv.has_rkerb  then
+                        if v.has_rkerb==1 or lastv.has_rkerb == 1 then
+                            local midright = midpoint(rtrack, last_rtrack)
+                            local midright_kerb = midpoint(v.right_kerb, lastv.right_kerb)
+                            quadfill(v.right_kerb, rtrack, midright_kerb, midright, 7)
+                            quadfill(midright_kerb, midright, lastv.right_kerb, last_rtrack, 8)
+                        else
+                            quadfill(v.right_kerb, rtrack, lastv.right_kerb, last_rtrack, seg%2==0 and 7 or 8)
+                        end
+                    end
                     if rtyp == 0 then
                         -- normal crash barriers
                         linevec(last_rtrack, rtrack, track_color)
