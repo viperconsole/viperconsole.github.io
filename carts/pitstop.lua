@@ -1561,14 +1561,14 @@ function race()
                     v.ltrees={}
                     local tree_count=math.random(8,18)
                     for _=1,tree_count do
-                        table.insert(v.ltrees,{typ=math.random(1,3),p={x=math.random(-40,0),y=math.random(0,32)}})
+                        table.insert(v.ltrees,{typ=math.random(1,3),p={x=math.random(-40,0)-10,y=math.random(0,32)}})
                     end
                 end
                 if rtyp // 8 == OBJ_TREE then
                     v.rtrees={}
                     local tree_count=math.random(8,18)
                     for _=1,tree_count do
-                        table.insert(v.rtrees,{typ=math.random(1,3),p={x=math.random(0,40),y=math.random(0,32)}})
+                        table.insert(v.rtrees,{typ=math.random(1,3),p={x=math.random(0,40)+10,y=math.random(0,32)}})
                     end
                 end
                 v.front=normalize(#vecmap>0 and vecsub(v,vecmap[#vecmap]) or vec(1,0))
@@ -1744,6 +1744,134 @@ function race()
                 table.insert(self.ranks, ai_car)
             end
         end
+    end
+
+    function race:draw_tribune(li_rail,side,front,dir,flipflop)
+        local p = vecadd(li_rail,scalev(side,8))
+        local p2 = vecadd(p,scalev(side,10))
+        local p3 = vecadd(p,scalev(front,-32))
+        local p4 = vecadd(p2,scalev(front,-32))
+        quadfill(p,p2,p3,p4,22)
+        local p2s=vecadd(vecadd(p,scalev(side,5)),scalev(front,-16))
+        gblit(224,0,20,60,p2s,1,1,1,dir)
+        p=vecadd(p,scalev(side,50))
+        p3=vecadd(p3,scalev(side,50))
+        gfx.set_active_layer(LAYER_TOP)
+        quadfill(p,p2,p3,p4,flipflop and 20 or 4)
+        gfx.set_active_layer(LAYER_SHADOW2)
+        local sd=SHADOW_DELTA
+        p = vecadd(p,sd)
+        p2 = vecadd(p2,sd)
+        p3 = vecadd(p3,sd)
+        p4 = vecadd(p4,sd)
+        quadfill(p,p2,p3,p4,22)
+        gfx.set_active_layer(0)
+    end
+
+    function race:draw_tribune2(li_rail,side,front,dir)
+        local sr=SHADOW_COL.r
+        local sg=SHADOW_COL.g
+        local sb=SHADOW_COL.b
+        local p = vecadd(li_rail,scalev(side,8))
+        local p2 = vecadd(p,scalev(side,40))
+        local p3 = vecadd(p,scalev(front,-32))
+        local p4 = vecadd(p2,scalev(front,-32))
+        gfx.set_active_layer(LAYER_CARS)
+        quadfill(p,p2,p3,p4,22)
+        gfx.set_active_layer(LAYER_SHADOW)
+        p2=vecadd(p2,SHADOW_DELTA)
+        p4=vecadd(p4,SHADOW_DELTA)
+        quadfill(p,p2,p3,p4,22)
+        gfx.set_active_layer(LAYER_TOP)
+        local p2s=vecadd(vecadd(p,scalev(side,5)),scalev(front,-16))
+        gblit(244,0,20,60,p2s,1,1,1,dir)
+        local p2s=vecadd(vecadd(p,scalev(side,15)),scalev(front,-16))
+        gblit(264,0,20,60,p2s,1,1,1,dir)
+        local p2s=vecadd(vecadd(p,scalev(side,25)),scalev(front,-16))
+        gblit(244,0,20,60,p2s,1,1,1,dir)
+        local p2s=vecadd(vecadd(p,scalev(side,35)),scalev(front,-16))
+        gblit(264,0,20,60,p2s,1,1,1,dir)
+        gfx.set_active_layer(LAYER_SHADOW2)
+        local sd=scalev(SHADOW_DELTA,0.1)
+        local p2s=vecadd(vecadd(vecadd(p,scalev(side,5)),scalev(front,-16)),sd)
+        gblit_col(244,0,20,60,p2s,sr,sg,sb,dir)
+        local p2s=vecadd(vecadd(vecadd(p,scalev(side,15)),scalev(front,-16)),sd)
+        gblit_col(264,0,20,60,p2s,sr,sg,sb,dir)
+        local p2s=vecadd(vecadd(vecadd(p,scalev(side,25)),scalev(front,-16)),sd)
+        gblit_col(244,0,20,60,p2s,sr,sg,sb,dir)
+        local p2s=vecadd(vecadd(vecadd(p,scalev(side,35)),scalev(front,-16)),sd)
+        gblit_col(264,0,20,60,p2s,sr,sg,sb,dir)
+        gfx.set_active_layer(0)
+    end
+
+    function race:draw_tree(trees, li_rail,side,front,dir)
+        gfx.set_active_layer(LAYER_TOP)
+        for i=1,#trees do
+            local typ=trees[i].typ
+            local tree_pos=trees[i].p
+            local p = vecsub(vecsub(li_rail,scalev(side,tree_pos.x)),scalev(front,tree_pos.y))
+            if typ == 1 then
+                gblit(224,60,20,20,p,1,1,1,dir)
+            elseif typ == 2 then
+                gblit(224,80,30,30,p,1,1,1,dir)
+            elseif typ == 3 then
+                gblit(224,110,40,40,p,1,1,1,dir)
+            end
+        end
+        gfx.set_active_layer(LAYER_SHADOW2)
+        local sr=SHADOW_COL.r
+        local sg=SHADOW_COL.g
+        local sb=SHADOW_COL.b
+        for i=1,#trees do
+            local typ=trees[i].typ
+            local tree_pos=trees[i].p
+            local p = vecadd(vecsub(vecsub(li_rail,scalev(side,tree_pos.x)),scalev(front,tree_pos.y)),SHADOW_DELTA)
+            if typ == 1 then
+                gblit_col(224,60,20,20,p,sr,sg,sb,dir)
+            elseif typ == 2 then
+                gblit_col(224,80,30,30,p,sr,sg,sb,dir)
+            elseif typ == 3 then
+                gblit_col(224,110,40,40,p,sr,sg,sb,dir)
+            end
+        end
+        gfx.set_active_layer(0)
+    end
+
+    function race:draw_stands(ri_rail,side,front,flipflop)
+        local p = vecsub(ri_rail,scalev(side,24))
+        local p2 = vecsub(p,scalev(side,8))
+        local p3 = vecadd(p,scalev(front,-33))
+        local p4 = vecadd(p2,scalev(front,-33))
+        linevec(p,p3,7)
+        local perp=scalev(side,-4)
+        p=vecadd(p2,perp)
+        p3=vecadd(p4,perp)
+        quadfill(p2,p4,p,p3,flipflop and 7 or 28)
+        perp = scalev(perp,4)
+        p2=vecadd(p,perp)
+        p4=vecadd(p3,perp)
+        perp = scalev(perp,0.125)
+        local perp2=scalev(front,-2)
+        quadfill(p,p3,p2,p4,22)
+        local lp=vecadd(vecadd(p,perp),perp2)
+        local lp2=vecadd(vecsub(p2,perp),perp2)
+        local lp3=vecadd(lp,perp2)
+        local lp4=vecadd(lp2,perp2)
+        linevec(lp,lp3,7)
+        linevec(lp,lp2,7)
+        linevec(lp2,lp4,7)
+        gfx.set_active_layer(LAYER_TOP)
+        perp=scalev(side,-32)
+        p=vecadd(p2,perp)
+        p3=vecadd(p4,perp)
+        quadfill(p,p3,p2,p4,13)
+        gfx.set_active_layer(LAYER_SHADOW2)
+        p=vecsub(p,SHADOW_DELTA)
+        p2=vecsub(p2,SHADOW_DELTA)
+        p3=vecsub(p3,SHADOW_DELTA)
+        p4=vecsub(p4,SHADOW_DELTA)
+        quadfill(p,p3,p2,p4,22)
+        gfx.set_active_layer(0)
     end
 
     function race:update()
@@ -2141,91 +2269,17 @@ function race()
                         linevec(p2, vecadd(p2, smallfront), 7)
                     end
                     -- track side objects
+                    local lobj = v.ltyp//8
+                    local robj = v.rtyp//8
                     local sr=SHADOW_COL.r
                     local sg=SHADOW_COL.g
                     local sb=SHADOW_COL.b
-
-                    local lobj = v.ltyp//8
-                    local robj = v.rtyp//8
                     if lobj == OBJ_TRIBUNE then
-                        local p = vecadd(li_rail,scalev(v.side,8))
-                        local p2 = vecadd(p,scalev(v.side,10))
-                        local p3 = vecadd(p,scalev(v.front,-32))
-                        local p4 = vecadd(p2,scalev(v.front,-32))
-                        quadfill(p,p2,p3,p4,22)
-                        local p2s=vecadd(vecadd(p,scalev(v.side,5)),scalev(v.front,-16))
-                        gblit(224,0,20,60,p2s,1,1,1,v.dir)
-                        p=vecadd(p,scalev(v.side,50))
-                        p3=vecadd(p3,scalev(v.side,50))
-                        gfx.set_active_layer(LAYER_TOP)
-                        quadfill(p,p2,p3,p4,seg%2==0 and 20 or 4)
-                        gfx.set_active_layer(LAYER_SHADOW2)
-                        local sd=SHADOW_DELTA
-                        p = vecadd(p,sd)
-                        p2 = vecadd(p2,sd)
-                        p3 = vecadd(p3,sd)
-                        p4 = vecadd(p4,sd)
-                        quadfill(p,p2,p3,p4,22)
-                        gfx.set_active_layer(0)
+                        self:draw_tribune(li_rail,v.side,v.front,v.dir,seg%2==0)
                     elseif lobj == OBJ_TRIBUNE2 then
-                        local p = vecadd(li_rail,scalev(v.side,8))
-                        local p2 = vecadd(p,scalev(v.side,40))
-                        local p3 = vecadd(p,scalev(v.front,-32))
-                        local p4 = vecadd(p2,scalev(v.front,-32))
-                        gfx.set_active_layer(LAYER_CARS)
-                        quadfill(p,p2,p3,p4,22)
-                        gfx.set_active_layer(LAYER_SHADOW)
-                        p2=vecadd(p2,SHADOW_DELTA)
-                        p4=vecadd(p4,SHADOW_DELTA)
-                        quadfill(p,p2,p3,p4,22)
-                        gfx.set_active_layer(LAYER_TOP)
-                        local p2s=vecadd(vecadd(p,scalev(v.side,5)),scalev(v.front,-16))
-                        gblit(244,0,20,60,p2s,1,1,1,v.dir)
-                        local p2s=vecadd(vecadd(p,scalev(v.side,15)),scalev(v.front,-16))
-                        gblit(264,0,20,60,p2s,1,1,1,v.dir)
-                        local p2s=vecadd(vecadd(p,scalev(v.side,25)),scalev(v.front,-16))
-                        gblit(244,0,20,60,p2s,1,1,1,v.dir)
-                        local p2s=vecadd(vecadd(p,scalev(v.side,35)),scalev(v.front,-16))
-                        gblit(264,0,20,60,p2s,1,1,1,v.dir)
-                        gfx.set_active_layer(LAYER_SHADOW2)
-                        local sd=scalev(SHADOW_DELTA,0.1)
-                        local p2s=vecadd(vecadd(vecadd(p,scalev(v.side,5)),scalev(v.front,-16)),sd)
-                        gblit_col(244,0,20,60,p2s,sr,sg,sb,v.dir)
-                        local p2s=vecadd(vecadd(vecadd(p,scalev(v.side,15)),scalev(v.front,-16)),sd)
-                        gblit_col(264,0,20,60,p2s,sr,sg,sb,v.dir)
-                        local p2s=vecadd(vecadd(vecadd(p,scalev(v.side,25)),scalev(v.front,-16)),sd)
-                        gblit_col(244,0,20,60,p2s,sr,sg,sb,v.dir)
-                        local p2s=vecadd(vecadd(vecadd(p,scalev(v.side,35)),scalev(v.front,-16)),sd)
-                        gblit_col(264,0,20,60,p2s,sr,sg,sb,v.dir)
-                        gfx.set_active_layer(0)
+                        self:draw_tribune2(li_rail,v.side,v.front,v.dir)
                     elseif lobj == OBJ_TREE then
-                        gfx.set_active_layer(LAYER_TOP)
-                        for i=1,#v.ltrees do
-                            local typ=v.ltrees[i].typ
-                            local tree_pos=v.ltrees[i].p
-                            local p = vecsub(vecsub(li_rail,scalev(v.side,tree_pos.x-10)),scalev(v.front,tree_pos.y))
-                            if typ == 1 then
-                                gblit(224,60,20,20,p,1,1,1,v.dir)
-                            elseif typ == 2 then
-                                gblit(224,80,30,30,p,1,1,1,v.dir)
-                            elseif typ == 3 then
-                                gblit(224,110,40,40,p,1,1,1,v.dir)
-                            end
-                        end
-                        gfx.set_active_layer(LAYER_SHADOW2)
-                        for i=1,#v.ltrees do
-                            local typ=v.ltrees[i].typ
-                            local tree_pos=v.ltrees[i].p
-                            local p = vecadd(vecsub(vecsub(li_rail,scalev(v.side,tree_pos.x-10)),scalev(v.front,tree_pos.y)),SHADOW_DELTA)
-                            if typ == 1 then
-                                gblit_col(224,60,20,20,p,sr,sg,sb,v.dir)
-                            elseif typ == 2 then
-                                gblit_col(224,80,30,30,p,sr,sg,sb,v.dir)
-                            elseif typ == 3 then
-                                gblit_col(224,110,40,40,p,sr,sg,sb,v.dir)
-                            end
-                        end
-                        gfx.set_active_layer(0)
+                        self:draw_tree(v.ltrees,li_rail,v.side,v.front,v.dir)
                     elseif lobj == OBJ_BRIDGE then
                         gfx.set_active_layer(LAYER_TOP)
                         gblit(141,224,182,30,v,1,1,1,v.dir)
@@ -2248,121 +2302,17 @@ function race()
                         gblit_col(141,224,8,30,p2,sr,sg,sb,v.dir)
                         gblit_col(315,224,8,30,p3,sr,sg,sb,v.dir)
                         gfx.set_active_layer(0)
+                    elseif lobj == OBJ_STANDS then
+                        self:draw_stands(li_rail,vecinv(v.side),v.front,seg%2==0)
                     end
                     if robj == OBJ_TRIBUNE then
-                        local p = vecsub(ri_rail,scalev(v.side,8))
-                        local p2 = vecsub(p,scalev(v.side,10))
-                        local p3 = vecadd(p,scalev(v.front,-32))
-                        local p4 = vecadd(p2,scalev(v.front,-32))
-                        quadfill(p,p2,p3,p4,22)
-                        local p2s=vecadd(vecsub(p,scalev(v.side,5)),scalev(v.front,-16))
-                        gblit(224,0,20,60,p2s,1,1,1,v.dir)
-                        p=vecsub(p,scalev(v.side,50))
-                        p3=vecsub(p3,scalev(v.side,50))
-                        gfx.set_active_layer(LAYER_TOP)
-                        quadfill(p,p2,p3,p4,seg%2==0 and 20 or 4)
-                        gfx.set_active_layer(LAYER_SHADOW2)
-                        local sd=SHADOW_DELTA
-                        p = vecadd(p,sd)
-                        p2 = vecadd(p2,sd)
-                        p3 = vecadd(p3,sd)
-                        p4 = vecadd(p4,sd)
-                        quadfill(p,p2,p3,p4,22)
-                        gfx.set_active_layer(0)
+                        self:draw_tribune(ri_rail,vecinv(v.side),v.front,v.dir, seg%2==0)
                     elseif robj == OBJ_TRIBUNE2 then
-                        local p = vecsub(ri_rail,scalev(v.side,8))
-                        local p2 = vecsub(p,scalev(v.side,40))
-                        local p3 = vecadd(p,scalev(v.front,-32))
-                        local p4 = vecadd(p2,scalev(v.front,-32))
-                        gfx.set_active_layer(LAYER_CARS)
-                        quadfill(p,p2,p3,p4,22)
-                        gfx.set_active_layer(LAYER_SHADOW)
-                        p2=vecadd(p2,SHADOW_DELTA)
-                        p4=vecadd(p4,SHADOW_DELTA)
-                        quadfill(p,p2,p3,p4,22)
-                        gfx.set_active_layer(LAYER_TOP)
-                        local p2s=vecadd(vecsub(p,scalev(v.side,5)),scalev(v.front,-16))
-                        gblit(244,0,20,60,p2s,1,1,1,v.dir)
-                        local p2s=vecadd(vecsub(p,scalev(v.side,15)),scalev(v.front,-16))
-                        gblit(264,0,20,60,p2s,1,1,1,v.dir)
-                        local p2s=vecadd(vecsub(p,scalev(v.side,25)),scalev(v.front,-16))
-                        gblit(244,0,20,60,p2s,1,1,1,v.dir)
-                        local p2s=vecadd(vecsub(p,scalev(v.side,35)),scalev(v.front,-16))
-                        gblit(264,0,20,60,p2s,1,1,1,v.dir)
-                        gfx.set_active_layer(LAYER_SHADOW2)
-                        local sd=scalev(SHADOW_DELTA,0.1)
-                        local p2s=vecadd(vecadd(vecsub(p,scalev(v.side,5)),scalev(v.front,-16)),sd)
-                        gblit_col(244,0,20,60,p2s,sr,sg,sb,v.dir)
-                        local p2s=vecadd(vecadd(vecsub(p,scalev(v.side,15)),scalev(v.front,-16)),sd)
-                        gblit_col(264,0,20,60,p2s,sr,sg,sb,v.dir)
-                        local p2s=vecadd(vecadd(vecsub(p,scalev(v.side,25)),scalev(v.front,-16)),sd)
-                        gblit_col(244,0,20,60,p2s,sr,sg,sb,v.dir)
-                        local p2s=vecadd(vecadd(vecsub(p,scalev(v.side,35)),scalev(v.front,-16)),sd)
-                        gblit_col(264,0,20,60,p2s,sr,sg,sb,v.dir)
-                        gfx.set_active_layer(0)
+                        self:draw_tribune2(ri_rail,vecinv(v.side),v.front,v.dir)
                     elseif robj == OBJ_TREE then
-                        gfx.set_active_layer(LAYER_TOP)
-                        for i=1,#v.rtrees do
-                            local typ=v.rtrees[i].typ
-                            local tree_pos=v.rtrees[i].p
-                            local p = vecsub(vecsub(ri_rail,scalev(v.side,tree_pos.x+10)),scalev(v.front,tree_pos.y))
-                            if typ == 1 then
-                                gblit(224,60,20,20,p,1,1,1,v.dir)
-                            elseif typ == 2 then
-                                gblit(224,80,30,30,p,1,1,1,v.dir)
-                            elseif typ == 3 then
-                                gblit(224,110,40,40,p,1,1,1,v.dir)
-                            end
-                        end
-                        gfx.set_active_layer(LAYER_SHADOW2)
-                        for i=1,#v.rtrees do
-                            local typ=v.rtrees[i].typ
-                            local tree_pos=v.rtrees[i].p
-                            local p = vecadd(vecsub(vecsub(ri_rail,scalev(v.side,tree_pos.x+10)),scalev(v.front,tree_pos.y)),SHADOW_DELTA)
-                            if typ == 1 then
-                                gblit_col(224,60,20,20,p,sr,sg,sb,v.dir)
-                            elseif typ == 2 then
-                                gblit_col(224,80,30,30,p,sr,sg,sb,v.dir)
-                            elseif typ == 3 then
-                                gblit_col(224,110,40,40,p,sr,sg,sb,v.dir)
-                            end
-                        end
-                        gfx.set_active_layer(0)
+                        self:draw_tree(v.rtrees,ri_rail,v.side,v.front,v.dir)
                     elseif robj == OBJ_STANDS then
-                        local p = vecsub(ri_rail,scalev(v.side,24))
-                        local p2 = vecsub(p,scalev(v.side,8))
-                        local p3 = vecadd(p,scalev(v.front,-33))
-                        local p4 = vecadd(p2,scalev(v.front,-33))
-                        linevec(p,p3,7)
-                        local perp=scalev(v.side,-4)
-                        p=vecadd(p2,perp)
-                        p3=vecadd(p4,perp)
-                        quadfill(p2,p4,p,p3,seg%2==0 and 7 or 28)
-                        perp = scalev(perp,4)
-                        p2=vecadd(p,perp)
-                        p4=vecadd(p3,perp)
-                        perp = scalev(perp,0.125)
-                        local perp2=scalev(v.front,-2)
-                        quadfill(p,p3,p2,p4,22)
-                        local lp=vecadd(vecadd(p,perp),perp2)
-                        local lp2=vecadd(vecsub(p2,perp),perp2)
-                        local lp3=vecadd(lp,perp2)
-                        local lp4=vecadd(lp2,perp2)
-                        linevec(lp,lp3,7)
-                        linevec(lp,lp2,7)
-                        linevec(lp2,lp4,7)
-                        gfx.set_active_layer(LAYER_TOP)
-                        perp=scalev(v.side,-32)
-                        p=vecadd(p2,perp)
-                        p3=vecadd(p4,perp)
-                        quadfill(p,p3,p2,p4,13)
-                        gfx.set_active_layer(LAYER_SHADOW2)
-                        p=vecsub(p,SHADOW_DELTA)
-                        p2=vecsub(p2,SHADOW_DELTA)
-                        p3=vecsub(p3,SHADOW_DELTA)
-                        p4=vecsub(p4,SHADOW_DELTA)
-                        quadfill(p,p3,p2,p4,22)
-                        gfx.set_active_layer(0)
+                        self:draw_stands(ri_rail,v.side,v.front, seg%2==0)
                     end
 
                     if v.lpanel ~= nil then
@@ -2917,6 +2867,10 @@ end
 
 function vecadd(a, b)
     return vec(a.x + b.x, a.y + b.y)
+end
+
+function vecinv(a)
+    return vec(-a.x,-a.y)
 end
 
 function midpoint(a, b)
