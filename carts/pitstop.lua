@@ -1,5 +1,8 @@
 -- inspired by pico racer 2048
 -- by impbox software
+local WIND_COEF <const> = 0.88
+local BRAKE_COEF <const> = 0.97
+local TEAM_PERF_COEF <const> = 0
 local X_OFFSET <const> = 130
 local MINIMAP_START <const> = -10
 local MINIMAP_END <const> = 20
@@ -24,13 +27,33 @@ local OBJ_PIT_LINE_END <const> = 9
 local OBJ_COUNT <const> = 10
 local SHADOW_DELTA <const> = {x=-10,y=10}
 local SHADOW_COL <const> = {r=162.0/255,g=136.0/255,b=121.0/255} -- correspond to palette 22
+local MINIMAP_RACE_OFFSET <const> = {x=340, y=120}
+local MINIMAP_EDITOR_OFFSET <const> = {x=340,y=200}
+local CARS <const> = {{
+    name = "Easy",
+    maxacc = 3,
+    steer = 0.0225,
+    accsqr = 0.1,
+    player_adv=0.15
+}, {
+    name = "Medium",
+    maxacc = 3,
+    steer = 0.0185,
+    accsqr = 0.15,
+    player_adv=0.1
+}, {
+    name = "Hard",
+    maxacc = 3,
+    steer = 0.0165,
+    accsqr = 0.2,
+    player_adv=0
+}}
+
+minimap_offset=MINIMAP_RACE_OFFSET
 cam_pos = {
     x = 0,
     y = 0
 }
-local MINIMAP_RACE_OFFSET <const> = {x=340, y=120}
-local MINIMAP_EDITOR_OFFSET <const> = {x=340,y=200}
-minimap_offset=MINIMAP_RACE_OFFSET
 camera_angle = 0
 camera_scale = 1
 best_seg_times = {}
@@ -254,25 +277,6 @@ local SFX_BOOSTER <const> = 41
 local BOOST_WARNING_THRESH <const> = 30
 local BOOST_CRITICAL_THRESH <const> = 15
 
-local CARS <const> = {{
-    name = "Easy",
-    maxacc = 2.0,
-    steer = 0.0225,
-    accsqr = 0.1,
-    player_adv=0.2
-}, {
-    name = "Medium",
-    maxacc = 2.2,
-    steer = 0.0185,
-    accsqr = 0.1,
-    player_adv=0.1
-}, {
-    name = "Hard",
-    maxacc = 2.4,
-    steer = 0.0165,
-    accsqr = 0.1,
-    player_adv=0
-}}
 
 local TEAMS <const> = {
     ["Williamson"] = {
@@ -595,20 +599,11 @@ function create_car(race)
         local sb_right
         if controls.brake then
             if controls.left then
-                sb_left = true
-            elseif controls.right then
-                sb_right = true
-            else
-                sb_left = true
-                sb_right = true
-            end
-            if sb_left then
                 angle = angle + speed * 0.001
-            end
-            if sb_right then
+            elseif controls.right then
                 angle = angle - speed * 0.001
             end
-            vel = scalev(vel, 0.95)
+            vel = scalev(vel, BRAKE_COEF)
         end
         accel = min(accel, self.boosting and self.maxboost or self.maxacc)
         -- boosting
@@ -800,7 +795,7 @@ function create_car(race)
             end
         end
 
-        self.vel = scalev(self.vel, 0.9 * (495+self.perf + asp)/500)
+        self.vel = scalev(self.vel, WIND_COEF * (500+(self.perf-5) * TEAM_PERF_COEF + asp)/500)
         local v=get_data_from_vecmap(self.current_segment)
         local sidepos=dot(vecsub(self.pos,v),v.side)
         local ground_type = sidepos >32 and (v.ltyp & 7) or (sidepos < -32 and (v.rtyp & 7) or 0)
@@ -1224,7 +1219,7 @@ function mapeditor:update()
             -- change left object type
             local lobj=cs[4]//8
             lobj = (lobj+1)%OBJ_COUNT
-            if lobj==OBJ_PIT_LINE_END or lobj == OBJ_PIT_LINE_START then
+            while lobj==OBJ_PIT_LINE_END or lobj == OBJ_PIT_LINE_START do
                 lobj = (lobj+1)%OBJ_COUNT
             end
             cs[4] = (cs[4]&7) + lobj*8
@@ -1233,7 +1228,7 @@ function mapeditor:update()
             -- change right object type
             local robj=cs[5]//8
             robj = (robj+1)%OBJ_COUNT
-            if robj==OBJ_PIT_LINE_END or robj == OBJ_PIT_LINE_START then
+            while robj==OBJ_PIT_LINE_END or robj == OBJ_PIT_LINE_START or robj == OBJ_BRIDGE or robj == OBJ_BRIDGE2 do
                 robj = (robj+1)%OBJ_COUNT
             end
             cs[5] = (cs[5]&7) + robj*8
@@ -1729,7 +1724,7 @@ function race()
         p.pos = vecadd(vecadd(p.pos, scalev(v.side, 14)),scalev(v.front,-6))
         p.angle = v.dir
         p.rank = 1
-        p.maxacc = p.maxacc + CARS[intro.car].player_adv
+        p.maxacc = p.maxacc
         camera_angle = v.dir
         p.driver = {
             name = "Player",
@@ -1745,6 +1740,7 @@ function race()
         if self.race_mode == MODE_RACE then
             for i = 1, #DRIVERS do
                 local ai_car = create_car(self)
+                ai_car.maxacc = ai_car.maxacc - CARS[intro.car].player_adv
                 ai_car.current_segment = -1 - i // 2
                 ai_car.driver = DRIVERS[i]
                 ai_car.color = TEAMS[ai_car.driver.team].color
@@ -2475,7 +2471,7 @@ function race()
         -- car dashboard
         if not self.completed and self.race_mode ~= MODE_EDITOR then
             gfx.blit(0, 224, 66, 35, gfx.SCREEN_WIDTH - 66, gfx.SCREEN_HEIGHT - 35, 0, 0, false, false, 1, 1, 1)
-            printc("" .. flr(player.speed * 10), 370, 210, 28)
+            printc("" .. flr(player.speed * 14), 370, 210, 28)
             gfx.blit(66, 224, 25 * min(1, player.speed / 15), 8, gfx.SCREEN_WIDTH - 28, gfx.SCREEN_HEIGHT - 23, 0, 0,
                 false, false, 1, 1, 1)
             gfx.blit(66, 232, 19 * min(1, (player.accel ^ 3) / (1.5 ^ 3)), 9, gfx.SCREEN_WIDTH - 60,
