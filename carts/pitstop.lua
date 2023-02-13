@@ -19,7 +19,9 @@ local OBJ_BRIDGE <const> = 4
 local OBJ_BRIDGE2 <const> = 5
 local OBJ_PIT <const> = 6
 local OBJ_PIT_LINE <const> = 7
-local OBJ_COUNT <const> = 8
+local OBJ_PIT_LINE_START <const> = 8
+local OBJ_PIT_LINE_END <const> = 9
+local OBJ_COUNT <const> = 10
 local SHADOW_DELTA <const> = {x=-10,y=10}
 local SHADOW_COL <const> = {r=162.0/255,g=136.0/255,b=121.0/255} -- correspond to palette 22
 cam_pos = {
@@ -1222,12 +1224,18 @@ function mapeditor:update()
             -- change left object type
             local lobj=cs[4]//8
             lobj = (lobj+1)%OBJ_COUNT
+            if lobj==OBJ_PIT_LINE_END or lobj == OBJ_PIT_LINE_START then
+                lobj = (lobj+1)%OBJ_COUNT
+            end
             cs[4] = (cs[4]&7) + lobj*8
             self.race:generate_track()
         elseif inside_rect(mx,my,gfx.SCREEN_WIDTH-150,28,32,8) then
             -- change right object type
             local robj=cs[5]//8
             robj = (robj+1)%OBJ_COUNT
+            if robj==OBJ_PIT_LINE_END or robj == OBJ_PIT_LINE_START then
+                robj = (robj+1)%OBJ_COUNT
+            end
             cs[5] = (cs[5]&7) + robj*8
             self.race:generate_track()
         end
@@ -1392,7 +1400,10 @@ function mapeditor:draw()
         self.mapoffx = -sec_x
         self.mapoffy = -sec_y
     else
+        local back=cam_pos
+        cam_pos = vecsub(vecsub(cam_pos,vec(self.mouseoffx, self.mouseoffy)),vec(self.mdragx,self.mdragy))
         self.race:draw()
+        cam_pos=back
     end
     printc("section " .. self.sec .. '/' .. #mapsections, gfx.SCREEN_WIDTH/2, 1, 7)
     local sec=mapsections[self.sec]
@@ -1634,6 +1645,18 @@ function race()
                     v.rpanel=dist/5
                 end
             end
+            -- convert last OBJ_PIT_LINE into OBJ_PIT_LINE_END
+            -- and first OBJ_PIT_LINE into OBJ_PIT_LINE_START
+            if v2.ltyp//8 == OBJ_PIT and v.ltyp//8 == OBJ_PIT_LINE then
+                v.ltyp = v.ltyp+16
+            elseif v2.ltyp//8 == OBJ_PIT_LINE and v.ltyp//8 == OBJ_PIT then
+                v2.ltyp = v2.ltyp + 8
+            end
+            if v2.rtyp//8 == OBJ_PIT and v.rtyp//8 == OBJ_PIT_LINE then
+                v.rtyp = v.rtyp+16
+            elseif v2.rtyp//8 == OBJ_PIT_LINE and v.rtyp//8 == OBJ_PIT then
+                v2.rtyp = v2.rtyp + 8
+            end
         end
         -- keep only signs when all 3 (150,100,50) exist
         local expected=3
@@ -1843,7 +1866,7 @@ function race()
         local p2 = vecsub(p,scalev(side,8))
         local p3 = vecadd(p,scalev(front,-33))
         local p4 = vecadd(p2,scalev(front,-33))
-        linevec(p,p3,7)
+        linevec(p,p3,10)
         local perp=scalev(side,-4)
         p=vecadd(p2,perp)
         p3=vecadd(p4,perp)
@@ -1882,6 +1905,26 @@ function race()
         local p4 = vecadd(p2,scalev(front,-33))
         quadfill(p2,p4,p,p3,27)
         self:draw_rail(p,p3)
+    end
+
+    function race:draw_pitline_start(ri_rail,side,front)
+        local p = vecsub(ri_rail,scalev(side,24))
+        local p2 = vecsub(p,scalev(side,32))
+        local p3 = vecadd(p,scalev(front,-33))
+        local p4 = vecadd(p2,scalev(front,-33))
+        trifill(p,p2,p4,27)
+        linevec(p,p3,10)
+        self:draw_rail(p,p4)
+    end
+
+    function race:draw_pitline_end(ri_rail,side,front)
+        local p = vecsub(ri_rail,scalev(side,24))
+        local p2 = vecsub(p,scalev(side,32))
+        local p3 = vecadd(p,scalev(front,-33))
+        local p4 = vecadd(p2,scalev(front,-33))
+        trifill(p2,p3,p4,27)
+        linevec(p,p3,10)
+        self:draw_rail(p2,p3)
     end
 
     function race:draw_rail(p1,p2)
@@ -2326,6 +2369,10 @@ function race()
                         self:draw_pit(li_rail,vecinv(v.side),v.front,seg%2==0)
                     elseif lobj == OBJ_PIT_LINE then
                         self:draw_pitline(li_rail,vecinv(v.side),v.front)
+                    elseif lobj == OBJ_PIT_LINE_START then
+                        self:draw_pitline_start(li_rail,vecinv(v.side),v.front)
+                    elseif lobj == OBJ_PIT_LINE_END then
+                        self:draw_pitline_end(li_rail,vecinv(v.side),v.front)
                     end
                     if robj == OBJ_TRIBUNE then
                         self:draw_tribune(ri_rail,vecinv(v.side),v.front,v.dir, seg%2==0)
@@ -2337,6 +2384,10 @@ function race()
                         self:draw_pit(ri_rail,v.side,v.front, seg%2==0)
                     elseif robj == OBJ_PIT_LINE then
                         self:draw_pitline(ri_rail,v.side,v.front)
+                    elseif robj == OBJ_PIT_LINE_START then
+                        self:draw_pitline_start(ri_rail,v.side,v.front)
+                    elseif robj == OBJ_PIT_LINE_END then
+                        self:draw_pitline_end(ri_rail,v.side,v.front)
                     end
 
                     if v.lpanel ~= nil then
@@ -2985,7 +3036,7 @@ function lerpv(a, b, t)
 end
 
 TRACKS = {
-    [0] = {1337, 4, 128, 32, 25,48,0,0,  2, 128, 32, 9,48,0,0, 8, 128, 32, 9,0,0,0, 2, 128, 32, 1,1,0,0, 4, 128, 32, 17,25,0,0, 2, 128, 32, 25,25,0,0, 2, 128, 32, 1,1,0,-1,
+    [0] = {1337, 4, 128, 32, 25,48,0,0,  2, 128, 32, 9,48,0,0, 8, 128, 32, 9,56,0,0, 2, 128, 32, 1,1,0,0, 4, 128, 32, 17,25,0,0, 2, 128, 32, 25,25,0,0, 2, 128, 32, 1,1,0,-1,
         -- prima variante
         3, 120, 32, 1,1,-1,3, 3, 140, 32, 1,17,3,0,
         -- curva biassono
