@@ -17,8 +17,8 @@ local OBJ_TRIBUNE2 <const> = 2
 local OBJ_TREE <const> = 3
 local OBJ_BRIDGE <const> = 4
 local OBJ_BRIDGE2 <const> = 5
-local OBJ_STANDS <const> = 6
-local OBJ_STANDLINE <const> = 7
+local OBJ_PIT <const> = 6
+local OBJ_PIT_LINE <const> = 7
 local OBJ_COUNT <const> = 8
 local SHADOW_DELTA <const> = {x=-10,y=10}
 local SHADOW_COL <const> = {r=162.0/255,g=136.0/255,b=121.0/255} -- correspond to palette 22
@@ -1406,7 +1406,7 @@ function mapeditor:draw()
     local robj=sec[5]//8
     local lrail=sec[6]
     local rrail=sec[7]
-    local objs={[0]="","tribune1","tribune2","tree","bridge","bridge2","stands","standline"}
+    local objs={[0]="","tribune1","tribune2","tree","bridge","bridge2","pit","pit line"}
     printc("len "..sec_len.." dir "..sec_dir.." w "..sec_width,gfx.SCREEN_WIDTH/2,10,7)
     printr("rail l "..lrail.." r "..rrail, gfx.SCREEN_WIDTH-1, 10,7)
     local mx,my=inp.mouse_pos()
@@ -1838,7 +1838,7 @@ function race()
         gfx.set_active_layer(0)
     end
 
-    function race:draw_stands(ri_rail,side,front,flipflop)
+    function race:draw_pit(ri_rail,side,front,flipflop)
         local p = vecsub(ri_rail,scalev(side,24))
         local p2 = vecsub(p,scalev(side,8))
         local p3 = vecadd(p,scalev(front,-33))
@@ -1875,7 +1875,7 @@ function race()
         gfx.set_active_layer(0)
     end
 
-    function race:draw_standline(ri_rail,side,front)
+    function race:draw_pitline(ri_rail,side,front)
         local p = vecsub(ri_rail,scalev(side,24))
         local p2 = vecsub(p,scalev(side,32))
         local p3 = vecadd(p,scalev(front,-33))
@@ -2322,10 +2322,10 @@ function race()
                         gblit_col(141,224,8,30,p2,sr,sg,sb,v.dir)
                         gblit_col(315,224,8,30,p3,sr,sg,sb,v.dir)
                         gfx.set_active_layer(0)
-                    elseif lobj == OBJ_STANDS then
-                        self:draw_stands(li_rail,vecinv(v.side),v.front,seg%2==0)
-                    elseif lobj == OBJ_STANDLINE then
-                        self:draw_standline(li_rail,vecinv(v.side),v.front)
+                    elseif lobj == OBJ_PIT then
+                        self:draw_pit(li_rail,vecinv(v.side),v.front,seg%2==0)
+                    elseif lobj == OBJ_PIT_LINE then
+                        self:draw_pitline(li_rail,vecinv(v.side),v.front)
                     end
                     if robj == OBJ_TRIBUNE then
                         self:draw_tribune(ri_rail,vecinv(v.side),v.front,v.dir, seg%2==0)
@@ -2333,10 +2333,10 @@ function race()
                         self:draw_tribune2(ri_rail,vecinv(v.side),v.front,v.dir)
                     elseif robj == OBJ_TREE then
                         self:draw_tree(v.rtrees,ri_rail,v.side,v.front,v.dir)
-                    elseif robj == OBJ_STANDS then
-                        self:draw_stands(ri_rail,v.side,v.front, seg%2==0)
-                    elseif robj == OBJ_STANDLINE then
-                        self:draw_standline(ri_rail,v.side,v.front)
+                    elseif robj == OBJ_PIT then
+                        self:draw_pit(ri_rail,v.side,v.front, seg%2==0)
+                    elseif robj == OBJ_PIT_LINE then
+                        self:draw_pitline(ri_rail,v.side,v.front)
                     end
 
                     if v.lpanel ~= nil then
