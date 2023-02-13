@@ -1389,6 +1389,7 @@ end
 
 function mapeditor:draw()
     cls()
+    local minseg,maxseg
     if self.display == 0 then
         local sec_x,sec_y = draw_editor_minimap(self.mapoffx + self.mouseoffx + self.mdragx -65,
             self.mapoffy - 20 + self.mouseoffy + self.mdragy, scale, 6, self.sec)
@@ -1397,10 +1398,14 @@ function mapeditor:draw()
     else
         local back=cam_pos
         cam_pos = vecsub(vecsub(cam_pos,vec(self.mouseoffx, self.mouseoffy)),vec(self.mdragx,self.mdragy))
-        self.race:draw()
+        minseg,maxseg=self.race:draw()
         cam_pos=back
     end
-    printc("section " .. self.sec .. '/' .. #mapsections, gfx.SCREEN_WIDTH/2, 1, 7)
+    if minseg then
+        printc("sec " .. self.sec .. '/' .. #mapsections.." seg "..minseg.."-"..maxseg, gfx.SCREEN_WIDTH/2, 1, 7)
+    else
+        printc("sec " .. self.sec .. '/' .. #mapsections, gfx.SCREEN_WIDTH/2, 1, 7)
+    end
     local sec=mapsections[self.sec]
     local sec_len,sec_dir,sec_width=sec[1],sec[2],sec[3]
     local ltyp=sec[4]&3
@@ -2219,6 +2224,7 @@ function race()
 
         local lastv,lastup,lastup2,lastup3,last_right_rail,lastdown,lastdown3,last_left_rail
         local panels={}
+        local minseg,maxseg
         for seg = current_segment - 20, current_segment + 20 do
             local v = get_data_from_vecmap(seg)
             local has_lrail = v.has_lrail
@@ -2402,6 +2408,8 @@ function race()
                         linevec(lastv.right_kerb,v.right_kerb,10)
                         linevec(lastv.left_kerb,v.left_kerb,10)
                         gfx.set_active_layer(0)
+                        minseg = minseg and min(minseg,seg) or seg
+                        maxseg = maxseg and max(maxseg,seg) or seg
                     end
                 end
             end
@@ -2624,6 +2632,7 @@ function race()
         if player.collision > 0 or self.completed then
             player.collision = player.collision - 0.1
         end
+        return minseg,maxseg
     end
     return race
 end
