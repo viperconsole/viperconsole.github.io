@@ -663,6 +663,18 @@ function create_car(race)
         -- check collisions
         -- get a width enlarged version of this segment to help prevent losing the car
         local current_segment = self.current_segment
+        local v=get_data_from_vecmap(current_segment)
+        local nextv=get_data_from_vecmap(current_segment+2)
+        local pos = dot(vecsub(self.pos,v),v.side)
+        if v.rtyp//8 == OBJ_PIT_ENTRY3 and pos < -32 then
+            self.pit=-1
+        elseif v.ltyp//8 == OBJ_PIT_ENTRY3 and pos > 32 then
+            self.pit=1
+        elseif nextv.rtyp//8 == OBJ_PIT_EXIT1 and pos < -32 then
+            self.pit=nil
+        elseif nextv.ltyp//8 == OBJ_PIT_EXIT1 and pos > 32 then
+            self.pit=nil
+        end
         local segpoly = get_segment(current_segment, true)
         local poly
 
@@ -750,8 +762,24 @@ function create_car(race)
             -- check collisions with walls
             if poly then
                 local car_poly = {self.verts[1],self.verts[2],self.verts[3]}
-                local v = get_data_from_vecmap(current_segment+1)
-                local rails={{poly[2], poly[3]},{poly[4], poly[1]}}
+                local rails
+                if self.pit == -1 then
+                    local p=vecsub(v.right_inner_rail,scalev(v.side,6))
+                    local p2=vecadd(v.right_inner_rail,scalev(v.front,33))
+                    local width = (v.rtyp//8 == OBJ_PIT or nextv.rtyp//8 == OBJ_PIT) and 48 or 20
+                    local p3=vecsub(p,scalev(v.side,width))
+                    local p4=vecsub(p2,scalev(v.side,width))
+                    rails={{p2,p},{p3,p4}}
+                elseif self.pit == 1 then
+                    local p=vecadd(v.left_inner_rail,scalev(v.side,6))
+                    local p2=vecadd(v.left_inner_rail,scalev(v.front,33))
+                    local width = (v.ltyp//8 == OBJ_PIT or nextv.ltyp//8 == OBJ_PIT) and 48 or 20
+                    local p3=vecadd(p,scalev(v.side,width))
+                    local p4=vecadd(p2,scalev(v.side,width))
+                    rails={{p2,p},{p3,p4}}
+                else
+                    rails={{poly[2], poly[3]},{poly[4], poly[1]}}
+                end
                 local rv, pen, point = check_collision(car_poly, rails)
                 if rv then
                     if pen > 5 then
@@ -779,21 +807,26 @@ function create_car(race)
         self.pos = vecadd(self.pos, scalev(self.vel, 0.3))
         -- aspiration
         local asp=0
-        for i=1,#self.race.objects do
-            local car=self.race.objects[i]
-            local seg=wrap(self.current_segment,mapsize)
-            local car_seg=wrap(car.current_segment,mapsize)
-            if car ~= self and car_seg-seg <= 3 and car_seg-seg > 0 then
-                local perp=perpendicular(car_dir)
-                local dist=dot(vecsub(car.pos,self.pos),perp)
-                if abs(dist) <= 10 then
-                    asp = 3
-                    break
+        if not self.pit then
+            for i=1,#self.race.objects do
+                local car=self.race.objects[i]
+                local seg=wrap(self.current_segment,mapsize)
+                local car_seg=wrap(car.current_segment,mapsize)
+                if car ~= self and car_seg-seg <= 3 and car_seg-seg > 0 then
+                    local perp=perpendicular(car_dir)
+                    local dist=dot(vecsub(car.pos,self.pos),perp)
+                    if abs(dist) <= 10 then
+                        asp = 3
+                        break
+                    end
                 end
             end
         end
-
-        self.vel = scalev(self.vel, WIND_COEF * (500+(self.perf-5) * TEAM_PERF_COEF + asp)/500)
+        local speed_coef = WIND_COEF * (500+(self.perf-5) * TEAM_PERF_COEF + asp)/500
+        if self.pit then
+            speed_coef = 0.7 * speed_coef
+        end
+        self.vel = scalev(self.vel, speed_coef)
         local v=get_data_from_vecmap(self.current_segment)
         local sidepos=dot(vecsub(self.pos,v),v.side)
         local ground_type = sidepos >32 and (v.ltyp & 7) or (sidepos < -32 and (v.rtyp & 7) or 0)
@@ -845,11 +878,13 @@ function create_car(race)
         self.current_segment = current_segment
         local player=self.race.player
         if abs(current_segment-player.current_segment) < 10 then
-            local caccel = accel/CARS[intro.car].maxacc
             local spawn_pos=vecsub(self.pos, scalev(self.vel, 0.5))
-            if (self.ccut_timer < 0 and speed > 1 and caccel/speed > 0.07) or (controls.brake and speed < 9 and speed > 2) then
-                local col = ground_type==1 and 3 or (ground_type==2 and 4 or 22)
-                create_smoke(current_segment, spawn_pos, self.vel, col)
+            if not self.pit then
+                local caccel = accel/CARS[intro.car].maxacc
+                if (self.ccut_timer < 0 and speed > 1 and caccel/speed > 0.07) or (controls.brake and speed < 9 and speed > 2) then
+                    local col = ground_type==1 and 3 or (ground_type==2 and 4 or 22)
+                    create_smoke(current_segment, spawn_pos, self.vel, col)
+                end
             end
             if speed > 25 and ground_type == 0 and rnd(10) < 4 then
                 create_spark(current_segment, spawn_pos, scalev(normalize(self.vel),0.8), false)
@@ -2511,12 +2546,12 @@ function race()
         end
 
         -- DEBUG : display segments collision shapes
-        seg=get_segment(player.current_segment-1,false,true)
-        quadfill(seg[1],seg[2],seg[4],seg[3],11)
-        local seg=get_segment(player.current_segment+1,false,true)
-        quadfill(seg[1],seg[2],seg[4],seg[3],12)
-        local seg=get_segment(player.current_segment,false,true)
-        quadfill(seg[1],seg[2],seg[4],seg[3],8)
+        -- seg=get_segment(player.current_segment-1,false,true)
+        -- quadfill(seg[1],seg[2],seg[4],seg[3],11)
+        -- local seg=get_segment(player.current_segment+1,false,true)
+        -- quadfill(seg[1],seg[2],seg[4],seg[3],12)
+        -- local seg=get_segment(player.current_segment,false,true)
+        -- quadfill(seg[1],seg[2],seg[4],seg[3],8)
         gfx.set_active_layer(LAYER_TOP)
         -- draw_minimap
         if not self.completed then
@@ -3133,12 +3168,14 @@ function point_in_polygon(pgon, t)
 end
 
 function check_collision(points, lines)
-    for _, point in pairs(points) do
-        for _, line in pairs(lines) do
-            if side_of_line(line[1], line[2], point.x, point.y) < 0 then
-                local rvec = get_normal(line[1], line[2])
-                local penetration = distance_from_line(point, line[1], line[2])
-                return rvec, penetration, point
+    if lines then
+        for _, point in pairs(points) do
+            for _, line in pairs(lines) do
+                if side_of_line(line[1], line[2], point.x, point.y) < 0 then
+                    local rvec = get_normal(line[1], line[2])
+                    local penetration = distance_from_line(point, line[1], line[2])
+                    return rvec, penetration, point
+                end
             end
         end
     end
