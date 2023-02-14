@@ -24,7 +24,13 @@ local OBJ_PIT <const> = 6
 local OBJ_PIT_LINE <const> = 7
 local OBJ_PIT_LINE_START <const> = 8
 local OBJ_PIT_LINE_END <const> = 9
-local OBJ_COUNT <const> = 10
+local OBJ_PIT_LINE_ENTRY1 <const> = 10
+local OBJ_PIT_LINE_ENTRY2 <const> = 11
+local OBJ_PIT_LINE_ENTRY3 <const> = 12
+local OBJ_PIT_LINE_EXIT1 <const> = 13
+local OBJ_PIT_LINE_EXIT2 <const> = 14
+local OBJ_PIT_LINE_EXIT3 <const> = 15
+local OBJ_COUNT <const> = 16
 local SHADOW_DELTA <const> = {x=-10,y=10}
 local SHADOW_COL <const> = {r=162.0/255,g=136.0/255,b=121.0/255} -- correspond to palette 22
 local MINIMAP_RACE_OFFSET <const> = {x=340, y=120}
@@ -1219,7 +1225,7 @@ function mapeditor:update()
             -- change left object type
             local lobj=cs[4]//8
             lobj = (lobj+1)%OBJ_COUNT
-            while lobj==OBJ_PIT_LINE_END or lobj == OBJ_PIT_LINE_START do
+            while lobj >= OBJ_PIT_LINE_START do
                 lobj = (lobj+1)%OBJ_COUNT
             end
             cs[4] = (cs[4]&7) + lobj*8
@@ -1228,7 +1234,7 @@ function mapeditor:update()
             -- change right object type
             local robj=cs[5]//8
             robj = (robj+1)%OBJ_COUNT
-            while robj==OBJ_PIT_LINE_END or robj == OBJ_PIT_LINE_START or robj == OBJ_BRIDGE or robj == OBJ_BRIDGE2 do
+            while robj >= OBJ_PIT_LINE_START or robj == OBJ_BRIDGE or robj == OBJ_BRIDGE2 do
                 robj = (robj+1)%OBJ_COUNT
             end
             cs[5] = (cs[5]&7) + robj*8
@@ -1580,7 +1586,7 @@ function race()
                     v.rtrees={}
                     local tree_count=math.random(8,18)
                     for _=1,tree_count do
-                        table.insert(v.rtrees,{typ=math.random(1,3),p={x=math.random(0,40)+10,y=math.random(0,32)}})
+                        table.insert(v.rtrees,{typ=math.random(1,3),p={x=math.random(-40,0)-10,y=math.random(0,32)}})
                     end
                 end
                 v.front=normalize(#vecmap>0 and vecsub(v,vecmap[#vecmap]) or vec(1,0))
@@ -1588,15 +1594,7 @@ function race()
                 -- track borders (including kerbs)
                 v.left_track = vecadd(v,scalev(v.side,v.w))
                 v.right_track = vecsub(v,scalev(v.side,v.w))
-                v.left_inner_rail = vecadd(v.left_track,scalev(v.side,v.ltyp & 7==0 and 4 or 40))
-                v.right_inner_rail = vecsub(v.right_track,scalev(v.side,v.rtyp & 7==0 and 4 or 40))
                 v.tribune=2
-                if v.has_lrail then
-                    v.left_outer_rail = vecadd(v.left_inner_rail,scalev(v.side,4))
-                end
-                if v.has_rrail then
-                    v.right_outer_rail = vecsub(v.right_inner_rail,scalev(v.side,4))
-                end
                 table.insert(vecmap, v)
                 lastdir = dir
                 lskiprail_first = lskiprail_first - 1*railcoef
@@ -1645,6 +1643,27 @@ function race()
                     v.rpanel=dist/5
                 end
             end
+            -- build pit line entry/exit
+            if v2.ltyp//8 == OBJ_PIT_LINE and v.ltyp//8 < OBJ_PIT then
+                for j=i-2,i do
+                    vecmap[j].ltyp = (OBJ_PIT_LINE_ENTRY1 +j -i + 2)*8
+                end
+            end
+            if v2.rtyp//8 == OBJ_PIT_LINE and v.rtyp//8 < OBJ_PIT then
+                for j=i-2,i do
+                    vecmap[j].rtyp = (OBJ_PIT_LINE_ENTRY1 +j -i + 2)*8
+                end
+            end
+            if v2.ltyp//8 < OBJ_PIT and v.ltyp//8 == OBJ_PIT_LINE then
+                for j=i+1,i+3 do
+                    vecmap[j].ltyp = (OBJ_PIT_LINE_EXIT1 +j -i -1)*8
+                end
+            end
+            if v2.rtyp//8 < OBJ_PIT and v.rtyp//8 == OBJ_PIT_LINE then
+                for j=i+1,i+3 do
+                    vecmap[j].rtyp = (OBJ_PIT_LINE_EXIT1 +j -i -1)*8
+                end
+            end
             -- convert last OBJ_PIT_LINE into OBJ_PIT_LINE_END
             -- and first OBJ_PIT_LINE into OBJ_PIT_LINE_START
             if v2.ltyp//8 == OBJ_PIT and v.ltyp//8 == OBJ_PIT_LINE then
@@ -1681,6 +1700,15 @@ function race()
                 else
                     v.rpanel=nil
                 end
+            end
+            -- also compute rails
+            v.left_inner_rail = vecadd(v.left_track,scalev(v.side,v.ltyp & 7==0 and 4 or 40))
+            v.right_inner_rail = vecsub(v.right_track,scalev(v.side,v.rtyp & 7==0 and 4 or 40))
+            if v.has_lrail then
+                v.left_outer_rail = vecadd(v.left_inner_rail,scalev(v.side,4))
+            end
+            if v.has_rrail then
+                v.right_outer_rail = vecsub(v.right_inner_rail,scalev(v.side,4))
             end
         end
     end
@@ -1829,7 +1857,12 @@ function race()
         gfx.set_active_layer(0)
     end
 
-    function race:draw_tree(trees, li_rail,side,front,dir)
+    function race:draw_tree(trees, li_rail, last_li_rail, side, last_side,front,dir)
+        local p=vecadd(li_rail,side)
+        local p2=vecadd(last_li_rail,last_side)
+        local p3=vecadd(p,scalev(side,56))
+        local p4 = vecadd(p2,scalev(last_side,56))
+        quadfill(p,p2,p3,p4,27)
         gfx.set_active_layer(LAYER_TOP)
         for i=1,#trees do
             local typ=trees[i].typ
@@ -1926,6 +1959,24 @@ function race()
         trifill(p2,p3,p4,27)
         linevec(p,p3,10)
         self:draw_rail(p2,p3)
+    end
+
+    function race:draw_pit_entry(ri_rail,side,front,seg)
+        local p = vecsub(ri_rail,scalev(side,4+7*(seg+1)))
+        local p2 = vecsub(vecadd(ri_rail,scalev(front,-33)),scalev(side,4+7*seg))
+        local p3 = vecsub(ri_rail,scalev(side,56))
+        local p4 = vecadd(p3,scalev(front,-33))
+        quadfill(p,p2,p3,p4,27)
+        self:draw_rail(p,p2)
+    end
+
+    function race:draw_pit_exit(ri_rail,side,front,seg)
+        local p = vecsub(ri_rail,scalev(side,4+7*(2-seg)))
+        local p2 = vecsub(vecadd(ri_rail,scalev(front,-33)),scalev(side,4+7*(3-seg)))
+        local p3 = vecsub(ri_rail,scalev(side,56))
+        local p4 = vecadd(p3,scalev(front,-33))
+        quadfill(p,p2,p3,p4,27)
+        self:draw_rail(p,p2)
     end
 
     function race:draw_rail(p1,p2)
@@ -2224,11 +2275,26 @@ function race()
 
         local lastv,lastup,lastup2,lastup3,last_right_rail,lastdown,lastdown3,last_left_rail
         local panels={}
-        local minseg,maxseg
+        local minseg,maxseg,has_lrail,has_rrail
         for seg = current_segment - 20, current_segment + 20 do
             local v = get_data_from_vecmap(seg)
-            local has_lrail = v.has_lrail
-            local has_rrail = v.has_rrail
+
+            if has_rrail and lastv then
+                if v.rtyp//8 < OBJ_PIT_LINE_ENTRY1 then
+                    last_right_rail=lastv.right_outer_rail
+                else
+                    last_right_rail = nil
+                end
+            end
+            if has_lrail and lastv then
+                if v.ltyp//8 < OBJ_PIT_LINE_ENTRY1 then
+                    last_left_rail=lastv.left_outer_rail
+                else
+                    last_left_rail = nil
+                end
+            end
+            has_lrail = v.has_lrail
+            has_rrail = v.has_rrail
 
             if lastv then
                 if onscreen(v) or onscreen(lastv) or onscreen(v.right_inner_rail) or onscreen(v.left_inner_rail)
@@ -2290,11 +2356,11 @@ function race()
                             quadfill(v.right_kerb, rtrack, lastv.right_kerb, last_rtrack, seg%2==0 and 7 or 8)
                         end
                     end
-                    if rtyp == 0 then
+                    if rtyp == 0 and v.rtyp//8 < OBJ_PIT_LINE_ENTRY1 then
                         -- normal crash barriers
                         linevec(last_rtrack, rtrack,6)
                     end
-                    if ltyp == 0 then
+                    if ltyp == 0 and v.ltyp//8 < OBJ_PIT_LINE_ENTRY1 then
                         -- normal crash barriers
                         linevec(last_ltrack, ltrack,6)
                     end
@@ -2344,7 +2410,7 @@ function race()
                     elseif lobj == OBJ_TRIBUNE2 then
                         self:draw_tribune2(li_rail,v.side,v.front,v.dir)
                     elseif lobj == OBJ_TREE then
-                        self:draw_tree(v.ltrees,li_rail,v.side,v.front,v.dir)
+                        self:draw_tree(v.ltrees,li_rail,lastv.left_inner_rail, v.side,lastv.side,v.front,v.dir)
                     elseif lobj == OBJ_BRIDGE then
                         gfx.set_active_layer(LAYER_TOP)
                         gblit(141,224,182,30,v,1,1,1,v.dir)
@@ -2381,7 +2447,7 @@ function race()
                     elseif robj == OBJ_TRIBUNE2 then
                         self:draw_tribune2(ri_rail,vecinv(v.side),v.front,v.dir)
                     elseif robj == OBJ_TREE then
-                        self:draw_tree(v.rtrees,ri_rail,v.side,v.front,v.dir)
+                        self:draw_tree(v.rtrees,ri_rail,lastv.right_inner_rail,vecinv(v.side),vecinv(lastv.side),v.front,v.dir)
                     elseif robj == OBJ_PIT then
                         self:draw_pit(ri_rail,v.side,v.front, seg%2==0)
                     elseif robj == OBJ_PIT_LINE then
@@ -2390,6 +2456,10 @@ function race()
                         self:draw_pitline_start(ri_rail,v.side,v.front)
                     elseif robj == OBJ_PIT_LINE_END then
                         self:draw_pitline_end(ri_rail,v.side,v.front)
+                    elseif robj >= OBJ_PIT_LINE_ENTRY1 and robj <= OBJ_PIT_LINE_ENTRY3 then
+                        self:draw_pit_entry(ri_rail,v.side,v.front,robj-OBJ_PIT_LINE_ENTRY1)
+                    elseif robj >= OBJ_PIT_LINE_EXIT1 and robj <= OBJ_PIT_LINE_EXIT3 then
+                        self:draw_pit_exit(ri_rail,v.side,v.front,robj-OBJ_PIT_LINE_EXIT1)
                     end
 
                     if v.lpanel ~= nil then
@@ -2412,12 +2482,6 @@ function race()
                         maxseg = maxseg and max(maxseg,seg) or seg
                     end
                 end
-            end
-            if has_rrail then
-                last_right_rail=v.right_outer_rail
-            end
-            if has_lrail then
-                last_left_rail=v.left_outer_rail
             end
             lastv = v
         end
@@ -3061,7 +3125,7 @@ TRACKS = {
         2, 128, 32,24,24,0,0, 6, 128, 32,16,24,0,0,  2, 128, 32,8,0,0,0,
         -- curva parabolica
         5, 121.1, 32,27,0,0,0,  7, 127.1, 32,27,0,0,0,  6, 126.8,32, 26,24,0,0, 2, 126.8,32, 10,24,0,0,
-        6, 128.0, 32, 8,24,0,0, 5, 128.0, 32, 8,56,0,0, 1, 128.0, 32, 40,56,0,0,  10, 128, 32, 9,48,0,0, 0, 0, 0,0,0,0,0},
+        6, 128.0, 32, 10,24,0,0, 5, 128.0, 32, 9,56,0,0, 1, 128.0, 32, 41,56,0,0,  10, 128, 32, 9,48,0,0, 0, 0, 0,0,0,0,0},
     {10, 128, 32, 10, 125, 32, 10, 127, 32, 6, 127, 32, 6, 121, 32, 6, 120, 32, 6, 120, 32, 6, 120, 32, 6, 125, 32, 6,
      135, 32, 6, 131, 32, 6, 129, 32, 6, 130, 32, 6, 131, 32, 6, 130, 32, 6, 129, 32, 6, 128, 32, 6, 125, 32, 6, 125,
      32, 6, 124, 32, 6, 124, 32, 6, 123, 32, 6, 121, 32, 6, 127, 32, 6, 136, 32, 6, 128, 32, 6, 128, 32, 6, 126, 32, 6,
