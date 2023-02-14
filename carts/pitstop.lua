@@ -24,12 +24,12 @@ local OBJ_PIT <const> = 6
 local OBJ_PIT_LINE <const> = 7
 local OBJ_PIT_LINE_START <const> = 8
 local OBJ_PIT_LINE_END <const> = 9
-local OBJ_PIT_LINE_ENTRY1 <const> = 10
-local OBJ_PIT_LINE_ENTRY2 <const> = 11
-local OBJ_PIT_LINE_ENTRY3 <const> = 12
-local OBJ_PIT_LINE_EXIT1 <const> = 13
-local OBJ_PIT_LINE_EXIT2 <const> = 14
-local OBJ_PIT_LINE_EXIT3 <const> = 15
+local OBJ_PIT_ENTRY1 <const> = 10
+local OBJ_PIT_ENTRY2 <const> = 11
+local OBJ_PIT_ENTRY3 <const> = 12
+local OBJ_PIT_EXIT1 <const> = 13
+local OBJ_PIT_EXIT2 <const> = 14
+local OBJ_PIT_EXIT3 <const> = 15
 local OBJ_COUNT <const> = 16
 local SHADOW_DELTA <const> = {x=-10,y=10}
 local SHADOW_COL <const> = {r=162.0/255,g=136.0/255,b=121.0/255} -- correspond to palette 22
@@ -751,31 +751,23 @@ function create_car(race)
             if poly then
                 local car_poly = {self.verts[1],self.verts[2],self.verts[3]}
                 local v = get_data_from_vecmap(current_segment+1)
-                local rails={}
-                if v.has_rrail then
-                    rails[1] = {poly[2], poly[3]}
-                end
-                if v.has_lrail then
-                    rails[#rails+1]={poly[4], poly[1]}
-                end
-                if #rails > 0 then
-                    local rv, pen, point = check_collision(car_poly, rails)
-                    if rv then
-                        if pen > 5 then
-                            pen = 5
-                        end
-                        vel = vecsub(vel, scalev(rv, pen))
-                        accel = accel * (1.0 - (pen / 10))
-                        create_spark(self.current_segment, point, rv, false)
-                        self.collision = self.collision + pen
-                        if self.is_player then
-                            if pen > 2 then
-                                sfx(38)
-                                sc1 = 38
-                            else
-                                sfx(40)
-                                sc1 = 40
-                            end
+                local rails={{poly[2], poly[3]},{poly[4], poly[1]}}
+                local rv, pen, point = check_collision(car_poly, rails)
+                if rv then
+                    if pen > 5 then
+                        pen = 5
+                    end
+                    vel = vecsub(vel, scalev(rv, pen))
+                    accel = accel * (1.0 - (pen / 10))
+                    create_spark(self.current_segment, point, rv, false)
+                    self.collision = self.collision + pen
+                    if self.is_player then
+                        if pen > 2 then
+                            sfx(38)
+                            sc1 = 38
+                        else
+                            sfx(40)
+                            sc1 = 40
                         end
                     end
                 end
@@ -1594,7 +1586,7 @@ function race()
                 -- track borders (including kerbs)
                 v.left_track = vecadd(v,scalev(v.side,v.w))
                 v.right_track = vecsub(v,scalev(v.side,v.w))
-                v.tribune=2
+                v.tribune=2 --tribune sound level
                 table.insert(vecmap, v)
                 lastdir = dir
                 lskiprail_first = lskiprail_first - 1*railcoef
@@ -1646,22 +1638,26 @@ function race()
             -- build pit line entry/exit
             if v2.ltyp//8 == OBJ_PIT_LINE and v.ltyp//8 < OBJ_PIT then
                 for j=i-2,i do
-                    vecmap[j].ltyp = (OBJ_PIT_LINE_ENTRY1 +j -i + 2)*8
+                    vecmap[j].ltyp = (OBJ_PIT_ENTRY1 +j -i + 2)*8
+                    vecmap[j].has_lrail = false
                 end
             end
             if v2.rtyp//8 == OBJ_PIT_LINE and v.rtyp//8 < OBJ_PIT then
                 for j=i-2,i do
-                    vecmap[j].rtyp = (OBJ_PIT_LINE_ENTRY1 +j -i + 2)*8
+                    vecmap[j].rtyp = (OBJ_PIT_ENTRY1 +j -i + 2)*8
+                    vecmap[j].has_rrail = false
                 end
             end
             if v2.ltyp//8 < OBJ_PIT and v.ltyp//8 == OBJ_PIT_LINE then
                 for j=i+1,i+3 do
-                    vecmap[j].ltyp = (OBJ_PIT_LINE_EXIT1 +j -i -1)*8
+                    vecmap[j].ltyp = (OBJ_PIT_EXIT1 +j -i -1)*8
+                    vecmap[j-1].has_lrail = false
                 end
             end
             if v2.rtyp//8 < OBJ_PIT and v.rtyp//8 == OBJ_PIT_LINE then
                 for j=i+1,i+3 do
-                    vecmap[j].rtyp = (OBJ_PIT_LINE_EXIT1 +j -i -1)*8
+                    vecmap[j].rtyp = (OBJ_PIT_EXIT1 +j -i -1)*8
+                    vecmap[j-1].has_rrail = false
                 end
             end
             -- convert last OBJ_PIT_LINE into OBJ_PIT_LINE_END
@@ -2278,19 +2274,19 @@ function race()
         local minseg,maxseg,has_lrail,has_rrail
         for seg = current_segment - 20, current_segment + 20 do
             local v = get_data_from_vecmap(seg)
-
+            local nextv = get_data_from_vecmap(seg+1)
             if has_rrail and lastv then
-                if v.rtyp//8 < OBJ_PIT_LINE_ENTRY1 then
-                    last_right_rail=lastv.right_outer_rail
-                else
+                if (v.rtyp//8 >= OBJ_PIT_ENTRY1 and v.rtyp//8 <= OBJ_PIT_ENTRY2) or nextv.rtyp//8 >= OBJ_PIT_EXIT1 then
                     last_right_rail = nil
+                else
+                    last_right_rail=lastv.right_outer_rail
                 end
             end
             if has_lrail and lastv then
-                if v.ltyp//8 < OBJ_PIT_LINE_ENTRY1 then
-                    last_left_rail=lastv.left_outer_rail
-                else
+                if (v.ltyp//8 >= OBJ_PIT_ENTRY1 and v.ltyp//8 <= OBJ_PIT_ENTRY2) or nextv.ltyp//8 >= OBJ_PIT_EXIT1 then
                     last_left_rail = nil
+                else
+                    last_left_rail=lastv.left_outer_rail
                 end
             end
             has_lrail = v.has_lrail
@@ -2356,11 +2352,11 @@ function race()
                             quadfill(v.right_kerb, rtrack, lastv.right_kerb, last_rtrack, seg%2==0 and 7 or 8)
                         end
                     end
-                    if rtyp == 0 and v.rtyp//8 < OBJ_PIT_LINE_ENTRY1 then
+                    if rtyp == 0 and v.rtyp//8 < OBJ_PIT_ENTRY1 then
                         -- normal crash barriers
                         linevec(last_rtrack, rtrack,6)
                     end
-                    if ltyp == 0 and v.ltyp//8 < OBJ_PIT_LINE_ENTRY1 then
+                    if ltyp == 0 and v.ltyp//8 < OBJ_PIT_ENTRY1 then
                         -- normal crash barriers
                         linevec(last_ltrack, ltrack,6)
                     end
@@ -2456,10 +2452,10 @@ function race()
                         self:draw_pitline_start(ri_rail,v.side,v.front)
                     elseif robj == OBJ_PIT_LINE_END then
                         self:draw_pitline_end(ri_rail,v.side,v.front)
-                    elseif robj >= OBJ_PIT_LINE_ENTRY1 and robj <= OBJ_PIT_LINE_ENTRY3 then
-                        self:draw_pit_entry(ri_rail,v.side,v.front,robj-OBJ_PIT_LINE_ENTRY1)
-                    elseif robj >= OBJ_PIT_LINE_EXIT1 and robj <= OBJ_PIT_LINE_EXIT3 then
-                        self:draw_pit_exit(ri_rail,v.side,v.front,robj-OBJ_PIT_LINE_EXIT1)
+                    elseif robj >= OBJ_PIT_ENTRY1 and robj <= OBJ_PIT_ENTRY3 then
+                        self:draw_pit_entry(ri_rail,v.side,v.front,robj-OBJ_PIT_ENTRY1)
+                    elseif robj >= OBJ_PIT_EXIT1 and robj <= OBJ_PIT_EXIT3 then
+                        self:draw_pit_exit(ri_rail,v.side,v.front,robj-OBJ_PIT_EXIT1)
                     end
 
                     if v.lpanel ~= nil then
@@ -2515,12 +2511,12 @@ function race()
         end
 
         -- DEBUG : display segments collision shapes
-        -- seg=get_segment(player.current_segment-1,false,true)
-        -- quadfill(seg[1],seg[2],seg[4],seg[3],11)
-        -- local seg=get_segment(player.current_segment+1,false,true)
-        -- quadfill(seg[1],seg[2],seg[4],seg[3],12)
-        -- local seg=get_segment(player.current_segment,false,true)
-        -- quadfill(seg[1],seg[2],seg[4],seg[3],8)
+        seg=get_segment(player.current_segment-1,false,true)
+        quadfill(seg[1],seg[2],seg[4],seg[3],11)
+        local seg=get_segment(player.current_segment+1,false,true)
+        quadfill(seg[1],seg[2],seg[4],seg[3],12)
+        local seg=get_segment(player.current_segment,false,true)
+        quadfill(seg[1],seg[2],seg[4],seg[3],8)
         gfx.set_active_layer(LAYER_TOP)
         -- draw_minimap
         if not self.completed then
@@ -2951,6 +2947,7 @@ end
 function get_segment(seg, enlarge, for_collision)
     seg = wrap(seg, mapsize)
     -- returns the 4 points of the segment
+    local nextv = get_data_from_vecmap(seg + 2)
     local v = get_data_from_vecmap(seg + 1)
     local lastv = get_data_from_vecmap(seg)
     local lastlastv = get_vec_from_vecmap(seg - 1)
@@ -2960,10 +2957,61 @@ function get_segment(seg, enlarge, for_collision)
     local lastfront=lastv.front
     local lastside = lastv.side
 
-    local lastwl = (for_collision and not lastv.has_lrail) and 200 or (lastv.ltyp & 7==0 and lastv.w or lastv.w+40)
-    local lastwr = (for_collision and not lastv.has_rrail) and 200 or (lastv.rtyp & 7==0 and lastv.w or lastv.w+40)
-    local wl = (for_collision and not v.has_lrail) and 200 or (v.ltyp & 7==0 and v.w or v.w+40)
-    local wr = (for_collision and not v.has_rrail) and 200 or (v.rtyp & 7==0 and v.w or v.w+40)
+    local lastwl = lastv.ltyp & 7==0 and lastv.w+4 or lastv.w+40
+    local lastwr = lastv.rtyp & 7==0 and lastv.w+4 or lastv.w+40
+    local wl = v.ltyp & 7==0 and v.w+4 or v.w+40
+    local wr = v.rtyp & 7==0 and v.w+4 or v.w+40
+    if for_collision then
+        local lpit_entry,rpit_entry
+        if not lastv.has_lrail then
+            if v.ltyp//8 >= OBJ_PIT_EXIT1 then
+                lastwl =  lastv.w + 10+7*(3-(v.ltyp//8-OBJ_PIT_EXIT1))
+            elseif lastv.ltyp//8 >= OBJ_PIT_ENTRY1 then
+                lpit_entry=lastv.ltyp//8-OBJ_PIT_ENTRY1
+                lastwl =  lastv.w + 16+7*lpit_entry
+            else
+                lastwl = 200
+            end
+        end
+        if not lastv.has_rrail then
+            if v.rtyp//8 >= OBJ_PIT_EXIT1 then
+                lastwr =  lastv.w + 10+7*(3-(v.rtyp//8-OBJ_PIT_EXIT1))
+            elseif lastv.rtyp//8 >= OBJ_PIT_ENTRY1 then
+                rpit_entry=lastv.rtyp//8-OBJ_PIT_ENTRY1
+                lastwr =  lastv.w + 16+7*rpit_entry
+            else
+                lastwr = 200
+            end
+        end
+        if not v.has_lrail then
+            if nextv.ltyp//8 == OBJ_PIT_EXIT1 then
+                lastwl = lastv.w+31
+                wl = lastwl
+            elseif v.ltyp//8 >= OBJ_PIT_EXIT1 then
+                wl = v.w + 10+7*(2-(v.ltyp//8-OBJ_PIT_EXIT1))
+            elseif v.ltyp//8 >= OBJ_PIT_ENTRY1 then
+                wl = v.w + 16+7*(v.ltyp//8-OBJ_PIT_ENTRY1)
+            else
+                wl = 200
+            end
+        elseif lpit_entry == 2 then
+            wl = lastwl
+        end
+        if not v.has_rrail then
+            if nextv.rtyp//8 == OBJ_PIT_EXIT1 then
+                lastwr = lastv.w+31
+                wr = lastwr
+            elseif v.rtyp//8 >= OBJ_PIT_EXIT1 then
+                wr = v.w + 10+7*(2-(v.rtyp//8-OBJ_PIT_EXIT1))
+            elseif v.rtyp//8 >= OBJ_PIT_ENTRY1 then
+                wr = v.w + 16+7*(v.rtyp//8-OBJ_PIT_ENTRY1)
+            else
+                wr = 200
+            end
+        elseif rpit_entry == 2 then
+            wr = lastwr
+        end
+    end
     if enlarge then
         lastwl = lastwl * 2.5
         lastwr = lastwr * 2.5
@@ -3105,7 +3153,7 @@ function lerpv(a, b, t)
 end
 
 TRACKS = {
-    [0] = {1337, 4, 128, 32, 25,48,0,0,  2, 128, 32, 9,48,0,0, 8, 128, 32, 9,56,0,0, 2, 128, 32, 1,1,0,0, 4, 128, 32, 17,25,0,0, 2, 128, 32, 25,25,0,0, 2, 128, 32, 1,1,0,-1,
+    [0] = {1337, 4, 128, 32, 25,48,0,0,  2, 128, 32, 9,48,0,0, 6, 128, 32, 9,56,0,0, 4, 128, 32, 1,1,0,0, 4, 128, 32, 17,25,0,0, 2, 128, 32, 25,25,0,0, 2, 128, 32, 1,1,0,-1,
         -- prima variante
         3, 120, 32, 1,1,-1,3, 3, 140, 32, 1,17,3,0,
         -- curva biassono
