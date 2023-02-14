@@ -2,7 +2,7 @@
 -- by impbox software
 local WIND_COEF <const> = 0.88
 local BRAKE_COEF <const> = 0.97
-local TEAM_PERF_COEF <const> = 0
+local TEAM_PERF_COEF <const> = 1.0
 local X_OFFSET <const> = 130
 local MINIMAP_START <const> = -10
 local MINIMAP_END <const> = 20
@@ -35,6 +35,8 @@ local SHADOW_DELTA <const> = {x=-10,y=10}
 local SHADOW_COL <const> = {r=162.0/255,g=136.0/255,b=121.0/255} -- correspond to palette 22
 local MINIMAP_RACE_OFFSET <const> = {x=340, y=120}
 local MINIMAP_EDITOR_OFFSET <const> = {x=340,y=200}
+local TYRE_TYPE <const> = {"soft","hard","wet"}
+local TYRE_COL <const> = {8,7,28}
 local CARS <const> = {{
     name = "Easy",
     maxacc = 3,
@@ -667,12 +669,24 @@ function create_car(race)
         local nextv=get_data_from_vecmap(current_segment+2)
         local pos = dot(vecsub(self.pos,v),v.side)
         if v.rtyp//8 == OBJ_PIT_ENTRY3 and pos < -32 then
+            if not self.pit then
+                self.race.tyre=0
+            end
             self.pit=-1
         elseif v.ltyp//8 == OBJ_PIT_ENTRY3 and pos > 32 then
+            if not self.pit then
+                self.race.tyre=0
+            end
             self.pit=1
         elseif nextv.rtyp//8 == OBJ_PIT_EXIT1 and pos < -32 then
+            if not self.pit then
+                self.race.tyre=0
+            end
             self.pit=nil
         elseif nextv.ltyp//8 == OBJ_PIT_EXIT1 and pos > 32 then
+            if not self.pit then
+                self.race.tyre=0
+            end
             self.pit=nil
         end
         local segpoly = get_segment(current_segment, true)
@@ -807,7 +821,7 @@ function create_car(race)
         self.pos = vecadd(self.pos, scalev(self.vel, 0.3))
         -- aspiration
         local asp=0
-        if not self.pit then
+        if not self.pit and self.is_player then
             for i=1,#self.race.objects do
                 local car=self.race.objects[i]
                 local seg=wrap(self.current_segment,mapsize)
@@ -2060,6 +2074,13 @@ function race()
                 controls.accel = inp_accel()
                 controls.brake = inp_brake()
             end
+            if player.pit then
+                if inp.up_pressed() then
+                    self.tyre = (self.tyre + 1) % 3
+                elseif inp.down_pressed() then
+                    self.tyre = (self.tyre + 2) % 3
+                end
+            end
         end
 
         -- replay playback
@@ -2619,6 +2640,19 @@ function race()
             gfx.rectangle(x,y,100,18,0.2,0.2,0.2)
             printc("Best lap "..best_lap_driver.short_name,x+50,y+1,9)
             printc(format_time(best_lap_time),x+50,y+9,9)
+        end
+        -- pit stop panel
+        if player.pit then
+            local x=gfx.SCREEN_WIDTH-110
+            gfx.rectangle(x,50,108,75,0.2,0.2,0.2)
+            printc("Choose tyre",x+55,52,7)
+            gfx.blit(66,8,24,12,x+55-12,62,0,0,false,false,1,1,1)
+            for i=0,2 do
+                gfx.blit(224,192,32,32, x+6+i*36,76,0,0,false,false,1,1,1)
+                gfx.blit(256+i*27,192,27,32,x+2+i*36,76,0,0,false,false,1,1,1)
+            end
+            rect(x+1+self.tyre*36,75,36,34,9)
+            printc(TYRE_TYPE[self.tyre+1],x+55,114,TYRE_COL[self.tyre+1])
         end
 
         -- ranking board
