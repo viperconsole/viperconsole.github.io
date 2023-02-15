@@ -18,15 +18,16 @@ sin = math.sin
 
 function col(r, g, b)
     return {
-        r = r / 255,
-        g = g / 255,
-        b = b / 255
+        r = r,
+        g = g,
+        b = b
     }
 end
 
 function distance(x0, y0, x1, y1)
     return sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0))
 end
+
 function compute_x(x, len, align)
     if align == const.ALIGN_CENTER then
         return flr(x - len * 0.5)
@@ -82,7 +83,6 @@ g_screen = {}
 const = {
     LIGHT_THRESHOLD1 = 0.5,
     LIGHT_THRESHOLD2 = 0.75,
-
     LAYER_BACKGROUND = 0,
     LAYER_STARS = 1,
     LAYER_ENTITIES = 2,
@@ -90,11 +90,9 @@ const = {
     LAYER_GUI = 4,
     LAYER_SHIP_MODELS = 5,
     LAYER_SPRITES = 6,
-
     PI = math.pi,
     PI2 = 2 * math.pi,
     BUTTON_WIDTH = 60,
-
     -- entity types
     E_PLANET = 1,
     E_STARFIELD = 2,
@@ -104,17 +102,14 @@ const = {
     E_TRAIL = 6,
     E_FRAME = 7,
     E_IMAGE = 8,
-
     -- gui events
     EVT_NEWGAME = 1,
     EVT_OPTION = 2,
     EVT_QUIT = 3,
-
     -- text alignment
     ALIGN_CENTER = 0,
     ALIGN_RIGHT = 1,
     ALIGN_LEFT = 2,
-
     -- trail conf
     TRAIL_SEG_LEN = 5
 }
@@ -135,10 +130,10 @@ function trail.new()
         seg_length = 0,
         fade_in = 0,
         length = random(5, 15),
-        trail = {{
+        trail = { {
             x = x,
             y = y
-        }},
+        } },
         color = random(1, 18),
         update = trail.update,
         render = trail.render
@@ -265,7 +260,7 @@ end
 
 function planet.render(this)
     local sprite = {}
-    local cols = {7, 6, 5, 12, 11, 4}
+    local cols = { 7, 6, 5, 12, 11, 4 }
     local i = 1
     for y = this.lut.ystart, this.lut.yend do
         for x = this.lut.xstart, this.lut.xend do
@@ -277,9 +272,9 @@ function planet.render(this)
                 local color = tex ^ 0.8 * 6
                 color = clamp(color, 1, 6)
                 local c = conf.PALETTE[cols[flr(color)]]
-                local r = max(1 / 255, c.r * pix.light)
-                local g = max(1 / 255, c.g * pix.light)
-                local b = max(1 / 255, c.b * pix.light)
+                local r = max(1, c.r * pix.light)
+                local g = max(1, c.g * pix.light)
+                local b = max(1, c.b * pix.light)
                 table.insert(sprite, gfx.to_rgb24(r, g, b))
             end
             i = i + 1
@@ -418,7 +413,7 @@ function gui.gen_label(msg, x, y, col, align)
 end
 
 function gui.render_image(img)
-    gfx.blit(img.sx, img.sy, img.sw, img.sh, img.dx, img.dy, 0, 0, false, false, 1, 1, 1)
+    gfx.blit(img.sx, img.sy, img.sw, img.sh, img.dx, img.dy, 0, 0, false, false, 255, 255, 255)
 end
 
 function gui.render_button(this)
@@ -451,11 +446,11 @@ function gui.update_button(this)
 end
 
 function gui.render_frame(f)
-    gfx.blit(42, 37, 15, 1, f.x, f.y, f.w, 1, false, false, 1, 1, 1)
-    gfx.blit(42, 53, 15, 1, f.x, f.y + f.h - 1, f.w, 1, false, false, 1, 1, 1)
-    gfx.blit(42, 38, 1, 15, f.x, f.y + 1, 1, f.h - 2, false, false, 1, 1, 1)
-    gfx.blit(54, 38, 3, 15, f.x + f.w - 1, f.y + 1, 3, f.h - 2, false, false, 1, 1, 1)
-    gfx.blit(43, 38, 11, 15, f.x + 1, f.y + 1, f.w - 2, f.h - 2, false, false, 1, 1, 1)
+    gfx.blit(42, 37, 15, 1, f.x, f.y, f.w, 1, false, false, 255, 255, 255)
+    gfx.blit(42, 53, 15, 1, f.x, f.y + f.h - 1, f.w, 1, false, false, 255, 255, 255)
+    gfx.blit(42, 38, 1, 15, f.x, f.y + 1, 1, f.h - 2, false, false, 255, 255, 255)
+    gfx.blit(54, 38, 3, 15, f.x + f.w - 1, f.y + 1, 3, f.h - 2, false, false, 255, 255, 255)
+    gfx.blit(43, 38, 11, 15, f.x + 1, f.y + 1, f.w - 2, f.h - 2, false, false, 255, 255, 255)
 end
 
 function gui.gen_button(msg, x, y, align, evt)
@@ -476,7 +471,7 @@ end
 
 -- ################################## CONFIGURATION  ##################################
 conf = {
-    ENGINES = {{
+    ENGINES = { {
         x = 0,
         y = 19,
         w = 1,
@@ -503,9 +498,8 @@ conf = {
         spd = 1,
         man = 2,
         cost = 2
-    }},
-
-    SHIELDS = {{
+    } },
+    SHIELDS = { {
         x = 0,
         y = 18,
         w = 1,
@@ -532,15 +526,14 @@ conf = {
         lif = 2,
         rel = 1,
         cost = 2
-    }},
-
-    HULLS = {{
+    } },
+    HULLS = { {
         x = 96,
         y = 0,
         w = 37,
         h = 33,
         class = 0
-    }},
+    } },
     SPRITE = {
         x = 0,
         y = 55,
@@ -548,10 +541,10 @@ conf = {
         h = 30
     },
     -- NA16 color palette by Nauris
-    PALETTE = {col(0, 0, 0), col(140, 143, 174), col(88, 69, 99), col(62, 33, 55), col(154, 99, 72), col(215, 155, 125),
-               col(245, 237, 186), col(192, 199, 65), col(100, 125, 52), col(228, 148, 58), col(157, 48, 59),
-               col(210, 100, 113), col(112, 55, 127), col(126, 196, 193), col(52, 133, 157), col(23, 67, 75),
-               col(31, 14, 28), col(255, 255, 255)},
+    PALETTE = { col(0, 0, 0), col(140, 143, 174), col(88, 69, 99), col(62, 33, 55), col(154, 99, 72), col(215, 155, 125),
+        col(245, 237, 186), col(192, 199, 65), col(100, 125, 52), col(228, 148, 58), col(157, 48, 59),
+        col(210, 100, 113), col(112, 55, 127), col(126, 196, 193), col(52, 133, 157), col(23, 67, 75),
+        col(31, 14, 28), col(255, 255, 255) },
     COL_WHITE = 18
 }
 
@@ -563,10 +556,10 @@ end
 
 function ship.render(this)
     -- gfx.set_sprite_layer(const.LAYER_SHIP_MODELS)
-    -- gfx.blit(this.sx, this.sy, this.sw, this.sh, flr(this.x - this.sw / 2), flr(this.y), 0, 0, false, false, 1, 1, 1)
+    -- gfx.blit(this.sx, this.sy, this.sw, this.sh, flr(this.x - this.sw / 2), flr(this.y), 0, 0, false, false, 255,255,255)
     -- gfx.set_sprite_layer(const.LAYER_SPRITES)
     gfx.blit(conf.SPRITE.x, conf.SPRITE.y, conf.SPRITE.w, conf.SPRITE.h, flr(this.x - this.sw / 2), flr(this.y), 0, 0,
-        false, false, 1, 1, 1, elapsed() * 0.3)
+        false, false, 255, 255, 255, elapsed() * 0.3)
 end
 
 function ship.new(hull_num, engine_num, shield_num, x, y)
@@ -578,10 +571,10 @@ function ship.new(hull_num, engine_num, shield_num, x, y)
     local h = hull.h * 6
     gfx.rectangle(0, 0, w, h, 0, 0, 0)
     gfx.blit(engine.x * 6, engine.y * 6, engine.w * 6, engine.h * 6, w / 2 - engine.w * 3, h - engine.h * 6, 0, 0,
-        false, false, 1, 1, 1)
-    gfx.blit(hull.x, hull.y, hull.w, hull.h, 0, 0, 0, 0, false, false, 1, 1, 1)
+        false, false, 255, 255, 255)
+    gfx.blit(hull.x, hull.y, hull.w, hull.h, 0, 0, 0, 0, false, false, 255, 255, 255)
     gfx.blit(shield.x * 6, shield.y * 6, shield.w * 6, shield.h * 6, w / 2 - shield.w * 3, h / 2 - shield.h * 3, 0, 0,
-        false, false, 1, 1, 1)
+        false, false, 255, 255, 255)
     return {
         typ = const.E_SHIP,
         x = x,
@@ -611,6 +604,7 @@ end
 starfield = {}
 function starfield.new()
 end
+
 -- ################################## SCREEN ##################################
 screen = {}
 
@@ -660,9 +654,9 @@ end
 screen_title = {}
 function screen_title.init()
     gfx.set_active_layer(const.LAYER_BACKGROUND)
-    local br = 31 / 255
-    local bg = 14 / 255
-    local bb = 28 / 255
+    local br = 31
+    local bg = 14
+    local bb = 28
     local sr = conf.PALETTE[7].r - br
     local sg = conf.PALETTE[7].g - bg
     local sb = conf.PALETTE[7].b - bb
@@ -718,9 +712,10 @@ function init()
     gfx.set_sprite_layer(const.LAYER_SPRITES)
     gfx.activate_font(const.LAYER_SPRITES, 0, 0, 96, 36, 6, 6,
         " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
-        {3, 1, 3, 5, 5, 5, 4, 1, 2, 2, 3, 3, 1, 3, 1, 3, 5, 1, 5, 5, 5, 5, 5, 5, 5, 5, 1, 1, 3, 3, 3, 5, 5, 5, 5, 5, 5,
-         5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 3, 3, 3, 3, 5, 2, 5, 5, 5, 5, 5, 5, 5, 5, 1,
-         3, 4, 3, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 5, 5, 2, 1, 2, 4})
+        { 3, 1, 3, 5, 5, 5, 4, 1, 2, 2, 3, 3, 1, 3, 1, 3, 5, 1, 5, 5, 5, 5, 5, 5, 5, 5, 1, 1, 3, 3, 3, 5, 5, 5, 5, 5, 5,
+            5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 3, 3, 3, 3, 5, 2, 5, 5, 5, 5, 5, 5, 5, 5,
+            1,
+            3, 4, 3, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 5, 5, 2, 1, 2, 4 })
     gfx.set_scanline(gfx.SCANLINE_HARD)
     g_screen = screen.new()
     local seed = flr(elapsed() * 10000000)
@@ -740,7 +735,7 @@ function init()
 end
 
 function update()
-    g_mouse_x,g_mouse_y = inp.mouse_pos()
+    g_mouse_x, g_mouse_y = inp.mouse_pos()
     g_screen:update()
 end
 

@@ -9,7 +9,7 @@ local MINIMAP_END <const> = 20
 local SMOKE_LIFE <const> = 80
 local DATA_PER_SEGMENT <const> = 8
 local DATA_PER_SECTION <const> = 7
-local LAP_COUNTS <const> = {1, 3, 5, 15}
+local LAP_COUNTS <const> = { 1, 3, 5, 15 }
 local LAYER_SMOKE <const> = 3
 local LAYER_SHADOW <const> = 4
 local LAYER_CARS <const> = 5
@@ -31,33 +31,32 @@ local OBJ_PIT_EXIT1 <const> = 13
 local OBJ_PIT_EXIT2 <const> = 14
 local OBJ_PIT_EXIT3 <const> = 15
 local OBJ_COUNT <const> = 16
-local SHADOW_DELTA <const> = {x=-10,y=10}
-local SHADOW_COL <const> = {r=162.0/255,g=136.0/255,b=121.0/255} -- correspond to palette 22
-local MINIMAP_RACE_OFFSET <const> = {x=340, y=120}
-local MINIMAP_EDITOR_OFFSET <const> = {x=340,y=200}
-local TYRE_TYPE <const> = {"soft","hard","wet"}
-local TYRE_COL <const> = {8,7,28}
-local CARS <const> = {{
+local SHADOW_DELTA <const> = { x = -10, y = 10 }
+local MINIMAP_RACE_OFFSET <const> = { x = 340, y = 120 }
+local MINIMAP_EDITOR_OFFSET <const> = { x = 340, y = 200 }
+local TYRE_TYPE <const> = { "soft", "hard", "wet" }
+local TYRE_COL <const> = { 8, 7, 28 }
+local CARS <const> = { {
     name = "Easy",
     maxacc = 3,
     steer = 0.0225,
     accsqr = 0.1,
-    player_adv=0.15
+    player_adv = 0.15
 }, {
     name = "Medium",
     maxacc = 3,
     steer = 0.0185,
     accsqr = 0.15,
-    player_adv=0.1
+    player_adv = 0.1
 }, {
     name = "Hard",
     maxacc = 3,
     steer = 0.0165,
     accsqr = 0.2,
-    player_adv=0
-}}
+    player_adv = 0
+} }
 
-minimap_offset=MINIMAP_RACE_OFFSET
+minimap_offset = MINIMAP_RACE_OFFSET
 cam_pos = {
     x = 0,
     y = 0
@@ -67,30 +66,35 @@ camera_scale = 1
 best_seg_times = {}
 best_lap_time = nil
 best_lap_driver = nil
-mlb_pressed=false
+mlb_pressed = false
 function camera(x, y)
     cam_pos.x = x or 0
     cam_pos.y = y or 0
 end
+
 function inp_brake()
     -- controller X or keyboard C
     return inp.action2()
 end
+
 function inp_accel()
     -- controller A or keyboard X
     return inp.action1()
 end
+
 function inp_boost()
     return inp.pad_button(1, inp.XBOX360_RB) or inp.key(inp.KEY_UP)
 end
+
 function inp_menu_pressed()
     return inp.pad_button_pressed(1, inp.XBOX360_SELECT) or inp.key_pressed(inp.KEY_ESCAPE)
 end
+
 col = function(r, g, b)
     return {
-        r = r / 255,
-        g = g / 255,
-        b = b / 255
+        r = r,
+        g = g,
+        b = b
     }
 end
 -- pico8 palette
@@ -129,23 +133,26 @@ local PAL <const> = {
     col(255, 157, 129),
     col(92, 84, 76),
 }
+local SHADOW_COL <const> = PAL[22]
 
 function cls()
     local c = PAL[21]
     gfx.set_active_layer(LAYER_TOP)
-    gfx.clear(0,0,0)
+    gfx.clear(0, 0, 0)
     gfx.set_active_layer(LAYER_SHADOW)
-    gfx.clear(0,0,0)
+    gfx.clear(0, 0, 0)
     gfx.set_active_layer(LAYER_SHADOW2)
-    gfx.clear(0,0,0)
+    gfx.clear(0, 0, 0)
     gfx.set_active_layer(LAYER_CARS)
-    gfx.clear(0,0,0)
+    gfx.clear(0, 0, 0)
     gfx.set_active_layer(0)
     gfx.clear(c.r, c.g, c.b)
 end
+
 function sspr(x, y, w, h, dx, dy, dw, dh, hflip, vflip)
-    gfx.blit(x, y, w, h, dx, dy, dw or 0, dh or 0, hflip or false, vflip or false, 1, 1, 1)
+    gfx.blit(x, y, w, h, dx, dy, dw or 0, dh or 0, hflip or false, vflip or false, 255, 255, 255)
 end
+
 cos = function(v)
     return math.cos(from_pico_angle(v))
 end
@@ -199,7 +206,7 @@ function minimap_disk(p, c)
 end
 
 function cam2screen(p)
-    p = scalev(vecsub(p, cam_pos),camera_scale)
+    p = scalev(vecsub(p, cam_pos), camera_scale)
     p = vecadd(rotate_point(p, -camera_angle + 0.25, vec(0, 0)), vec(64, 64))
     return {
         x = p.x * 224 / 128 + X_OFFSET,
@@ -226,13 +233,14 @@ end
 
 function trifill(p1, p2, p3, pal, transf)
     local col = PAL[flr(pal)]
-    if transf == nil or transf==true then
+    if transf == nil or transf == true then
         p1 = cam2screen(p1)
         p2 = cam2screen(p2)
         p3 = cam2screen(p3)
     end
     gfx.triangle(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, col.r, col.g, col.b)
 end
+
 function quadfill(p1, p2, p3, p4, pal, transf)
     trifill(p1, p2, p3, pal, transf)
     trifill(p2, p3, p4, pal, transf)
@@ -243,17 +251,20 @@ function circfill(x, y, r, pal)
     local p = cam2screen(vec(x, y))
     gfx.disk(p.x, p.y, r * 224 / 128, col.r, col.g, col.b)
 end
+
 function rectfill(x0, y0, x1, y1, pal)
     local col = PAL[flr(pal)]
     gfx.rectangle(x0, y0, x1 - x0 + 1, y1 - y0 + 1, col.r, col.g, col.b)
 end
-function rect(x0,y0,w,h,pal)
+
+function rect(x0, y0, w, h, pal)
     local col = PAL[flr(pal)]
-    gfx.line(x0,y0,x0+w-1,y0,col.r,col.g,col.b)
-    gfx.line(x0,y0+h-1,x0+w-1,y0+h-1,col.r,col.g,col.b)
-    gfx.line(x0+w-1,y0,x0+w-1,y0+h-1,col.r,col.g,col.b)
-    gfx.line(x0,y0,x0,y0+h-1,col.r,col.g,col.b)
+    gfx.line(x0, y0, x0 + w - 1, y0, col.r, col.g, col.b)
+    gfx.line(x0, y0 + h - 1, x0 + w - 1, y0 + h - 1, col.r, col.g, col.b)
+    gfx.line(x0 + w - 1, y0, x0 + w - 1, y0 + h - 1, col.r, col.g, col.b)
+    gfx.line(x0, y0, x0, y0 + h - 1, col.r, col.g, col.b)
 end
+
 function mid(x, y, z)
     if (x <= y and y <= z) or (z <= y and y <= x) then
         return y
@@ -263,18 +274,24 @@ function mid(x, y, z)
         return z
     end
 end
-function gblit(x,y,w,h,p,r,g,b,dir)
-    local p=cam2screen(p)
-    gfx.blit(x,y,w,h,p.x,p.y,w*camera_scale,h*camera_scale,false,false,r,g,b,from_pico_angle(camera_angle-dir))
+
+function gblit(x, y, w, h, p, r, g, b, dir)
+    local p = cam2screen(p)
+    gfx.blit(x, y, w, h, p.x, p.y, w * camera_scale, h * camera_scale, false, false, r, g, b,
+        from_pico_angle(camera_angle - dir))
 end
-function gblit_col(x,y,w,h,p,r,g,b,dir)
-    local p=cam2screen(p)
-    gfx.blit_col(x,y,w,h,p.x,p.y,w*camera_scale,h*camera_scale,false,false,r,g,b,from_pico_angle(camera_angle-dir))
+
+function gblit_col(x, y, w, h, p, r, g, b, dir)
+    local p = cam2screen(p)
+    gfx.blit_col(x, y, w, h, p.x, p.y, w * camera_scale, h * camera_scale, false, false, r, g, b,
+        from_pico_angle(camera_angle - dir))
 end
+
 function gprint(msg, px, py, col)
     local c = math.floor(col)
     gfx.print(msg, math.floor(px), math.floor(py), PAL[c].r, PAL[c].g, PAL[c].b)
 end
+
 function sfx(n)
     snd.play_pattern(n)
 end
@@ -337,7 +354,7 @@ local TEAMS <const> = {
     }
 }
 
-local DRIVERS <const> = {{
+local DRIVERS <const> = { {
     name = "Anton Sanna",
     short_name = "ASA",
     skill = 8,
@@ -427,7 +444,7 @@ local DRIVERS <const> = {{
     skill = 5,
     team = "Lotusi",
     helmet = 30
-}}
+} }
 
 local DT <const> = 0.033333 -- 1/30th of a second
 
@@ -435,16 +452,16 @@ particles = {}
 smokes = {}
 mapsize = 250
 function create_spark(segment, pos, speed, grass)
-    for _,p in pairs(particles) do
+    for _, p in pairs(particles) do
         if not p.enabled then
-            p.x=pos.x
-            p.y=pos.y
+            p.x = pos.x
+            p.y = pos.y
             p.xv = -speed.x + (rnd(2) - 1) / 2
             p.yv = -speed.y + (rnd(2) - 1) / 2
             p.ttl = 30
-            p.seg=segment
-            p.enabled=true
-            p.grass=grass
+            p.seg = segment
+            p.enabled = true
+            p.grass = grass
             return
         end
     end
@@ -454,26 +471,29 @@ function create_spark(segment, pos, speed, grass)
         xv = -speed.x + (rnd(2) - 1) / 2,
         yv = -speed.y + (rnd(2) - 1) / 2,
         ttl = 30,
-        seg=segment,
-        grass=grass
+        seg = segment,
+        grass = grass
     }
     function p:draw()
-        line(self.x, self.y, self.x - self.xv, self.y - self.yv, self.grass and 3 or (self.ttl > 20 and 10 or (self.ttl > 10 and 9 or 8)))
+        line(self.x, self.y, self.x - self.xv, self.y - self.yv,
+            self.grass and 3 or (self.ttl > 20 and 10 or (self.ttl > 10 and 9 or 8)))
     end
-    table.insert(particles,p)
+
+    table.insert(particles, p)
 end
-function create_smoke(segment, pos, speed,color)
-    for _,s in pairs(smokes) do
+
+function create_smoke(segment, pos, speed, color)
+    for _, s in pairs(smokes) do
         if not s.enabled then
-            s.x=pos.x
-            s.y=pos.y
+            s.x = pos.x
+            s.y = pos.y
             s.xv = speed.x * 0.3 + (rnd(2) - 1) / 2
             s.yv = speed.y * 0.3 + (rnd(2) - 1) / 2
             s.r = math.random(2, 4)
             s.seg = segment
             s.enabled = true
             s.ttl = SMOKE_LIFE
-            s.col=color
+            s.col = color
             return
         end
     end
@@ -486,16 +506,18 @@ function create_smoke(segment, pos, speed,color)
         r = math.random(2, 4),
         seg = segment,
         enabled = true,
-        col=color
+        col = color
     }
     function p:draw()
         local p = cam2screen(vec(self.x, self.y))
         local rgb = self.ttl / SMOKE_LIFE
-        local col=PAL[self.col]
-        gfx.disk(p.x, p.y, self.r * (2 - rgb), col.r*rgb, col.g*rgb, col.b*rgb)
+        local col = PAL[self.col]
+        gfx.disk(p.x, p.y, self.r * (2 - rgb), col.r * rgb, col.g * rgb, col.b * rgb)
     end
-    table.insert(smokes,p)
+
+    table.insert(smokes, p)
 end
+
 function ai_controls(car)
     -- look ahead 5 segments
     local ai = {
@@ -544,6 +566,7 @@ function ai_controls(car)
             c.brake = true
         end
     end
+
     return ai
 end
 
@@ -574,9 +597,9 @@ function create_car(race)
         lap_times = {},
         time = "-----",
         best_time = nil,
-        verts={},
-        seg_times={},
-        ccut_timer=-1
+        verts = {},
+        seg_times = {},
+        ccut_timer = -1
     }
     car.controls = {}
     car.pos = copyv(get_vec_from_vecmap(car.current_segment))
@@ -665,29 +688,29 @@ function create_car(race)
         -- check collisions
         -- get a width enlarged version of this segment to help prevent losing the car
         local current_segment = self.current_segment
-        local v=get_data_from_vecmap(current_segment)
-        local nextv=get_data_from_vecmap(current_segment+2)
-        local pos = dot(vecsub(self.pos,v),v.side)
-        if v.rtyp//8 == OBJ_PIT_ENTRY3 and pos < -32 then
+        local v = get_data_from_vecmap(current_segment)
+        local nextv = get_data_from_vecmap(current_segment + 2)
+        local pos = dot(vecsub(self.pos, v), v.side)
+        if v.rtyp // 8 == OBJ_PIT_ENTRY3 and pos < -32 then
             if not self.pit then
-                self.race.tyre=0
+                self.race.tyre = 0
             end
-            self.pit=-1
-        elseif v.ltyp//8 == OBJ_PIT_ENTRY3 and pos > 32 then
+            self.pit = -1
+        elseif v.ltyp // 8 == OBJ_PIT_ENTRY3 and pos > 32 then
             if not self.pit then
-                self.race.tyre=0
+                self.race.tyre = 0
             end
-            self.pit=1
-        elseif nextv.rtyp//8 == OBJ_PIT_EXIT1 and pos < -32 then
+            self.pit = 1
+        elseif nextv.rtyp // 8 == OBJ_PIT_EXIT1 and pos < -32 then
             if not self.pit then
-                self.race.tyre=0
+                self.race.tyre = 0
             end
-            self.pit=nil
-        elseif nextv.ltyp//8 == OBJ_PIT_EXIT1 and pos > 32 then
+            self.pit = nil
+        elseif nextv.ltyp // 8 == OBJ_PIT_EXIT1 and pos > 32 then
             if not self.pit then
-                self.race.tyre=0
+                self.race.tyre = 0
             end
-            self.pit=nil
+            self.pit = nil
         end
         local segpoly = get_segment(current_segment, true)
         local poly
@@ -699,19 +722,19 @@ function create_car(race)
                 self.last_good_pos = self.pos
                 self.last_good_seg = current_segment
                 self.lost_count = 0
-                poly = get_segment(current_segment,false,true)
+                poly = get_segment(current_segment, false, true)
             else
                 -- not found in current segment, try the next
                 local segnextpoly = get_segment(current_segment + 1, true)
                 if segnextpoly and point_in_polygon(segnextpoly, self.pos) then
-                    poly = get_segment(current_segment + 1,false,true)
+                    poly = get_segment(current_segment + 1, false, true)
                     current_segment = current_segment + 1
                     if best_seg_times[current_segment] == nil then
                         best_seg_times[current_segment] = time
                     end
                     self.seg_times[current_segment] = time
                     if current_segment > 0 and current_segment % mapsize == 0
-                        and (self.race.race_mode==MODE_TIME_ATTACK or current_segment<=mapsize * self.race.lap_count) then
+                        and (self.race.race_mode == MODE_TIME_ATTACK or current_segment <= mapsize * self.race.lap_count) then
                         -- new lap
                         local lap_time = time
                         if self.race.race_mode == MODE_RACE then
@@ -721,7 +744,7 @@ function create_car(race)
                         self.delta_time = self.delta_time + lap_time
                         if best_lap_time == nil or lap_time < best_lap_time then
                             best_lap_time = lap_time
-                            self.race.best_lap_timer=100
+                            self.race.best_lap_timer = 100
                             if best_lap_driver ~= nil then
                                 best_lap_driver.is_best = false
                             end
@@ -733,7 +756,7 @@ function create_car(race)
                             self.play_replay = self.record_replay
                         end
                         if car.race.is_finished then
-                            car.race_finished=true
+                            car.race_finished = true
                         end
                     end
                     self.wrong_way = 0
@@ -741,12 +764,12 @@ function create_car(race)
                     -- not found in current or next, try the previous one
                     local segprevpoly = get_segment(current_segment - 1, true)
                     if segprevpoly and point_in_polygon(segprevpoly, self.pos) then
-                        poly = get_segment(current_segment - 1,false,true)
+                        poly = get_segment(current_segment - 1, false, true)
                         current_segment = current_segment - 1
                         self.wrong_way = self.wrong_way + 1
                     else
                         -- completely lost the player
-                        current_segment=find_segment_from_pos(self.pos,self.last_good_seg)
+                        current_segment = find_segment_from_pos(self.pos, self.last_good_seg)
                         if current_segment == nil then
                             self.lost_count = self.lost_count + 1
                             -- current_segment+=1 -- try to find the car next frame
@@ -765,7 +788,7 @@ function create_car(race)
                                 return
                             end
                         else
-                            poly=get_segment(current_segment,false,true)
+                            poly = get_segment(current_segment, false, true)
                             if current_segment - self.last_good_seg > 2 then
                                 self.ccut_timer = 150
                             end
@@ -775,24 +798,24 @@ function create_car(race)
             end
             -- check collisions with walls
             if poly then
-                local car_poly = {self.verts[1],self.verts[2],self.verts[3]}
+                local car_poly = { self.verts[1], self.verts[2], self.verts[3] }
                 local rails
                 if self.pit == -1 then
-                    local p=vecsub(v.right_inner_rail,scalev(v.side,6))
-                    local p2=vecadd(v.right_inner_rail,scalev(v.front,33))
-                    local width = (v.rtyp//8 == OBJ_PIT or nextv.rtyp//8 == OBJ_PIT) and 48 or 20
-                    local p3=vecsub(p,scalev(v.side,width))
-                    local p4=vecsub(p2,scalev(v.side,width))
-                    rails={{p2,p},{p3,p4}}
+                    local p = vecsub(v.right_inner_rail, scalev(v.side, 6))
+                    local p2 = vecadd(v.right_inner_rail, scalev(v.front, 33))
+                    local width = (v.rtyp // 8 == OBJ_PIT or nextv.rtyp // 8 == OBJ_PIT) and 48 or 20
+                    local p3 = vecsub(p, scalev(v.side, width))
+                    local p4 = vecsub(p2, scalev(v.side, width))
+                    rails = { { p2, p }, { p3, p4 } }
                 elseif self.pit == 1 then
-                    local p=vecadd(v.left_inner_rail,scalev(v.side,6))
-                    local p2=vecadd(v.left_inner_rail,scalev(v.front,33))
-                    local width = (v.ltyp//8 == OBJ_PIT or nextv.ltyp//8 == OBJ_PIT) and 48 or 20
-                    local p3=vecadd(p,scalev(v.side,width))
-                    local p4=vecadd(p2,scalev(v.side,width))
-                    rails={{p2,p},{p3,p4}}
+                    local p = vecadd(v.left_inner_rail, scalev(v.side, 6))
+                    local p2 = vecadd(v.left_inner_rail, scalev(v.front, 33))
+                    local width = (v.ltyp // 8 == OBJ_PIT or nextv.ltyp // 8 == OBJ_PIT) and 48 or 20
+                    local p3 = vecadd(p, scalev(v.side, width))
+                    local p4 = vecadd(p2, scalev(v.side, width))
+                    rails = { { p2, p }, { p3, p4 } }
                 else
-                    rails={{poly[2], poly[3]},{poly[4], poly[1]}}
+                    rails = { { poly[2], poly[3] }, { poly[4], poly[1] } }
                 end
                 local rv, pen, point = check_collision(car_poly, rails)
                 if rv then
@@ -820,15 +843,15 @@ function create_car(race)
         self.vel = vecadd(vel, scalev(car_dir, accel))
         self.pos = vecadd(self.pos, scalev(self.vel, 0.3))
         -- aspiration
-        local asp=0
+        local asp = 0
         if not self.pit and self.is_player then
-            for i=1,#self.race.objects do
-                local car=self.race.objects[i]
-                local seg=wrap(self.current_segment,mapsize)
-                local car_seg=wrap(car.current_segment,mapsize)
-                if car ~= self and car_seg-seg <= 3 and car_seg-seg > 0 then
-                    local perp=perpendicular(car_dir)
-                    local dist=dot(vecsub(car.pos,self.pos),perp)
+            for i = 1, #self.race.objects do
+                local car = self.race.objects[i]
+                local seg = wrap(self.current_segment, mapsize)
+                local car_seg = wrap(car.current_segment, mapsize)
+                if car ~= self and car_seg - seg <= 3 and car_seg - seg > 0 then
+                    local perp = perpendicular(car_dir)
+                    local dist = dot(vecsub(car.pos, self.pos), perp)
                     if abs(dist) <= 10 then
                         asp = 3
                         break
@@ -836,48 +859,48 @@ function create_car(race)
                 end
             end
         end
-        local speed_coef = WIND_COEF * (500+(self.perf-5) * TEAM_PERF_COEF + asp)/500
+        local speed_coef = WIND_COEF * (500 + (self.perf - 5) * TEAM_PERF_COEF + asp) / 500
         if self.pit then
             speed_coef = 0.7 * speed_coef
         end
         self.vel = scalev(self.vel, speed_coef)
-        local v=get_data_from_vecmap(self.current_segment)
-        local sidepos=dot(vecsub(self.pos,v),v.side)
-        local ground_type = sidepos >32 and (v.ltyp & 7) or (sidepos < -32 and (v.rtyp & 7) or 0)
-        local ground_type_inner = sidepos >36 and (v.ltyp & 7) or (sidepos < -36 and (v.rtyp & 7) or 0)
-        if self.is_player and speed > 1 and frame%flr(60/speed) == 0 then
+        local v = get_data_from_vecmap(self.current_segment)
+        local sidepos = dot(vecsub(self.pos, v), v.side)
+        local ground_type = sidepos > 32 and (v.ltyp & 7) or (sidepos < -32 and (v.rtyp & 7) or 0)
+        local ground_type_inner = sidepos > 36 and (v.ltyp & 7) or (sidepos < -36 and (v.rtyp & 7) or 0)
+        if self.is_player and speed > 1 and frame % flr(60 / speed) == 0 then
             if (v.has_lkerb and sidepos <= 36 and sidepos >= 24)
                 or (v.has_rkerb and sidepos >= -36 and sidepos <= -24) then
                 -- on kerbs
                 sfx(12)
             end
         end
-        if ground_type==1 then
+        if ground_type == 1 then
             --grass
-            local r=rnd(10)
+            local r = rnd(10)
             if r < 4 and ground_type_inner == 1 then
-                self.vel=scalev(self.vel,0.9)
-                local angle_vel_impact=min(5.0,speed) / 5.0
-                local da = math.random(-20,20) * angle_vel_impact
-                angle = wrap(angle,1) * (1000+da) / 1000
+                self.vel = scalev(self.vel, 0.9)
+                local angle_vel_impact = min(5.0, speed) / 5.0
+                local da = math.random( -20, 20) * angle_vel_impact
+                angle = wrap(angle, 1) * (1000 + da) / 1000
             end
             if r < speed then
-                create_spark(self.current_segment,self.pos,scalev(normalize(self.vel),0.3),true)
+                create_spark(self.current_segment, self.pos, scalev(normalize(self.vel), 0.3), true)
             end
-        elseif ground_type==2 then
+        elseif ground_type == 2 then
             -- sand
             if ground_type_inner == 2 then
-                self.vel=scalev(self.vel,0.8)
-                angle = angle + (self.angle-angle) * 0.5
+                self.vel = scalev(self.vel, 0.8)
+                angle = angle + (self.angle - angle) * 0.5
             end
             if speed > 2 then
-                create_smoke(current_segment,vecsub(self.pos, scalev(self.vel, 0.5)), self.vel, 4)
+                create_smoke(current_segment, vecsub(self.pos, scalev(self.vel, 0.5)), self.vel, 4)
             end
         end
         if self.ccut_timer >= 0 then
-            self.vel=scalev(self.vel,0.8)
+            self.vel = scalev(self.vel, 0.8)
         end
-        for i=1,#car_verts do
+        for i = 1, #car_verts do
             self.verts[i] = rotate_point(vecadd(self.pos, car_verts[i]), angle, self.pos)
         end
 
@@ -890,25 +913,26 @@ function create_car(race)
         self.speed = speed -- used for showing speedo
         self.angle = angle
         self.current_segment = current_segment
-        local player=self.race.player
-        if abs(current_segment-player.current_segment) < 10 then
-            local spawn_pos=vecsub(self.pos, scalev(self.vel, 0.5))
+        local player = self.race.player
+        if abs(current_segment - player.current_segment) < 10 then
+            local spawn_pos = vecsub(self.pos, scalev(self.vel, 0.5))
             if not self.pit then
-                local caccel = accel/CARS[intro.car].maxacc
-                if (self.ccut_timer < 0 and speed > 1 and caccel/speed > 0.07) or (controls.brake and speed < 9 and speed > 2) then
-                    local col = ground_type==1 and 3 or (ground_type==2 and 4 or 22)
+                local caccel = accel / CARS[intro.car].maxacc
+                if (self.ccut_timer < 0 and speed > 1 and caccel / speed > 0.07) or (controls.brake and speed < 9 and speed > 2) then
+                    local col = ground_type == 1 and 3 or (ground_type == 2 and 4 or 22)
                     create_smoke(current_segment, spawn_pos, self.vel, col)
                 end
             end
             if speed > 25 and ground_type == 0 and rnd(10) < 4 then
-                create_spark(current_segment, spawn_pos, scalev(normalize(self.vel),0.8), false)
+                create_spark(current_segment, spawn_pos, scalev(normalize(self.vel), 0.8), false)
             end
         end
         if car.current_segment >= mapsize * car.race.lap_count then
-            car.race_finished=true
-            car.race.is_finished=true
+            car.race_finished = true
+            car.race.is_finished = true
         end
     end
+
     function car:draw_minimap(player)
         local seg = car_lap_seg(self.current_segment, player)
         local pseg = player.current_segment
@@ -916,10 +940,11 @@ function create_car(race)
             minimap_disk(self.pos, self.color)
         end
     end
+
     function car:draw()
         if #self.verts == 0 then
             -- happens only before race start, when cars are drawn but not updated
-            for i=1,#car_verts do
+            for i = 1, #car_verts do
                 self.verts[i] = rotate_point(vecadd(self.pos, car_verts[i]), self.angle, self.pos)
             end
         end
@@ -943,13 +968,13 @@ function create_car(race)
         circfill(v[12].x, v[12].y, 1, self.driver.helmet)
         quadfill(v[19], v[20], v[21], v[22], color) -- rear wing
         -- shadow
-        local sd=scalev(SHADOW_DELTA,0.1)
-        local sv={}
-        for i=1,#v do
-            sv[i] = vecadd(v[i],sd)
+        local sd = scalev(SHADOW_DELTA, 0.1)
+        local sv = {}
+        for i = 1, #v do
+            sv[i] = vecadd(v[i], sd)
         end
         gfx.set_active_layer(LAYER_SHADOW)
-        linevec(sv[6],sv[7],22)
+        linevec(sv[6], sv[7], 22)
         quadfill(sv[8], sv[9], sv[10], sv[11], 22)
         trifill(sv[1], sv[2], sv[3], 22)
         draw_tires(sv[4], sv[5], sv[6], sv[7], 22)
@@ -980,12 +1005,12 @@ function set_game_mode(m)
 end
 
 function init()
-    car_verts = {vec(-4, -3), vec(4, 0), vec(-4, 3), -- hull
-    vec(-3, -3), vec(-3, 3), vec(2, -3), vec(2, 3), -- tires positions
-    vec(4, -3), vec(4, 3), vec(5, -3), vec(5, 3), -- front wing
-    vec(0, 0), -- pilot helmet position
-    vec(-4, -3), vec(0, -1.5), vec(-4, 0), vec(-4, 3), vec(0, 1.5), vec(-4, 0), -- second color
-    vec(-3, -3), vec(-3, 3), vec(-5, -3), vec(-5, 3), -- rear wing
+    car_verts = { vec( -4, -3), vec(4, 0), vec( -4, 3), -- hull
+        vec( -3, -3), vec( -3, 3), vec(2, -3), vec(2, 3), -- tires positions
+        vec(4, -3), vec(4, 3), vec(5, -3), vec(5, 3), -- front wing
+        vec(0, 0), -- pilot helmet position
+        vec( -4, -3), vec(0, -1.5), vec( -4, 0), vec( -4, 3), vec(0, 1.5), vec( -4, 0), -- second color
+        vec( -3, -3), vec( -3, 3), vec( -5, -3), vec( -5, 3), -- rear wing
     }
     for _, sfx in pairs(SFX) do
         snd.new_pattern(sfx)
@@ -1016,7 +1041,7 @@ function init()
     gfx.show_layer(LAYER_TOP) -- roofs & ui
     gfx.set_active_layer(0)
     gfx.show_mouse_cursor(false)
-    trail_offset = vec(-6, 0)
+    trail_offset = vec( -6, 0)
     intro:init()
     set_game_mode(intro)
 end
@@ -1034,7 +1059,7 @@ function update()
     mlb_pressed = (flipflop and mlb_pressed) or inp.mouse_button_pressed(inp.MOUSE_LEFT)
     if flipflop then
         game_mode:update()
-        mlb_pressed=false
+        mlb_pressed = false
     end
 end
 
@@ -1047,7 +1072,7 @@ MODE_RACE = 1
 MODE_TIME_ATTACK = 2
 MODE_EDITOR = 3
 
-game_modes = {"Race vs AI", "Time Attack", "Track Editor"}
+game_modes = { "Race vs AI", "Time Attack", "Track Editor" }
 
 function intro:init()
     -- music(0)
@@ -1135,7 +1160,7 @@ difficulty_names = {
 function intro:draw()
     cls()
     sspr(0, 20, 224, 204, 80, 0)
-    draw_intro_minimap(-95, -62, 0.015, 6)
+    draw_intro_minimap( -95, -62, 0.015, 6)
     printr("x/c/arrows/esc", 300, 45, 6)
 
     local c = frame % 16 < 8 and 8 or 9
@@ -1170,10 +1195,10 @@ function mapeditor:init()
     camera()
     self.sec = #mapsections
     gfx.show_mouse_cursor(true)
-    self.race=race()
-    self.race:init(1,MODE_EDITOR,1)
+    self.race = race()
+    self.race:init(1, MODE_EDITOR, 1)
     camera_angle = 0.25
-    self.display=0
+    self.display = 0
 end
 
 function map_menu(game)
@@ -1193,11 +1218,12 @@ function map_menu(game)
                 set_game_mode(game)
             elseif selected == 2 then
                 camera_scale = 1
-                minimap_offset=MINIMAP_RACE_OFFSET
-                print ("1337,")
+                minimap_offset = MINIMAP_RACE_OFFSET
+                print("1337,")
                 for i = 1, #mapsections do
                     local ms = mapsections[i]
-                    print(ms[1] .. "," .. ms[2] .. "," .. ms[3] .. ","..ms[4]..","..ms[5]..","..ms[6]..","..ms[7]..",")
+                    print(ms[1] .. "," .. ms[2] .. "," .. ms[3] .. "," .. ms[4] ..
+                    "," .. ms[5] .. "," .. ms[6] .. "," .. ms[7] .. ",")
                 end
                 print("0,0,0,0,0,0,0")
                 local race = race()
@@ -1207,13 +1233,14 @@ function map_menu(game)
                 return
             elseif selected == 3 then
                 camera_scale = 1
-                minimap_offset=MINIMAP_RACE_OFFSET
+                minimap_offset = MINIMAP_RACE_OFFSET
                 camera_angle = 0.25
                 gfx.show_mouse_cursor(false)
                 set_game_mode(intro)
             end
         end
     end
+
     function m:draw()
         game:draw()
         rectfill(115, 40, 223, 98, 1)
@@ -1222,14 +1249,15 @@ function map_menu(game)
         gprint("Test track", 120, 68, selected == 2 and frame % 4 < 2 and 7 or 6)
         gprint("Exit", 120, 80, selected == 3 and frame % 4 < 2 and 7 or 6)
     end
+
     return m
 end
 
 function mapeditor:update()
     local cs = mapsections[self.sec]
-    local mx,my = inp.mouse_pos()
+    local mx, my = inp.mouse_pos()
     if self.display == 1 then
-        cam_pos=vecadd(cam_pos,scalev(vecsub(cam_target_pos,cam_pos),0.2))
+        cam_pos = vecadd(cam_pos, scalev(vecsub(cam_target_pos, cam_pos), 0.2))
     end
     if inp.mouse_button(inp.MOUSE_LEFT) then
         if not self.drag then
@@ -1250,35 +1278,35 @@ function mapeditor:update()
         self.drag = false
     end
     if mlb_pressed then
-        if inside_rect(mx,my,gfx.SCREEN_WIDTH/2-32,19,16,16) then
+        if inside_rect(mx, my, gfx.SCREEN_WIDTH / 2 - 32, 19, 16, 16) then
             -- change left terrain type
-            local ltyp = cs[4]&7
+            local ltyp = cs[4] & 7
             ltyp = (ltyp + 1) % 4
-            cs[4] = (cs[4] & (~7)) + ltyp
+            cs[4] = (cs[4] & ( ~7)) + ltyp
             self.race:generate_track()
-        elseif inside_rect(mx,my,gfx.SCREEN_WIDTH/2+16,19,16,16) then
+        elseif inside_rect(mx, my, gfx.SCREEN_WIDTH / 2 + 16, 19, 16, 16) then
             -- change right terrain type
-            local ltyp = cs[5]&7
+            local ltyp = cs[5] & 7
             ltyp = (ltyp + 1) % 4
-            cs[5] = (cs[5] & (~7)) + ltyp
+            cs[5] = (cs[5] & ( ~7)) + ltyp
             self.race:generate_track()
-        elseif inside_rect(mx,my,gfx.SCREEN_WIDTH-150,19,32,8) then
+        elseif inside_rect(mx, my, gfx.SCREEN_WIDTH - 150, 19, 32, 8) then
             -- change left object type
-            local lobj=cs[4]//8
-            lobj = (lobj+1)%OBJ_COUNT
+            local lobj = cs[4] // 8
+            lobj = (lobj + 1) % OBJ_COUNT
             while lobj >= OBJ_PIT_LINE_START do
-                lobj = (lobj+1)%OBJ_COUNT
+                lobj = (lobj + 1) % OBJ_COUNT
             end
-            cs[4] = (cs[4]&7) + lobj*8
+            cs[4] = (cs[4] & 7) + lobj * 8
             self.race:generate_track()
-        elseif inside_rect(mx,my,gfx.SCREEN_WIDTH-150,28,32,8) then
+        elseif inside_rect(mx, my, gfx.SCREEN_WIDTH - 150, 28, 32, 8) then
             -- change right object type
-            local robj=cs[5]//8
-            robj = (robj+1)%OBJ_COUNT
+            local robj = cs[5] // 8
+            robj = (robj + 1) % OBJ_COUNT
             while robj >= OBJ_PIT_LINE_START or robj == OBJ_BRIDGE or robj == OBJ_BRIDGE2 do
-                robj = (robj+1)%OBJ_COUNT
+                robj = (robj + 1) % OBJ_COUNT
             end
-            cs[5] = (cs[5]&7) + robj*8
+            cs[5] = (cs[5] & 7) + robj * 8
             self.race:generate_track()
         end
     end
@@ -1309,7 +1337,7 @@ function mapeditor:update()
         end
         -- action1 : duplicate last section
     elseif inp.action1_pressed() then
-        mapsections[#mapsections + 1] = {cs[1], cs[2], cs[3],0,0,0,0}
+        mapsections[#mapsections + 1] = { cs[1], cs[2], cs[3], 0, 0, 0, 0 }
         self.sec = #mapsections
         self.race:generate_track()
         -- pageup/pagedown : change section width
@@ -1334,17 +1362,17 @@ function mapeditor:update()
         end
     elseif inp.key_pressed(inp.KEY_HOME) then
         self.sec = self.sec == 1 and #mapsections or self.sec - 1
-        local seg=get_segment_from_section(self.sec)
+        local seg = get_segment_from_section(self.sec)
         self.race.player.pos = get_vec_from_vecmap(seg)
-        self.race.player.current_segment=seg
+        self.race.player.current_segment = seg
         if self.display == 1 then
             cam_target_pos = self.race.player.pos
         end
     elseif inp.key_pressed(inp.KEY_END) then
         self.sec = self.sec == #mapsections and 1 or self.sec + 1
-        local seg=get_segment_from_section(self.sec)
+        local seg = get_segment_from_section(self.sec)
         self.race.player.pos = get_vec_from_vecmap(seg)
-        self.race.player.current_segment=seg
+        self.race.player.current_segment = seg
         if self.display == 1 then
             cam_target_pos = self.race.player.pos
         end
@@ -1353,24 +1381,25 @@ function mapeditor:update()
         set_game_mode(map_menu(self))
         return
     elseif inp.key_pressed(inp.KEY_TAB) then
-        self.display = 1-self.display
+        self.display = 1 - self.display
         if self.display == 0 then
             camera_scale = 1
-            minimap_offset=MINIMAP_RACE_OFFSET
+            minimap_offset = MINIMAP_RACE_OFFSET
             camera()
         else
             camera_scale = 0.2
-            minimap_offset=MINIMAP_EDITOR_OFFSET
-            local seg=get_segment_from_section(self.sec)
+            minimap_offset = MINIMAP_EDITOR_OFFSET
+            local seg = get_segment_from_section(self.sec)
             self.race.player.pos = get_vec_from_vecmap(seg)
-            self.race.player.current_segment=seg
+            self.race.player.current_segment = seg
             cam_pos = self.race.player.pos
-            cam_target_pos=cam_pos
+            cam_target_pos = cam_pos
         end
     end
 end
+
 function compute_minimap_offset(scale)
-    local x,y,minx,miny=0,0,0,0
+    local x, y, minx, miny = 0, 0, 0, 0
     local dir = 0
     for i = 1, #mapsections do
         local ms = mapsections[i]
@@ -1379,16 +1408,17 @@ function compute_minimap_offset(scale)
             dir = dir + (ms[2] - 128) / 100
             x = x + cos(dir) * 28 * scale
             y = y + sin(dir) * 28 * scale
-            minx=min(minx,x)
-            miny=min(miny,y)
+            minx = min(minx, x)
+            miny = min(miny, y)
         end
     end
-    return minx,miny
+    return minx, miny
 end
+
 function draw_intro_minimap(sx, sy, scale, col)
-    local minx,miny=compute_minimap_offset(scale)
-    local dx=sx-minx
-    local dy=sy-miny
+    local minx, miny = compute_minimap_offset(scale)
+    local dx = sx - minx
+    local dy = sy - miny
     local x, y = 0, 0
     local lastx, lasty = x, y
     local dir = 0
@@ -1404,19 +1434,20 @@ function draw_intro_minimap(sx, sy, scale, col)
                 x = (1 - coef) * x
                 y = (1 - coef) * y
             end
-            line(lastx+dx, lasty+dy, x+dx, y+dy, #mapsections == i and 3 or col)
+            line(lastx + dx, lasty + dy, x + dx, y + dy, #mapsections == i and 3 or col)
             lastx, lasty = x, y
         end
     end
 end
+
 function draw_editor_minimap(sx, sy, scale, col, sec)
-    local minx,miny=compute_minimap_offset(scale)
-    local dx=sx-minx
-    local dy=sy-miny
-    local x, y = 0,0
+    local minx, miny = compute_minimap_offset(scale)
+    local dx = sx - minx
+    local dy = sy - miny
+    local x, y = 0, 0
     local lastx, lasty = x, y
     local dir = 0
-    local sec_x,sec_y =0,0
+    local sec_x, sec_y = 0, 0
     for i = 1, #mapsections do
         ms = mapsections[i]
         local highlighted = i == sec
@@ -1424,86 +1455,89 @@ function draw_editor_minimap(sx, sy, scale, col, sec)
             dir = dir + (ms[2] - 128) / 100
             x = x + cos(dir) * 28 * scale
             y = y + sin(dir) * 28 * scale
-            line(lastx+dx, lasty+dy, x+dx, y+dy, highlighted and 9 or (#mapsections == i and 3 or col))
+            line(lastx + dx, lasty + dy, x + dx, y + dy, highlighted and 9 or (#mapsections == i and 3 or col))
             lastx, lasty = x, y
         end
-        if i==sec then
-            sec_x,sec_y = x,y
+        if i == sec then
+            sec_x, sec_y = x, y
         end
     end
-    return sec_x,sec_y
+    return sec_x, sec_y
 end
 
 function mapeditor:draw()
     cls()
-    local minseg,maxseg
+    local minseg, maxseg
     if self.display == 0 then
-        local sec_x,sec_y = draw_editor_minimap(self.mapoffx + self.mouseoffx + self.mdragx -65,
+        local sec_x, sec_y = draw_editor_minimap(self.mapoffx + self.mouseoffx + self.mdragx - 65,
             self.mapoffy - 20 + self.mouseoffy + self.mdragy, scale, 6, self.sec)
         self.mapoffx = -sec_x
         self.mapoffy = -sec_y
     else
-        local back=cam_pos
-        cam_pos = vecsub(vecsub(cam_pos,vec(self.mouseoffx, self.mouseoffy)),vec(self.mdragx,self.mdragy))
-        minseg,maxseg=self.race:draw()
-        cam_pos=back
+        local back = cam_pos
+        cam_pos = vecsub(vecsub(cam_pos, vec(self.mouseoffx, self.mouseoffy)), vec(self.mdragx, self.mdragy))
+        minseg, maxseg = self.race:draw()
+        cam_pos = back
     end
     if minseg then
-        printc("sec " .. self.sec .. '/' .. #mapsections.." seg "..minseg.."-"..maxseg, gfx.SCREEN_WIDTH/2, 1, 7)
+        printc("sec " .. self.sec .. '/' .. #mapsections .. " seg " .. minseg .. "-" .. maxseg, gfx.SCREEN_WIDTH / 2, 1,
+            7)
     else
-        printc("sec " .. self.sec .. '/' .. #mapsections, gfx.SCREEN_WIDTH/2, 1, 7)
+        printc("sec " .. self.sec .. '/' .. #mapsections, gfx.SCREEN_WIDTH / 2, 1, 7)
     end
-    local sec=mapsections[self.sec]
-    local sec_len,sec_dir,sec_width=sec[1],sec[2],sec[3]
-    local ltyp=sec[4]&3
-    local rtyp=sec[5]&3
-    local cols={21,27,15,5}
-    local lcol=PAL[cols[ltyp+1]]
-    local rcol=PAL[cols[rtyp+1]]
-    local lobj=sec[4]//8
-    local robj=sec[5]//8
-    local lrail=sec[6]
-    local rrail=sec[7]
-    local objs={[0]="","tribune1","tribune2","tree","bridge","bridge2","pit","pit line"}
-    printc("len "..sec_len.." dir "..sec_dir.." w "..sec_width,gfx.SCREEN_WIDTH/2,10,7)
-    printr("rail l "..lrail.." r "..rrail, gfx.SCREEN_WIDTH-1, 10,7)
-    local mx,my=inp.mouse_pos()
-    gprint("lobj "..objs[lobj],gfx.SCREEN_WIDTH-150,19,inside_rect(mx,my,gfx.SCREEN_WIDTH-150,19,32,8) and 10 or 7)
-    gprint("robj "..objs[robj],gfx.SCREEN_WIDTH-150,28,inside_rect(mx,my,gfx.SCREEN_WIDTH-150,28,32,8) and 10 or 7)
+    local sec = mapsections[self.sec]
+    local sec_len, sec_dir, sec_width = sec[1], sec[2], sec[3]
+    local ltyp = sec[4] & 3
+    local rtyp = sec[5] & 3
+    local cols = { 21, 27, 15, 5 }
+    local lcol = PAL[cols[ltyp + 1]]
+    local rcol = PAL[cols[rtyp + 1]]
+    local lobj = sec[4] // 8
+    local robj = sec[5] // 8
+    local lrail = sec[6]
+    local rrail = sec[7]
+    local objs = { [0] = "", "tribune1", "tribune2", "tree", "bridge", "bridge2", "pit", "pit line" }
+    printc("len " .. sec_len .. " dir " .. sec_dir .. " w " .. sec_width, gfx.SCREEN_WIDTH / 2, 10, 7)
+    printr("rail l " .. lrail .. " r " .. rrail, gfx.SCREEN_WIDTH - 1, 10, 7)
+    local mx, my = inp.mouse_pos()
+    gprint("lobj " .. objs[lobj], gfx.SCREEN_WIDTH - 150, 19, inside_rect(mx, my, gfx.SCREEN_WIDTH - 150, 19, 32, 8) and
+    10 or 7)
+    gprint("robj " .. objs[robj], gfx.SCREEN_WIDTH - 150, 28, inside_rect(mx, my, gfx.SCREEN_WIDTH - 150, 28, 32, 8) and
+    10 or 7)
 
-    gfx.rectangle(gfx.SCREEN_WIDTH/2-32,19,16,16,lcol.r,lcol.g,lcol.b)
-    rect(gfx.SCREEN_WIDTH/2-32,19,16,16,inside_rect(mx,my,gfx.SCREEN_WIDTH/2-32,19,16,16) and 10 or 7)
-    gfx.rectangle(gfx.SCREEN_WIDTH/2+16,19,16,16,rcol.r,rcol.g,rcol.b)
-    rect(gfx.SCREEN_WIDTH/2+16,19,16,16,inside_rect(mx,my,gfx.SCREEN_WIDTH/2+16,19,16,16) and 10 or 7)
-    local y=3
+    gfx.rectangle(gfx.SCREEN_WIDTH / 2 - 32, 19, 16, 16, lcol.r, lcol.g, lcol.b)
+    rect(gfx.SCREEN_WIDTH / 2 - 32, 19, 16, 16, inside_rect(mx, my, gfx.SCREEN_WIDTH / 2 - 32, 19, 16, 16) and 10 or 7)
+    gfx.rectangle(gfx.SCREEN_WIDTH / 2 + 16, 19, 16, 16, rcol.r, rcol.g, rcol.b)
+    rect(gfx.SCREEN_WIDTH / 2 + 16, 19, 16, 16, inside_rect(mx, my, gfx.SCREEN_WIDTH / 2 + 16, 19, 16, 16) and 10 or 7)
+    local y = 3
     if self.display == 0 then
-        gfx.blit(162, 8, 12, 12, 17, y, 0, 0, false, false, 1, 1, 1)
-        gprint("  delete", 17, y+2, 7)
-        y=y+12
-        gfx.blit(174, 8, 12, 12, 17, y, 0, 0, false, false, 1, 1, 1)
-        gprint("  add", 17, y+2, 7)
-        y=y+12
-        gfx.blit(66, 8, 24, 12, 5, y, 0, 0, false, false, 1, 1, 1)
-        gprint("    length", 1, y+2, 7)
-        y=y+12
-        gfx.blit(90, 8, 24, 12, 5, y, 0, 0, false, false, 1, 1, 1)
-        gprint("    curve", 1, y+2, 7)
-        y=y+12
-        gfx.blit(138, 8, 24, 12, 5, y, 0, 0, false, false, 1, 1, 1)
-        gprint("    zoom", 1, y+2, 7)
-        y=y+12
-        gfx.blit(114, 8, 24, 12, 5, y, 0, 0, false, false, 1, 1, 1)
-        gprint("    width", 1, y+2, 7)
-        y=y+12
+        gfx.blit(162, 8, 12, 12, 17, y, 0, 0, false, false, 255, 255, 255)
+        gprint("  delete", 17, y + 2, 7)
+        y = y + 12
+        gfx.blit(174, 8, 12, 12, 17, y, 0, 0, false, false, 255, 255, 255)
+        gprint("  add", 17, y + 2, 7)
+        y = y + 12
+        gfx.blit(66, 8, 24, 12, 5, y, 0, 0, false, false, 255, 255, 255)
+        gprint("    length", 1, y + 2, 7)
+        y = y + 12
+        gfx.blit(90, 8, 24, 12, 5, y, 0, 0, false, false, 255, 255, 255)
+        gprint("    curve", 1, y + 2, 7)
+        y = y + 12
+        gfx.blit(138, 8, 24, 12, 5, y, 0, 0, false, false, 255, 255, 255)
+        gprint("    zoom", 1, y + 2, 7)
+        y = y + 12
+        gfx.blit(114, 8, 24, 12, 5, y, 0, 0, false, false, 255, 255, 255)
+        gprint("    width", 1, y + 2, 7)
+        y = y + 12
     end
-    gfx.blit(186, 8, 24, 12, 5, y, 0, 0, false, false, 1, 1, 1)
-    gprint("    section", 1, y+2, 7)
-    y=y+12
-    gfx.blit(54, 8, 12, 12, 17, y, 0, 0, false, false, 1, 1, 1)
-    gprint("  menu", 17, y+2, 7)
-    y=y+12
-    gfx.blit(210, 8, 12, 12, 17, y, 0, 0, false, false, 1, 1, 1)
-    gprint("  display", 17, y+2, 7)
+    gfx.blit(186, 8, 24, 12, 5, y, 0, 0, false, false, 255, 255, 255)
+    gprint("    section", 1, y + 2, 7)
+    y = y + 12
+    gfx.blit(54, 8, 12, 12, 17, y, 0, 0, false, false, 255, 255, 255)
+    gprint("  menu", 17, y + 2, 7)
+    y = y + 12
+    gfx.blit(210, 8, 12, 12, 17, y, 0, 0, false, false, 255, 255, 255)
+    gprint("  display", 17, y + 2, 7)
 end
 
 function load_map()
@@ -1528,7 +1562,7 @@ function load_map()
         start = start + (newfmt and DATA_PER_SECTION or 3)
     end
     if #mapsections == 0 then
-        mapsections[1] = {10, 128, 32,0,0,0,0}
+        mapsections[1] = { 10, 128, 32, 0, 0, 0, 0 }
     end
 end
 
@@ -1548,10 +1582,10 @@ function race()
             local width = ms[3]
             local ltyp = ms[4]
             local rtyp = ms[5]
-            local lskiprail_first = max(0,ms[6])
-            local rskiprail_first = max(0,ms[7])
-            local lskiprail_last = max(0,-ms[6])
-            local rskiprail_last = max(0,-ms[7])
+            local lskiprail_first = max(0, ms[6])
+            local rskiprail_first = max(0, ms[7])
+            local lskiprail_last = max(0, -ms[6])
+            local rskiprail_last = max(0, -ms[7])
             local segment_length
             if length == 0 then
                 break
@@ -1591,12 +1625,12 @@ function race()
 
             while length > 0 do
                 dir = dir + (curve - 128) / 100
-                local railcoef=1
+                local railcoef = 1
                 if abs(dir - lastdir) > 0.09 then
                     dir = lerp(lastdir, dir, 0.5)
                     segment_length = 16
                     length = length - 0.5
-                    railcoef=0.5
+                    railcoef = 0.5
                 else
                     segment_length = 32
                     length = length - 1
@@ -1604,54 +1638,56 @@ function race()
 
                 mx = mx + cos(dir) * segment_length
                 my = my + sin(dir) * segment_length
-                local v={
+                local v = {
                     x = mx,
                     y = my,
                     w = width,
                     dir = dir,
                     ltyp = ltyp,
                     rtyp = rtyp,
-                    has_lrail = (lskiprail_first<= 0 and length >= lskiprail_last),
-                    has_rrail = (rskiprail_first<= 0 and length >= rskiprail_last),
-                    section=i,
-                    segment_length=segment_length
+                    has_lrail = (lskiprail_first <= 0 and length >= lskiprail_last),
+                    has_rrail = (rskiprail_first <= 0 and length >= rskiprail_last),
+                    section = i,
+                    segment_length = segment_length
                 }
                 if ltyp // 8 == OBJ_TREE then
-                    v.ltrees={}
-                    local tree_count=math.random(8,18)
-                    for _=1,tree_count do
-                        table.insert(v.ltrees,{typ=math.random(1,3),p={x=math.random(-40,0)-10,y=math.random(0,32)}})
+                    v.ltrees = {}
+                    local tree_count = math.random(8, 18)
+                    for _ = 1, tree_count do
+                        table.insert(v.ltrees,
+                            { typ = math.random(1, 3), p = { x = math.random( -40, 0) - 10, y = math.random(0, 32) } })
                     end
                 end
                 if rtyp // 8 == OBJ_TREE then
-                    v.rtrees={}
-                    local tree_count=math.random(8,18)
-                    for _=1,tree_count do
-                        table.insert(v.rtrees,{typ=math.random(1,3),p={x=math.random(-40,0)-10,y=math.random(0,32)}})
+                    v.rtrees = {}
+                    local tree_count = math.random(8, 18)
+                    for _ = 1, tree_count do
+                        table.insert(v.rtrees,
+                            { typ = math.random(1, 3), p = { x = math.random( -40, 0) - 10, y = math.random(0, 32) } })
                     end
                 end
-                v.front=normalize(#vecmap>0 and vecsub(v,vecmap[#vecmap]) or vec(1,0))
-                v.side=perpendicular(v.front)
+                v.front = normalize(#vecmap > 0 and vecsub(v, vecmap[#vecmap]) or vec(1, 0))
+                v.side = perpendicular(v.front)
                 -- track borders (including kerbs)
-                v.left_track = vecadd(v,scalev(v.side,v.w))
-                v.right_track = vecsub(v,scalev(v.side,v.w))
-                v.tribune=2 --tribune sound level
+                v.left_track = vecadd(v, scalev(v.side, v.w))
+                v.right_track = vecsub(v, scalev(v.side, v.w))
+                v.tribune = 2 --tribune sound level
                 table.insert(vecmap, v)
                 lastdir = dir
-                lskiprail_first = lskiprail_first - 1*railcoef
-                rskiprail_first = rskiprail_first - 1*railcoef
+                lskiprail_first = lskiprail_first - 1 * railcoef
+                rskiprail_first = rskiprail_first - 1 * railcoef
             end
         end
         mapsize = #vecmap
         -- compute kerbs
-        for seg,v in pairs(vecmap) do
-            local v2=get_data_from_vecmap(seg)
+        for seg, v in pairs(vecmap) do
+            local v2 = get_data_from_vecmap(seg)
             local curve = abs(v2.dir - v.dir) * 100
-            local maybe_kerb =seg ~= 1 and seg ~= #vecmap and curve > 2
+            local maybe_kerb = seg ~= 1 and seg ~= #vecmap and curve > 2
             if maybe_kerb then
                 v.has_rkerb = (curve >= 4 or v2.dir < v.dir) and 1 or nil
                 v.has_lkerb = (curve >= 4 or v2.dir > v.dir) and 1 or nil
-                if v.segment_length==16 then
+                if v.segment_length == 16 then
                     if v2.dir < v.dir then
                         v.has_rkerb = 2
                     else
@@ -1661,109 +1697,110 @@ function race()
             end
             local rkerbw = v.has_rkerb and 8 or 0
             local lkerbw = v.has_lkerb and 8 or 0
-            v.left_kerb = vecsub(v.left_track, scalev(v.side,lkerbw))
-            v.right_kerb = vecadd(v.right_track, scalev(v.side,rkerbw))
+            v.left_kerb = vecsub(v.left_track, scalev(v.side, lkerbw))
+            v.right_kerb = vecadd(v.right_track, scalev(v.side, rkerbw))
         end
         -- distance to turn signs
-        local dist=0
-        local last_curve=0
-        for i=#vecmap-1,1,-1 do
-            local v2=vecmap[i+1]
-            local v=vecmap[i]
+        local dist = 0
+        local last_curve = 0
+        for i = #vecmap - 1, 1, -1 do
+            local v2 = vecmap[i + 1]
+            local v = vecmap[i]
             local curve = abs(v2.dir - v.dir) * 100
             if curve >= 2 then
-                dist=0
-                last_curve=v2.dir - v.dir
+                dist = 0
+                last_curve = v2.dir - v.dir
             else
-                dist = dist+1
+                dist = dist + 1
             end
-            if dist==5 or dist == 10 or dist ==15 then
+            if dist == 5 or dist == 10 or dist == 15 then
                 if last_curve < 0 then
-                    v.lpanel=dist/5
+                    v.lpanel = dist / 5
                 elseif last_curve > 0 then
-                    v.rpanel=dist/5
+                    v.rpanel = dist / 5
                 end
             end
             -- build pit line entry/exit
-            if v2.ltyp//8 == OBJ_PIT_LINE and v.ltyp//8 < OBJ_PIT then
-                for j=i-2,i do
-                    vecmap[j].ltyp = (OBJ_PIT_ENTRY1 +j -i + 2)*8
+            if v2.ltyp // 8 == OBJ_PIT_LINE and v.ltyp // 8 < OBJ_PIT then
+                for j = i - 2, i do
+                    vecmap[j].ltyp = (OBJ_PIT_ENTRY1 + j - i + 2) * 8
                     vecmap[j].has_lrail = false
                 end
             end
-            if v2.rtyp//8 == OBJ_PIT_LINE and v.rtyp//8 < OBJ_PIT then
-                for j=i-2,i do
-                    vecmap[j].rtyp = (OBJ_PIT_ENTRY1 +j -i + 2)*8
+            if v2.rtyp // 8 == OBJ_PIT_LINE and v.rtyp // 8 < OBJ_PIT then
+                for j = i - 2, i do
+                    vecmap[j].rtyp = (OBJ_PIT_ENTRY1 + j - i + 2) * 8
                     vecmap[j].has_rrail = false
                 end
             end
-            if v2.ltyp//8 < OBJ_PIT and v.ltyp//8 == OBJ_PIT_LINE then
-                for j=i+1,i+3 do
-                    vecmap[j].ltyp = (OBJ_PIT_EXIT1 +j -i -1)*8
-                    vecmap[j-1].has_lrail = false
+            if v2.ltyp // 8 < OBJ_PIT and v.ltyp // 8 == OBJ_PIT_LINE then
+                for j = i + 1, i + 3 do
+                    vecmap[j].ltyp = (OBJ_PIT_EXIT1 + j - i - 1) * 8
+                    vecmap[j - 1].has_lrail = false
                 end
             end
-            if v2.rtyp//8 < OBJ_PIT and v.rtyp//8 == OBJ_PIT_LINE then
-                for j=i+1,i+3 do
-                    vecmap[j].rtyp = (OBJ_PIT_EXIT1 +j -i -1)*8
-                    vecmap[j-1].has_rrail = false
+            if v2.rtyp // 8 < OBJ_PIT and v.rtyp // 8 == OBJ_PIT_LINE then
+                for j = i + 1, i + 3 do
+                    vecmap[j].rtyp = (OBJ_PIT_EXIT1 + j - i - 1) * 8
+                    vecmap[j - 1].has_rrail = false
                 end
             end
             -- convert last OBJ_PIT_LINE into OBJ_PIT_LINE_END
             -- and first OBJ_PIT_LINE into OBJ_PIT_LINE_START
-            if v2.ltyp//8 == OBJ_PIT and v.ltyp//8 == OBJ_PIT_LINE then
-                v.ltyp = v.ltyp+16
-            elseif v2.ltyp//8 == OBJ_PIT_LINE and v.ltyp//8 == OBJ_PIT then
+            if v2.ltyp // 8 == OBJ_PIT and v.ltyp // 8 == OBJ_PIT_LINE then
+                v.ltyp = v.ltyp + 16
+            elseif v2.ltyp // 8 == OBJ_PIT_LINE and v.ltyp // 8 == OBJ_PIT then
                 v2.ltyp = v2.ltyp + 8
             end
-            if v2.rtyp//8 == OBJ_PIT and v.rtyp//8 == OBJ_PIT_LINE then
-                v.rtyp = v.rtyp+16
-            elseif v2.rtyp//8 == OBJ_PIT_LINE and v.rtyp//8 == OBJ_PIT then
+            if v2.rtyp // 8 == OBJ_PIT and v.rtyp // 8 == OBJ_PIT_LINE then
+                v.rtyp = v.rtyp + 16
+            elseif v2.rtyp // 8 == OBJ_PIT_LINE and v.rtyp // 8 == OBJ_PIT then
                 v2.rtyp = v2.rtyp + 8
             end
         end
         -- keep only signs when all 3 (150,100,50) exist
-        local expected=3
-        for i=1,#vecmap do
-            local v=vecmap[i]
+        local expected = 3
+        for i = 1, #vecmap do
+            local v = vecmap[i]
             if v.lpanel ~= nil then
                 if v.lpanel == expected then
-                    expected=expected - 1
-                    if expected==0 then
-                        expected=3
+                    expected = expected - 1
+                    if expected == 0 then
+                        expected = 3
                     end
                 else
-                    v.lpanel=nil
+                    v.lpanel = nil
                 end
             end
             if v.rpanel ~= nil then
                 if v.rpanel == expected then
-                    expected=expected - 1
-                    if expected==0 then
-                        expected=3
+                    expected = expected - 1
+                    if expected == 0 then
+                        expected = 3
                     end
                 else
-                    v.rpanel=nil
+                    v.rpanel = nil
                 end
             end
             -- also compute rails
-            v.left_inner_rail = vecadd(v.left_track,scalev(v.side,v.ltyp & 7==0 and 4 or 40))
-            v.right_inner_rail = vecsub(v.right_track,scalev(v.side,v.rtyp & 7==0 and 4 or 40))
+            v.left_inner_rail = vecadd(v.left_track, scalev(v.side, v.ltyp & 7 == 0 and 4 or 40))
+            v.right_inner_rail = vecsub(v.right_track, scalev(v.side, v.rtyp & 7 == 0 and 4 or 40))
             if v.has_lrail then
-                v.left_outer_rail = vecadd(v.left_inner_rail,scalev(v.side,4))
+                v.left_outer_rail = vecadd(v.left_inner_rail, scalev(v.side, 4))
             end
             if v.has_rrail then
-                v.right_outer_rail = vecsub(v.right_inner_rail,scalev(v.side,4))
+                v.right_outer_rail = vecsub(v.right_inner_rail, scalev(v.side, 4))
             end
         end
     end
+
     function race:init(difficulty, race_mode, lap_count)
         self.race_mode = race_mode
         self.lap_count = LAP_COUNTS[lap_count]
-        self.live_cars=16
-        self.is_finished=false
-        self.panel_timer=-1
-        self.best_lap_timer=-1
+        self.live_cars = 16
+        self.is_finished = false
+        self.panel_timer = -1
+        self.best_lap_timer = -1
         sc1 = nil
         sc1timer = 0
         camera_angle = 0
@@ -1799,7 +1836,7 @@ function race()
         self.player = p
         p.is_player = true
         local v = get_data_from_vecmap(p.current_segment)
-        p.pos = vecadd(vecadd(p.pos, scalev(v.side, 14)),scalev(v.front,-6))
+        p.pos = vecadd(vecadd(p.pos, scalev(v.side, 14)), scalev(v.front, -6))
         p.angle = v.dir
         p.rank = 1
         p.maxacc = p.maxacc
@@ -1823,12 +1860,12 @@ function race()
                 ai_car.driver = DRIVERS[i]
                 ai_car.color = TEAMS[ai_car.driver.team].color
                 ai_car.color2 = TEAMS[ai_car.driver.team].color2
-                ai_car.perf=TEAMS[ai_car.driver.team].perf
+                ai_car.perf = TEAMS[ai_car.driver.team].perf
                 ai_car.driver.is_best = false
                 local v = get_data_from_vecmap(ai_car.current_segment)
-                ai_car.pos = vecadd(vecadd(v, scalev(v.side, i % 2 == 0 and 14 or -14)),scalev(v.front,-6))
+                ai_car.pos = vecadd(vecadd(v, scalev(v.side, i % 2 == 0 and 14 or -14)), scalev(v.front, -6))
                 if i % 2 == 1 then
-                    ai_car.pos = vecadd(ai_car.pos, scalev(v.front,-14))
+                    ai_car.pos = vecadd(ai_car.pos, scalev(v.front, -14))
                 end
                 ai_car.angle = v.dir
                 local oldupdate = ai_car.update
@@ -1838,200 +1875,201 @@ function race()
                     self.ai:update()
                     oldupdate(self, completed, time)
                 end
+
                 table.insert(self.objects, ai_car)
                 table.insert(self.ranks, ai_car)
             end
         end
     end
 
-    function race:draw_tribune(li_rail,side,front,dir,flipflop)
-        local p = vecadd(li_rail,scalev(side,8))
-        local p2 = vecadd(p,scalev(side,10))
-        local p3 = vecadd(p,scalev(front,-32))
-        local p4 = vecadd(p2,scalev(front,-32))
-        quadfill(p,p2,p3,p4,22)
-        local p2s=vecadd(vecadd(p,scalev(side,5)),scalev(front,-16))
-        gblit(224,0,20,60,p2s,1,1,1,dir)
-        p=vecadd(p,scalev(side,50))
-        p3=vecadd(p3,scalev(side,50))
+    function race:draw_tribune(li_rail, side, front, dir, flipflop)
+        local p = vecadd(li_rail, scalev(side, 8))
+        local p2 = vecadd(p, scalev(side, 10))
+        local p3 = vecadd(p, scalev(front, -32))
+        local p4 = vecadd(p2, scalev(front, -32))
+        quadfill(p, p2, p3, p4, 22)
+        local p2s = vecadd(vecadd(p, scalev(side, 5)), scalev(front, -16))
+        gblit(224, 0, 20, 60, p2s, 255, 255, 255, dir)
+        p = vecadd(p, scalev(side, 50))
+        p3 = vecadd(p3, scalev(side, 50))
         gfx.set_active_layer(LAYER_TOP)
-        quadfill(p,p2,p3,p4,flipflop and 20 or 4)
+        quadfill(p, p2, p3, p4, flipflop and 20 or 4)
         gfx.set_active_layer(LAYER_SHADOW2)
-        local sd=SHADOW_DELTA
-        p = vecadd(p,sd)
-        p2 = vecadd(p2,sd)
-        p3 = vecadd(p3,sd)
-        p4 = vecadd(p4,sd)
-        quadfill(p,p2,p3,p4,22)
+        local sd = SHADOW_DELTA
+        p = vecadd(p, sd)
+        p2 = vecadd(p2, sd)
+        p3 = vecadd(p3, sd)
+        p4 = vecadd(p4, sd)
+        quadfill(p, p2, p3, p4, 22)
         gfx.set_active_layer(0)
     end
 
-    function race:draw_tribune2(li_rail,side,front,dir)
-        local sr=SHADOW_COL.r
-        local sg=SHADOW_COL.g
-        local sb=SHADOW_COL.b
-        local p = vecadd(li_rail,scalev(side,8))
-        local p2 = vecadd(p,scalev(side,40))
-        local p3 = vecadd(p,scalev(front,-32))
-        local p4 = vecadd(p2,scalev(front,-32))
+    function race:draw_tribune2(li_rail, side, front, dir)
+        local sr = SHADOW_COL.r
+        local sg = SHADOW_COL.g
+        local sb = SHADOW_COL.b
+        local p = vecadd(li_rail, scalev(side, 8))
+        local p2 = vecadd(p, scalev(side, 40))
+        local p3 = vecadd(p, scalev(front, -32))
+        local p4 = vecadd(p2, scalev(front, -32))
         gfx.set_active_layer(LAYER_CARS)
-        quadfill(p,p2,p3,p4,22)
+        quadfill(p, p2, p3, p4, 22)
         gfx.set_active_layer(LAYER_SHADOW)
-        p2=vecadd(p2,SHADOW_DELTA)
-        p4=vecadd(p4,SHADOW_DELTA)
-        quadfill(p,p2,p3,p4,22)
+        p2 = vecadd(p2, SHADOW_DELTA)
+        p4 = vecadd(p4, SHADOW_DELTA)
+        quadfill(p, p2, p3, p4, 22)
         gfx.set_active_layer(LAYER_TOP)
-        local p2s=vecadd(vecadd(p,scalev(side,5)),scalev(front,-16))
-        gblit(244,0,20,60,p2s,1,1,1,dir)
-        local p2s=vecadd(vecadd(p,scalev(side,15)),scalev(front,-16))
-        gblit(264,0,20,60,p2s,1,1,1,dir)
-        local p2s=vecadd(vecadd(p,scalev(side,25)),scalev(front,-16))
-        gblit(244,0,20,60,p2s,1,1,1,dir)
-        local p2s=vecadd(vecadd(p,scalev(side,35)),scalev(front,-16))
-        gblit(264,0,20,60,p2s,1,1,1,dir)
+        local p2s = vecadd(vecadd(p, scalev(side, 5)), scalev(front, -16))
+        gblit(244, 0, 20, 60, p2s, 255, 255, 255, dir)
+        local p2s = vecadd(vecadd(p, scalev(side, 15)), scalev(front, -16))
+        gblit(264, 0, 20, 60, p2s, 255, 255, 255, dir)
+        local p2s = vecadd(vecadd(p, scalev(side, 25)), scalev(front, -16))
+        gblit(244, 0, 20, 60, p2s, 255, 255, 255, dir)
+        local p2s = vecadd(vecadd(p, scalev(side, 35)), scalev(front, -16))
+        gblit(264, 0, 20, 60, p2s, 255, 255, 255, dir)
         gfx.set_active_layer(LAYER_SHADOW2)
-        local sd=scalev(SHADOW_DELTA,0.1)
-        local p2s=vecadd(vecadd(vecadd(p,scalev(side,5)),scalev(front,-16)),sd)
-        gblit_col(244,0,20,60,p2s,sr,sg,sb,dir)
-        local p2s=vecadd(vecadd(vecadd(p,scalev(side,15)),scalev(front,-16)),sd)
-        gblit_col(264,0,20,60,p2s,sr,sg,sb,dir)
-        local p2s=vecadd(vecadd(vecadd(p,scalev(side,25)),scalev(front,-16)),sd)
-        gblit_col(244,0,20,60,p2s,sr,sg,sb,dir)
-        local p2s=vecadd(vecadd(vecadd(p,scalev(side,35)),scalev(front,-16)),sd)
-        gblit_col(264,0,20,60,p2s,sr,sg,sb,dir)
+        local sd = scalev(SHADOW_DELTA, 0.1)
+        local p2s = vecadd(vecadd(vecadd(p, scalev(side, 5)), scalev(front, -16)), sd)
+        gblit_col(244, 0, 20, 60, p2s, sr, sg, sb, dir)
+        local p2s = vecadd(vecadd(vecadd(p, scalev(side, 15)), scalev(front, -16)), sd)
+        gblit_col(264, 0, 20, 60, p2s, sr, sg, sb, dir)
+        local p2s = vecadd(vecadd(vecadd(p, scalev(side, 25)), scalev(front, -16)), sd)
+        gblit_col(244, 0, 20, 60, p2s, sr, sg, sb, dir)
+        local p2s = vecadd(vecadd(vecadd(p, scalev(side, 35)), scalev(front, -16)), sd)
+        gblit_col(264, 0, 20, 60, p2s, sr, sg, sb, dir)
         gfx.set_active_layer(0)
     end
 
-    function race:draw_tree(trees, li_rail, last_li_rail, side, last_side,front,dir)
-        local p=vecadd(li_rail,side)
-        local p2=vecadd(last_li_rail,last_side)
-        local p3=vecadd(p,scalev(side,56))
-        local p4 = vecadd(p2,scalev(last_side,56))
-        quadfill(p,p2,p3,p4,27)
+    function race:draw_tree(trees, li_rail, last_li_rail, side, last_side, front, dir)
+        local p = vecadd(li_rail, side)
+        local p2 = vecadd(last_li_rail, last_side)
+        local p3 = vecadd(p, scalev(side, 56))
+        local p4 = vecadd(p2, scalev(last_side, 56))
+        quadfill(p, p2, p3, p4, 27)
         gfx.set_active_layer(LAYER_TOP)
-        for i=1,#trees do
-            local typ=trees[i].typ
-            local tree_pos=trees[i].p
-            local p = vecsub(vecsub(li_rail,scalev(side,tree_pos.x)),scalev(front,tree_pos.y))
+        for i = 1, #trees do
+            local typ = trees[i].typ
+            local tree_pos = trees[i].p
+            local p = vecsub(vecsub(li_rail, scalev(side, tree_pos.x)), scalev(front, tree_pos.y))
             if typ == 1 then
-                gblit(224,60,20,20,p,1,1,1,dir)
+                gblit(224, 60, 20, 20, p, 255, 255, 255, dir)
             elseif typ == 2 then
-                gblit(224,80,30,30,p,1,1,1,dir)
+                gblit(224, 80, 30, 30, p, 255, 255, 255, dir)
             elseif typ == 3 then
-                gblit(224,110,40,40,p,1,1,1,dir)
+                gblit(224, 110, 40, 40, p, 255, 255, 255, dir)
             end
         end
         gfx.set_active_layer(LAYER_SHADOW2)
-        local sr=SHADOW_COL.r
-        local sg=SHADOW_COL.g
-        local sb=SHADOW_COL.b
-        for i=1,#trees do
-            local typ=trees[i].typ
-            local tree_pos=trees[i].p
-            local p = vecadd(vecsub(vecsub(li_rail,scalev(side,tree_pos.x)),scalev(front,tree_pos.y)),SHADOW_DELTA)
+        local sr = SHADOW_COL.r
+        local sg = SHADOW_COL.g
+        local sb = SHADOW_COL.b
+        for i = 1, #trees do
+            local typ = trees[i].typ
+            local tree_pos = trees[i].p
+            local p = vecadd(vecsub(vecsub(li_rail, scalev(side, tree_pos.x)), scalev(front, tree_pos.y)), SHADOW_DELTA)
             if typ == 1 then
-                gblit_col(224,60,20,20,p,sr,sg,sb,dir)
+                gblit_col(224, 60, 20, 20, p, sr, sg, sb, dir)
             elseif typ == 2 then
-                gblit_col(224,80,30,30,p,sr,sg,sb,dir)
+                gblit_col(224, 80, 30, 30, p, sr, sg, sb, dir)
             elseif typ == 3 then
-                gblit_col(224,110,40,40,p,sr,sg,sb,dir)
+                gblit_col(224, 110, 40, 40, p, sr, sg, sb, dir)
             end
         end
         gfx.set_active_layer(0)
     end
 
-    function race:draw_pit(ri_rail,side,front,flipflop)
-        local p = vecsub(ri_rail,scalev(side,24))
-        local p2 = vecsub(p,scalev(side,8))
-        local p3 = vecadd(p,scalev(front,-33))
-        local p4 = vecadd(p2,scalev(front,-33))
-        linevec(p,p3,10)
-        local perp=scalev(side,-4)
-        p=vecadd(p2,perp)
-        p3=vecadd(p4,perp)
-        quadfill(p2,p4,p,p3,flipflop and 7 or 28)
-        perp = scalev(perp,4)
-        p2=vecadd(p,perp)
-        p4=vecadd(p3,perp)
-        perp = scalev(perp,0.125)
-        local perp2=scalev(front,-2)
-        quadfill(p,p3,p2,p4,22)
-        local lp=vecadd(vecadd(p,perp),perp2)
-        local lp2=vecadd(vecsub(p2,perp),perp2)
-        local lp3=vecadd(lp,perp2)
-        local lp4=vecadd(lp2,perp2)
-        linevec(lp,lp3,7)
-        linevec(lp,lp2,7)
-        linevec(lp2,lp4,7)
+    function race:draw_pit(ri_rail, side, front, flipflop)
+        local p = vecsub(ri_rail, scalev(side, 24))
+        local p2 = vecsub(p, scalev(side, 8))
+        local p3 = vecadd(p, scalev(front, -33))
+        local p4 = vecadd(p2, scalev(front, -33))
+        linevec(p, p3, 10)
+        local perp = scalev(side, -4)
+        p = vecadd(p2, perp)
+        p3 = vecadd(p4, perp)
+        quadfill(p2, p4, p, p3, flipflop and 7 or 28)
+        perp = scalev(perp, 4)
+        p2 = vecadd(p, perp)
+        p4 = vecadd(p3, perp)
+        perp = scalev(perp, 0.125)
+        local perp2 = scalev(front, -2)
+        quadfill(p, p3, p2, p4, 22)
+        local lp = vecadd(vecadd(p, perp), perp2)
+        local lp2 = vecadd(vecsub(p2, perp), perp2)
+        local lp3 = vecadd(lp, perp2)
+        local lp4 = vecadd(lp2, perp2)
+        linevec(lp, lp3, 7)
+        linevec(lp, lp2, 7)
+        linevec(lp2, lp4, 7)
         gfx.set_active_layer(LAYER_TOP)
-        perp=scalev(side,-32)
-        p=vecadd(p2,perp)
-        p3=vecadd(p4,perp)
-        quadfill(p,p3,p2,p4,13)
+        perp = scalev(side, -32)
+        p = vecadd(p2, perp)
+        p3 = vecadd(p4, perp)
+        quadfill(p, p3, p2, p4, 13)
         gfx.set_active_layer(LAYER_SHADOW2)
-        p=vecsub(p,SHADOW_DELTA)
-        p2=vecsub(p2,SHADOW_DELTA)
-        p3=vecsub(p3,SHADOW_DELTA)
-        p4=vecsub(p4,SHADOW_DELTA)
-        quadfill(p,p3,p2,p4,22)
+        p = vecsub(p, SHADOW_DELTA)
+        p2 = vecsub(p2, SHADOW_DELTA)
+        p3 = vecsub(p3, SHADOW_DELTA)
+        p4 = vecsub(p4, SHADOW_DELTA)
+        quadfill(p, p3, p2, p4, 22)
         gfx.set_active_layer(0)
     end
 
-    function race:draw_pitline(ri_rail,side,front)
-        local p = vecsub(ri_rail,scalev(side,24))
-        local p2 = vecsub(p,scalev(side,32))
-        local p3 = vecadd(p,scalev(front,-33))
-        local p4 = vecadd(p2,scalev(front,-33))
-        quadfill(p2,p4,p,p3,27)
-        self:draw_rail(p,p3)
+    function race:draw_pitline(ri_rail, side, front)
+        local p = vecsub(ri_rail, scalev(side, 24))
+        local p2 = vecsub(p, scalev(side, 32))
+        local p3 = vecadd(p, scalev(front, -33))
+        local p4 = vecadd(p2, scalev(front, -33))
+        quadfill(p2, p4, p, p3, 27)
+        self:draw_rail(p, p3)
     end
 
-    function race:draw_pitline_start(ri_rail,side,front)
-        local p = vecsub(ri_rail,scalev(side,24))
-        local p2 = vecsub(p,scalev(side,32))
-        local p3 = vecadd(p,scalev(front,-33))
-        local p4 = vecadd(p2,scalev(front,-33))
-        trifill(p,p2,p4,27)
-        linevec(p,p3,10)
-        self:draw_rail(p,p4)
+    function race:draw_pitline_start(ri_rail, side, front)
+        local p = vecsub(ri_rail, scalev(side, 24))
+        local p2 = vecsub(p, scalev(side, 32))
+        local p3 = vecadd(p, scalev(front, -33))
+        local p4 = vecadd(p2, scalev(front, -33))
+        trifill(p, p2, p4, 27)
+        linevec(p, p3, 10)
+        self:draw_rail(p, p4)
     end
 
-    function race:draw_pitline_end(ri_rail,side,front)
-        local p = vecsub(ri_rail,scalev(side,24))
-        local p2 = vecsub(p,scalev(side,32))
-        local p3 = vecadd(p,scalev(front,-33))
-        local p4 = vecadd(p2,scalev(front,-33))
-        trifill(p2,p3,p4,27)
-        linevec(p,p3,10)
-        self:draw_rail(p2,p3)
+    function race:draw_pitline_end(ri_rail, side, front)
+        local p = vecsub(ri_rail, scalev(side, 24))
+        local p2 = vecsub(p, scalev(side, 32))
+        local p3 = vecadd(p, scalev(front, -33))
+        local p4 = vecadd(p2, scalev(front, -33))
+        trifill(p2, p3, p4, 27)
+        linevec(p, p3, 10)
+        self:draw_rail(p2, p3)
     end
 
-    function race:draw_pit_entry(ri_rail,side,front,seg)
-        local p = vecsub(ri_rail,scalev(side,4+7*(seg+1)))
-        local p2 = vecsub(vecadd(ri_rail,scalev(front,-33)),scalev(side,4+7*seg))
-        local p3 = vecsub(ri_rail,scalev(side,56))
-        local p4 = vecadd(p3,scalev(front,-33))
-        quadfill(p,p2,p3,p4,27)
-        self:draw_rail(p,p2)
+    function race:draw_pit_entry(ri_rail, side, front, seg)
+        local p = vecsub(ri_rail, scalev(side, 4 + 7 * (seg + 1)))
+        local p2 = vecsub(vecadd(ri_rail, scalev(front, -33)), scalev(side, 4 + 7 * seg))
+        local p3 = vecsub(ri_rail, scalev(side, 56))
+        local p4 = vecadd(p3, scalev(front, -33))
+        quadfill(p, p2, p3, p4, 27)
+        self:draw_rail(p, p2)
     end
 
-    function race:draw_pit_exit(ri_rail,side,front,seg)
-        local p = vecsub(ri_rail,scalev(side,4+7*(2-seg)))
-        local p2 = vecsub(vecadd(ri_rail,scalev(front,-33)),scalev(side,4+7*(3-seg)))
-        local p3 = vecsub(ri_rail,scalev(side,56))
-        local p4 = vecadd(p3,scalev(front,-33))
-        quadfill(p,p2,p3,p4,27)
-        self:draw_rail(p,p2)
+    function race:draw_pit_exit(ri_rail, side, front, seg)
+        local p = vecsub(ri_rail, scalev(side, 4 + 7 * (2 - seg)))
+        local p2 = vecsub(vecadd(ri_rail, scalev(front, -33)), scalev(side, 4 + 7 * (3 - seg)))
+        local p3 = vecsub(ri_rail, scalev(side, 56))
+        local p4 = vecadd(p3, scalev(front, -33))
+        quadfill(p, p2, p3, p4, 27)
+        self:draw_rail(p, p2)
     end
 
-    function race:draw_rail(p1,p2)
-        local side=perpendicular(normalize(vecsub(p2,p1)))
-        local p3=vecadd(p1,side)
-        local p4=vecadd(p2,side)
-        quadfill(p1,p2,p3,p4,22)
+    function race:draw_rail(p1, p2)
+        local side = perpendicular(normalize(vecsub(p2, p1)))
+        local p3 = vecadd(p1, side)
+        local p4 = vecadd(p2, side)
+        quadfill(p1, p2, p3, p4, 22)
         gfx.set_active_layer(LAYER_SHADOW)
-        local sd=scalev(SHADOW_DELTA,0.5)
-        quadfill(p3,p4,vecadd(p3,sd),vecadd(p4,sd),22)
+        local sd = scalev(SHADOW_DELTA, 0.5)
+        quadfill(p3, p4, vecadd(p3, sd), vecadd(p4, sd), 22)
         gfx.set_active_layer(0)
     end
 
@@ -2041,12 +2079,12 @@ function race()
             sc1timer = sc1timer - 1
         end
         if self.best_lap_timer >= 0 then
-            self.best_lap_timer = self.best_lap_timer-1
+            self.best_lap_timer = self.best_lap_timer - 1
         end
 
         if self.completed then
             self.completed_countdown = self.completed_countdown - DT
-            if self.completed_countdown < 4 and (inp_menu_pressed() or self.live_cars==0) then
+            if self.completed_countdown < 4 and (inp_menu_pressed() or self.live_cars == 0) then
                 set_game_mode(completed_menu(self))
                 return
             end
@@ -2062,11 +2100,11 @@ function race()
         if player then
             local controls = player.controls
             if self.completed then
-                controls.left=false
-                controls.right=false
-                controls.boost=false
-                controls.brake=true
-                controls.accel=false
+                controls.left = false
+                controls.right = false
+                controls.boost = false
+                controls.brake = true
+                controls.accel = false
             else
                 controls.left = inp.left() > 0.1
                 controls.right = inp.right() > 0.1
@@ -2126,9 +2164,9 @@ function race()
             local before = flr(self.time)
             self.time = self.time + DT
             if self.time < 0 then
-                camera_scale = ease_in_out_cubic(4+self.time,0.6,0.5,4.0)
+                camera_scale = ease_in_out_cubic(4 + self.time, 0.6, 0.5, 4.0)
             else
-                camera_scale=1
+                camera_scale = 1
             end
             if self.time < 1.0 then
                 local after = flr(self.time)
@@ -2146,7 +2184,7 @@ function race()
         if self.record_replay then
             local c = player.controls
             local v = (c.left and 1 or 0) + (c.right and 2 or 0) + (c.accel and 4 or 0) + (c.brake and 8 or 0) +
-                          (c.boost and 16 or 0)
+                (c.boost and 16 or 0)
             table.insert(self.record_replay, v)
         end
 
@@ -2162,13 +2200,13 @@ function race()
         for _, obj in pairs(self.objects) do
             for _, obj2 in pairs(self.objects) do
                 if obj ~= obj2 and obj ~= self.replay_car and obj2 ~= self.replay_car then
-                    if abs(car_lap_seg(obj.current_segment,obj2) - obj2.current_segment) <= 1 then
-                        local p1 = {obj.verts[1],obj.verts[2],obj.verts[3]}
-                        local p2 = {obj2.verts[1],obj2.verts[2],obj2.verts[3]}
+                    if abs(car_lap_seg(obj.current_segment, obj2) - obj2.current_segment) <= 1 then
+                        local p1 = { obj.verts[1], obj.verts[2], obj.verts[3] }
+                        local p2 = { obj2.verts[1], obj2.verts[2], obj2.verts[3] }
                         for _, point in pairs(p1) do
                             if point_in_polygon(p2, point) then
                                 local rv, p, point = check_collision(p1,
-                                    {{p2[2], p2[1]}, {p2[3], p2[2]}, {p2[1], p2[3]}})
+                                    { { p2[2], p2[1] }, { p2[3], p2[2] }, { p2[1], p2[3] } })
                                 if rv then
                                     if p > 5 then
                                         p = 5
@@ -2176,7 +2214,7 @@ function race()
                                     p = p * 1.5
                                     obj.vel = vecadd(obj.vel, scalev(rv, p))
                                     obj2.vel = vecsub(obj2.vel, scalev(rv, p))
-                                    create_spark(obj.current_segment, point, rv,false)
+                                    create_spark(obj.current_segment, point, rv, false)
                                     obj.collision = obj.collision + flr(p)
                                     obj2.collision = obj2.collision + flr(p)
                                     if obj.is_player or obj2.is_player then
@@ -2205,10 +2243,10 @@ function race()
         end
 
         -- particles
-        for _,p in pairs(particles) do
+        for _, p in pairs(particles) do
             if p.enabled then
-                if abs(car_lap_seg(p.seg,self.player) - player.current_segment) > 10 then
-                    p.enabled=false
+                if abs(car_lap_seg(p.seg, self.player) - player.current_segment) > 10 then
+                    p.enabled = false
                 else
                     p.x = p.x + p.xv
                     p.y = p.y + p.yv
@@ -2216,15 +2254,15 @@ function race()
                     p.yv = p.yv * 0.95
                     p.ttl = p.ttl - 1
                     if p.ttl < 0 then
-                        p.enabled=false
+                        p.enabled = false
                     end
                 end
             end
         end
-        for _,p in pairs(smokes) do
+        for _, p in pairs(smokes) do
             if p.enabled then
-                if abs(car_lap_seg(p.seg,self.player) - player.current_segment) > 10 then
-                    p.enabled=false
+                if abs(car_lap_seg(p.seg, self.player) - player.current_segment) > 10 then
+                    p.enabled = false
                 else
                     p.x = p.x + p.xv
                     p.y = p.y + p.yv
@@ -2232,19 +2270,19 @@ function race()
                     p.yv = p.yv * 0.95
                     p.ttl = p.ttl - 1
                     if p.ttl < 0 then
-                        p.enabled=false
+                        p.enabled = false
                     end
                 end
             end
         end
         -- lerp_angle
-        local diff=wrap(player.angle-camera_angle,1)
-        local dist=wrap(2*diff,1) - diff
+        local diff = wrap(player.angle - camera_angle, 1)
+        local dist = wrap(2 * diff, 1) - diff
         camera_angle = camera_angle + dist * 0.05
 
         -- car times
         if frame % 100 == 0 then
-            table.sort(self.ranks, function(car,car2)
+            table.sort(self.ranks, function(car, car2)
                 local seg = car.race_finished and #car.lap_times * mapsize or car.current_segment
                 local seg2 = car2.race_finished and #car2.lap_times * mapsize or car2.current_segment
                 if seg > seg2 then
@@ -2260,21 +2298,21 @@ function race()
             end)
             t = self.time
             local leader = self.ranks[1]
-            local leader_seg = leader.race_finished and #leader.lap_times*mapsize or leader.current_segment
-            self.live_cars=16
+            local leader_seg = leader.race_finished and #leader.lap_times * mapsize or leader.current_segment
+            self.live_cars = 16
             for _, car in pairs(self.objects) do
                 if car.race_finished then
-                    self.live_cars=self.live_cars-1
+                    self.live_cars = self.live_cars - 1
                 else
-                    local lap_behind = ceil((car.current_segment - leader_seg)/mapsize)
-                    car.time = lap_behind < 0 and lap_behind.." laps"
+                    local lap_behind = ceil((car.current_segment - leader_seg) / mapsize)
+                    car.time = lap_behind < 0 and lap_behind .. " laps"
                         or (best_seg_times[car.current_segment] and "+" .. format_time(t - best_seg_times[car.current_segment])
                         or "-----")
                 end
             end
         end
         if self.panel_timer < 0 and player.current_segment > 0 and player.current_segment % mapsize == 0 and self.race_mode == MODE_RACE then
-            self.panel_timer=200
+            self.panel_timer = 200
             local placing = 1
             local nplaces = 1
             for _, obj in pairs(self.objects) do
@@ -2285,21 +2323,21 @@ function race()
                     end
                 end
             end
-            self.panel_placing=placing
+            self.panel_placing = placing
             if placing > 1 then
-                local prev=self.ranks[placing-1]
-                self.panel_prev=prev
-                self.panel_prev_time="-"..format_time(self.time-prev.seg_times[player.current_segment])
+                local prev = self.ranks[placing - 1]
+                self.panel_prev = prev
+                self.panel_prev_time = "-" .. format_time(self.time - prev.seg_times[player.current_segment])
             end
             if placing < 16 then
-                local next=self.ranks[placing+1]
-                self.panel_next=next
-                self.panel_next_time="+"..format_time(self.time - player.seg_times[next.current_segment])
+                local next = self.ranks[placing + 1]
+                self.panel_next = next
+                self.panel_next_time = "+" .. format_time(self.time - player.seg_times[next.current_segment])
             end
         end
         if self.time >= 0 then
-            local target=1.5-0.8 * (self.player.speed/23)
-            camera_scale=camera_scale + (target-camera_scale)*0.2
+            local target = 1.5 - 0.8 * (self.player.speed / 23)
+            camera_scale = camera_scale + (target - camera_scale) * 0.2
         end
     end
 
@@ -2322,27 +2360,27 @@ function race()
             camera_lastpos = copyv(camera_pos)
         end
         local current_segment = player.current_segment
-        local player_sec=get_data_from_vecmap(current_segment).section
+        local player_sec = get_data_from_vecmap(current_segment).section
         -- draw track
 
-        local lastv,lastup,lastup2,lastup3,last_right_rail,lastdown,lastdown3,last_left_rail
-        local panels={}
-        local minseg,maxseg,has_lrail,has_rrail
+        local lastv, lastup, lastup2, lastup3, last_right_rail, lastdown, lastdown3, last_left_rail
+        local panels = {}
+        local minseg, maxseg, has_lrail, has_rrail
         for seg = current_segment - 20, current_segment + 20 do
             local v = get_data_from_vecmap(seg)
-            local nextv = get_data_from_vecmap(seg+1)
+            local nextv = get_data_from_vecmap(seg + 1)
             if has_rrail and lastv then
-                if (v.rtyp//8 >= OBJ_PIT_ENTRY1 and v.rtyp//8 <= OBJ_PIT_ENTRY2) or nextv.rtyp//8 >= OBJ_PIT_EXIT1 then
+                if (v.rtyp // 8 >= OBJ_PIT_ENTRY1 and v.rtyp // 8 <= OBJ_PIT_ENTRY2) or nextv.rtyp // 8 >= OBJ_PIT_EXIT1 then
                     last_right_rail = nil
                 else
-                    last_right_rail=lastv.right_outer_rail
+                    last_right_rail = lastv.right_outer_rail
                 end
             end
             if has_lrail and lastv then
-                if (v.ltyp//8 >= OBJ_PIT_ENTRY1 and v.ltyp//8 <= OBJ_PIT_ENTRY2) or nextv.ltyp//8 >= OBJ_PIT_EXIT1 then
+                if (v.ltyp // 8 >= OBJ_PIT_ENTRY1 and v.ltyp // 8 <= OBJ_PIT_ENTRY2) or nextv.ltyp // 8 >= OBJ_PIT_EXIT1 then
                     last_left_rail = nil
                 else
-                    last_left_rail=lastv.left_outer_rail
+                    last_left_rail = lastv.left_outer_rail
                 end
             end
             has_lrail = v.has_lrail
@@ -2351,38 +2389,38 @@ function race()
             if lastv then
                 if onscreen(v) or onscreen(lastv) or onscreen(v.right_inner_rail) or onscreen(v.left_inner_rail)
                     or onscreen(lastv.right_inner_rail) or onscreen(lastv.left_inner_rail) then
-                    local ltyp=v.ltyp & 7
-                    local rtyp=v.rtyp & 7
-                    local rtrack=v.right_track
-                    local ltrack=v.left_track
-                    local last_rtrack=lastv.right_track
-                    local last_ltrack=lastv.left_track
-                    local ri_rail=v.right_inner_rail
-                    local li_rail=v.left_inner_rail
-                    local last_ri_rail=lastv.right_inner_rail
-                    local last_li_rail=lastv.left_inner_rail
-                    local last_rtyp=lastv.rtyp & 7
-                    local last_ltyp=lastv.ltyp & 7
+                    local ltyp = v.ltyp & 7
+                    local rtyp = v.rtyp & 7
+                    local rtrack = v.right_track
+                    local ltrack = v.left_track
+                    local last_rtrack = lastv.right_track
+                    local last_ltrack = lastv.left_track
+                    local ri_rail = v.right_inner_rail
+                    local li_rail = v.left_inner_rail
+                    local last_ri_rail = lastv.right_inner_rail
+                    local last_li_rail = lastv.left_inner_rail
+                    local last_rtyp = lastv.rtyp & 7
+                    local last_ltyp = lastv.ltyp & 7
                     -- edges
-                    if rtyp == 1 or rtyp == 0 and last_rtyp==1 then
+                    if rtyp == 1 or rtyp == 0 and last_rtyp == 1 then
                         -- grass
-                        quadfill(last_rtrack,rtrack,last_ri_rail,ri_rail, 27)
-                    elseif rtyp == 2 or rtyp == 0 and last_rtyp==2  then
+                        quadfill(last_rtrack, rtrack, last_ri_rail, ri_rail, 27)
+                    elseif rtyp == 2 or rtyp == 0 and last_rtyp == 2 then
                         -- sand
-                        quadfill(last_rtrack,rtrack,last_ri_rail,ri_rail, 15)
-                    elseif rtyp == 3 or rtyp == 0 and last_rtyp==3  then
+                        quadfill(last_rtrack, rtrack, last_ri_rail, ri_rail, 15)
+                    elseif rtyp == 3 or rtyp == 0 and last_rtyp == 3 then
                         -- asphalt
-                        quadfill(last_rtrack,rtrack,last_ri_rail,ri_rail, 5)
+                        quadfill(last_rtrack, rtrack, last_ri_rail, ri_rail, 5)
                     end
-                    if ltyp == 1  or ltyp == 0 and last_ltyp==1 then
+                    if ltyp == 1 or ltyp == 0 and last_ltyp == 1 then
                         -- grass
-                        quadfill(last_ltrack,ltrack,last_li_rail,li_rail, 27)
-                    elseif ltyp == 2 or ltyp == 0 and last_ltyp==2 then
+                        quadfill(last_ltrack, ltrack, last_li_rail, li_rail, 27)
+                    elseif ltyp == 2 or ltyp == 0 and last_ltyp == 2 then
                         -- sand
-                        quadfill(last_ltrack,ltrack,last_li_rail,li_rail, 15)
-                    elseif ltyp == 3 or ltyp == 0 and last_ltyp==3 then
+                        quadfill(last_ltrack, ltrack, last_li_rail, li_rail, 15)
+                    elseif ltyp == 3 or ltyp == 0 and last_ltyp == 3 then
                         -- asphalt
-                        quadfill(last_ltrack,ltrack,last_li_rail,li_rail, 5)
+                        quadfill(last_ltrack, ltrack, last_li_rail, li_rail, 5)
                     end
                     -- ground
                     local ground = seg % 2 == 0 and 5 or 32
@@ -2395,26 +2433,26 @@ function race()
                             quadfill(v.left_kerb, ltrack, midleft_kerb, midleft, 7)
                             quadfill(last_ltrack, midleft, lastv.left_kerb, midleft_kerb, 8)
                         else
-                            quadfill(v.left_kerb, ltrack, lastv.left_kerb, last_ltrack, seg%2==0 and 7 or 8)
+                            quadfill(v.left_kerb, ltrack, lastv.left_kerb, last_ltrack, seg % 2 == 0 and 7 or 8)
                         end
                     end
-                    if v.has_rkerb or lastv.has_rkerb  then
-                        if v.has_rkerb==1 or lastv.has_rkerb == 1 then
+                    if v.has_rkerb or lastv.has_rkerb then
+                        if v.has_rkerb == 1 or lastv.has_rkerb == 1 then
                             local midright = midpoint(rtrack, last_rtrack)
                             local midright_kerb = midpoint(v.right_kerb, lastv.right_kerb)
                             quadfill(v.right_kerb, rtrack, midright_kerb, midright, 7)
                             quadfill(midright_kerb, midright, lastv.right_kerb, last_rtrack, 8)
                         else
-                            quadfill(v.right_kerb, rtrack, lastv.right_kerb, last_rtrack, seg%2==0 and 7 or 8)
+                            quadfill(v.right_kerb, rtrack, lastv.right_kerb, last_rtrack, seg % 2 == 0 and 7 or 8)
                         end
                     end
-                    if rtyp == 0 and v.rtyp//8 < OBJ_PIT_ENTRY1 then
+                    if rtyp == 0 and v.rtyp // 8 < OBJ_PIT_ENTRY1 then
                         -- normal crash barriers
-                        linevec(last_rtrack, rtrack,6)
+                        linevec(last_rtrack, rtrack, 6)
                     end
-                    if ltyp == 0 and v.ltyp//8 < OBJ_PIT_ENTRY1 then
+                    if ltyp == 0 and v.ltyp // 8 < OBJ_PIT_ENTRY1 then
                         -- normal crash barriers
-                        linevec(last_ltrack, ltrack,6)
+                        linevec(last_ltrack, ltrack, 6)
                     end
                     if ltyp ~= 0 then
                         linevec(last_ltrack, ltrack, 10)
@@ -2430,12 +2468,13 @@ function race()
                     end
                     -- starting line
                     if seg % mapsize == 0 then
-                        p=cam2screen(vecadd(v,scalev(v.front,-6)))
-                        gfx.blit(162,254,110,6,p.x,p.y,110*camera_scale,6*camera_scale,false,false,1,1,1,from_pico_angle(camera_angle-v.dir))
+                        p = cam2screen(vecadd(v, scalev(v.front, -6)))
+                        gfx.blit(162, 254, 110, 6, p.x, p.y, 110 * camera_scale, 6 * camera_scale, false, false, 255, 255,
+                            255, from_pico_angle(camera_angle - v.dir))
                     end
                     -- starting grid
                     local wseg = wrap(seg, mapsize)
-                    if wseg > mapsize - #DRIVERS//2-2 then
+                    if wseg > mapsize - #DRIVERS // 2 - 2 then
                         local side = scalev(v.side, 12)
                         local smallfront = scalev(v.front, -12)
                         local lfront = scalev(v.front, 31)
@@ -2452,101 +2491,102 @@ function race()
                         linevec(p2, vecadd(p2, smallfront), 7)
                     end
                     -- track side objects
-                    local lobj = v.ltyp//8
-                    local robj = v.rtyp//8
-                    local sr=SHADOW_COL.r
-                    local sg=SHADOW_COL.g
-                    local sb=SHADOW_COL.b
+                    local lobj = v.ltyp // 8
+                    local robj = v.rtyp // 8
+                    local sr = SHADOW_COL.r
+                    local sg = SHADOW_COL.g
+                    local sb = SHADOW_COL.b
                     if lobj == OBJ_TRIBUNE then
-                        self:draw_tribune(li_rail,v.side,v.front,v.dir,seg%2==0)
+                        self:draw_tribune(li_rail, v.side, v.front, v.dir, seg % 2 == 0)
                     elseif lobj == OBJ_TRIBUNE2 then
-                        self:draw_tribune2(li_rail,v.side,v.front,v.dir)
+                        self:draw_tribune2(li_rail, v.side, v.front, v.dir)
                     elseif lobj == OBJ_TREE then
-                        self:draw_tree(v.ltrees,li_rail,lastv.left_inner_rail, v.side,lastv.side,v.front,v.dir)
+                        self:draw_tree(v.ltrees, li_rail, lastv.left_inner_rail, v.side, lastv.side, v.front, v.dir)
                     elseif lobj == OBJ_BRIDGE then
                         gfx.set_active_layer(LAYER_TOP)
-                        gblit(141,224,182,30,v,1,1,1,v.dir)
+                        gblit(141, 224, 182, 30, v, 255, 255, 255, v.dir)
                         gfx.set_active_layer(LAYER_SHADOW2)
-                        local p=vecadd(v,SHADOW_DELTA)
-                        gblit_col(141,224,182,30,p,sr,sg,sb,v.dir)
+                        local p = vecadd(v, SHADOW_DELTA)
+                        gblit_col(141, 224, 182, 30, p, sr, sg, sb, v.dir)
                         gfx.set_active_layer(0)
                     elseif lobj == OBJ_BRIDGE2 then
-                        local p2 = vecadd(v,scalev(v.side,-48))
-                        gblit(141,224,8,30,p2,1,1,1,v.dir)
-                        local p3 = vecadd(v,scalev(v.side,48))
-                        gblit(315,224,8,30,p3,1,1,1,v.dir)
+                        local p2 = vecadd(v, scalev(v.side, -48))
+                        gblit(141, 224, 8, 30, p2, 255, 255, 255, v.dir)
+                        local p3 = vecadd(v, scalev(v.side, 48))
+                        gblit(315, 224, 8, 30, p3, 255, 255, 255, v.dir)
                         gfx.set_active_layer(LAYER_TOP)
-                        gblit(141,260,182,11,v,1,1,1,v.dir)
+                        gblit(141, 260, 182, 11, v, 255, 255, 255, v.dir)
                         gfx.set_active_layer(LAYER_SHADOW2)
-                        local p=vecadd(v,SHADOW_DELTA)
-                        p2=vecadd(p2,SHADOW_DELTA)
-                        p3=vecadd(p3,SHADOW_DELTA)
-                        gblit_col(141,260,182,11,p,sr,sg,sb,v.dir)
-                        gblit_col(141,224,8,30,p2,sr,sg,sb,v.dir)
-                        gblit_col(315,224,8,30,p3,sr,sg,sb,v.dir)
+                        local p = vecadd(v, SHADOW_DELTA)
+                        p2 = vecadd(p2, SHADOW_DELTA)
+                        p3 = vecadd(p3, SHADOW_DELTA)
+                        gblit_col(141, 260, 182, 11, p, sr, sg, sb, v.dir)
+                        gblit_col(141, 224, 8, 30, p2, sr, sg, sb, v.dir)
+                        gblit_col(315, 224, 8, 30, p3, sr, sg, sb, v.dir)
                         gfx.set_active_layer(0)
                     elseif lobj == OBJ_PIT then
-                        self:draw_pit(li_rail,vecinv(v.side),v.front,seg%2==0)
+                        self:draw_pit(li_rail, vecinv(v.side), v.front, seg % 2 == 0)
                     elseif lobj == OBJ_PIT_LINE then
-                        self:draw_pitline(li_rail,vecinv(v.side),v.front)
+                        self:draw_pitline(li_rail, vecinv(v.side), v.front)
                     elseif lobj == OBJ_PIT_LINE_START then
-                        self:draw_pitline_start(li_rail,vecinv(v.side),v.front)
+                        self:draw_pitline_start(li_rail, vecinv(v.side), v.front)
                     elseif lobj == OBJ_PIT_LINE_END then
-                        self:draw_pitline_end(li_rail,vecinv(v.side),v.front)
+                        self:draw_pitline_end(li_rail, vecinv(v.side), v.front)
                     end
                     if robj == OBJ_TRIBUNE then
-                        self:draw_tribune(ri_rail,vecinv(v.side),v.front,v.dir, seg%2==0)
+                        self:draw_tribune(ri_rail, vecinv(v.side), v.front, v.dir, seg % 2 == 0)
                     elseif robj == OBJ_TRIBUNE2 then
-                        self:draw_tribune2(ri_rail,vecinv(v.side),v.front,v.dir)
+                        self:draw_tribune2(ri_rail, vecinv(v.side), v.front, v.dir)
                     elseif robj == OBJ_TREE then
-                        self:draw_tree(v.rtrees,ri_rail,lastv.right_inner_rail,vecinv(v.side),vecinv(lastv.side),v.front,v.dir)
+                        self:draw_tree(v.rtrees, ri_rail, lastv.right_inner_rail, vecinv(v.side), vecinv(lastv.side),
+                            v.front, v.dir)
                     elseif robj == OBJ_PIT then
-                        self:draw_pit(ri_rail,v.side,v.front, seg%2==0)
+                        self:draw_pit(ri_rail, v.side, v.front, seg % 2 == 0)
                     elseif robj == OBJ_PIT_LINE then
-                        self:draw_pitline(ri_rail,v.side,v.front)
+                        self:draw_pitline(ri_rail, v.side, v.front)
                     elseif robj == OBJ_PIT_LINE_START then
-                        self:draw_pitline_start(ri_rail,v.side,v.front)
+                        self:draw_pitline_start(ri_rail, v.side, v.front)
                     elseif robj == OBJ_PIT_LINE_END then
-                        self:draw_pitline_end(ri_rail,v.side,v.front)
+                        self:draw_pitline_end(ri_rail, v.side, v.front)
                     elseif robj >= OBJ_PIT_ENTRY1 and robj <= OBJ_PIT_ENTRY3 then
-                        self:draw_pit_entry(ri_rail,v.side,v.front,robj-OBJ_PIT_ENTRY1)
+                        self:draw_pit_entry(ri_rail, v.side, v.front, robj - OBJ_PIT_ENTRY1)
                     elseif robj >= OBJ_PIT_EXIT1 and robj <= OBJ_PIT_EXIT3 then
-                        self:draw_pit_exit(ri_rail,v.side,v.front,robj-OBJ_PIT_EXIT1)
+                        self:draw_pit_exit(ri_rail, v.side, v.front, robj - OBJ_PIT_EXIT1)
                     end
 
                     if v.lpanel ~= nil then
-                        local p=v.left_inner_rail
-                        local y=214+10*v.lpanel
-                        panels[#panels+1]={y=y,p=p,dir=v.dir}
+                        local p = v.left_inner_rail
+                        local y = 214 + 10 * v.lpanel
+                        panels[#panels + 1] = { y = y, p = p, dir = v.dir }
                     elseif v.rpanel ~= nil then
-                        local p=v.right_inner_rail
-                        local y=214+10*v.rpanel
-                        panels[#panels+1]={y=y,p=p,dir=v.dir}
+                        local p = v.right_inner_rail
+                        local y = 214 + 10 * v.rpanel
+                        panels[#panels + 1] = { y = y, p = p, dir = v.dir }
                     end
-                    if self.race_mode == MODE_EDITOR and v.section==player_sec then
+                    if self.race_mode == MODE_EDITOR and v.section == player_sec then
                         gfx.set_active_layer(LAYER_TOP)
-                        linevec(lastv.right_kerb,lastv.left_kerb,10)
-                        linevec(v.right_kerb,v.left_kerb,10)
-                        linevec(lastv.right_kerb,v.right_kerb,10)
-                        linevec(lastv.left_kerb,v.left_kerb,10)
+                        linevec(lastv.right_kerb, lastv.left_kerb, 10)
+                        linevec(v.right_kerb, v.left_kerb, 10)
+                        linevec(lastv.right_kerb, v.right_kerb, 10)
+                        linevec(lastv.left_kerb, v.left_kerb, 10)
                         gfx.set_active_layer(0)
-                        minseg = minseg and min(minseg,seg) or seg
-                        maxseg = maxseg and max(maxseg,seg) or seg
+                        minseg = minseg and min(minseg, seg) or seg
+                        maxseg = maxseg and max(maxseg, seg) or seg
                     end
                 end
             end
             lastv = v
         end
 
-        for i=1,#panels do
-            local p=panels[i]
-            gblit(91,p.y,24,10,p.p,1,1,1,p.dir)
+        for i = 1, #panels do
+            local p = panels[i]
+            gblit(91, p.y, 24, 10, p.p, 255, 255, 255, p.dir)
         end
         -- draw objects
         gfx.set_active_layer(LAYER_CARS)
         for _, obj in pairs(self.objects) do
-            local oseg=car_lap_seg(obj.current_segment, self.player)
-            if abs(oseg-player.current_segment) <10 then
+            local oseg = car_lap_seg(obj.current_segment, self.player)
+            if abs(oseg - player.current_segment) < 10 then
                 obj:draw()
             end
         end
@@ -2590,69 +2630,69 @@ function race()
         end
 
         local lap = flr(player.current_segment / mapsize) + 1
-        printr(gfx.fps().." fps",gfx.SCREEN_WIDTH-1,1,7)
+        printr(gfx.fps() .. " fps", gfx.SCREEN_WIDTH - 1, 1, 7)
 
         -- car dashboard
         if not self.completed and self.race_mode ~= MODE_EDITOR then
-            gfx.blit(0, 224, 66, 35, gfx.SCREEN_WIDTH - 66, gfx.SCREEN_HEIGHT - 35, 0, 0, false, false, 1, 1, 1)
+            gfx.blit(0, 224, 66, 35, gfx.SCREEN_WIDTH - 66, gfx.SCREEN_HEIGHT - 35, 0, 0, false, false, 255, 255, 255)
             printc("" .. flr(player.speed * 14), 370, 210, 28)
             gfx.blit(66, 224, 25 * min(1, player.speed / 15), 8, gfx.SCREEN_WIDTH - 28, gfx.SCREEN_HEIGHT - 23, 0, 0,
-                false, false, 1, 1, 1)
+                false, false, 255, 255, 255)
             gfx.blit(66, 232, 19 * min(1, (player.accel ^ 3) / (1.5 ^ 3)), 9, gfx.SCREEN_WIDTH - 60,
-                gfx.SCREEN_HEIGHT - 22, 0, 0, false, false, 1, 1, 1)
+                gfx.SCREEN_HEIGHT - 22, 0, 0, false, false, 255, 255, 255)
 
             if player.cooldown > 0 then
                 if frame % 4 < 2 then
                     gfx.blit(66, 249, 21 * (1 - player.cooldown / 30), 4, gfx.SCREEN_WIDTH - 61, gfx.SCREEN_HEIGHT - 11,
-                        0, 0, false, false, 1, 1, 1)
+                        0, 0, false, false, 255, 255, 255)
                 end
             else
                 local spritey = (player.boost < BOOST_WARNING_THRESH and frame % 4 < 2) and 245 or 241
                 gfx.blit(66, spritey, 21 * (player.boost / 100), 4, gfx.SCREEN_WIDTH - 61, gfx.SCREEN_HEIGHT - 11, 0, 0,
-                    false, false, 1, 1, 1)
+                    false, false, 255, 255, 255)
             end
             if self.race_mode == MODE_RACE and self.panel_timer >= 0 then
                 -- stand panel
-                local x=gfx.SCREEN_WIDTH-90
-                local y=50
-                gfx.rectangle(x,y,85,44,0.2,0.2,0.2)
-                gprint("P"..self.panel_placing,x+3,y+3,10)
+                local x = gfx.SCREEN_WIDTH - 90
+                local y = 50
+                gfx.rectangle(x, y, 85, 44, 50, 50, 50)
+                gprint("P" .. self.panel_placing, x + 3, y + 3, 10)
                 if self.panel_placing > 1 then
-                    gprint(self.panel_prev_time.." "..self.panel_prev.driver.short_name,x+3,y+13,10)
+                    gprint(self.panel_prev_time .. " " .. self.panel_prev.driver.short_name, x + 3, y + 13, 10)
                 end
                 if self.panel_placing < 16 then
-                    gprint(self.panel_next_time.." "..self.panel_next.driver.short_name,x+3,y+23,10)
+                    gprint(self.panel_next_time .. " " .. self.panel_next.driver.short_name, x + 3, y + 23, 10)
                 end
-                gprint("Lap "..lap,x+3,y+33,10)
+                gprint("Lap " .. lap, x + 3, y + 33, 10)
             end
             if player.ccut_timer >= 0 then
-                local x=gfx.SCREEN_WIDTH-92
-                gfx.rectangle(x,50,90,60,0.2,0.2,0.2)
-                printc("Warning!",x+45,53,8)
-                printc("Corner",x+45,63,9)
-                printc("cutting",x+45,73,9)
-                gfx.blit(115,224,26,16,x+45-13,83,0,0,false,false,1,1,1)
+                local x = gfx.SCREEN_WIDTH - 92
+                gfx.rectangle(x, 50, 90, 60, 50, 50, 50)
+                printc("Warning!", x + 45, 53, 8)
+                printc("Corner", x + 45, 63, 9)
+                printc("cutting", x + 45, 73, 9)
+                gfx.blit(115, 224, 26, 16, x + 45 - 13, 83, 0, 0, false, false, 255, 255, 255)
             end
         end
-        if self.race_mode==MODE_RACE and self.best_lap_timer >= 0 then
-            local x=200
-            local y=0
-            gfx.rectangle(x,y,100,18,0.2,0.2,0.2)
-            printc("Best lap "..best_lap_driver.short_name,x+50,y+1,9)
-            printc(format_time(best_lap_time),x+50,y+9,9)
+        if self.race_mode == MODE_RACE and self.best_lap_timer >= 0 then
+            local x = 200
+            local y = 0
+            gfx.rectangle(x, y, 100, 18, 50, 50, 50)
+            printc("Best lap " .. best_lap_driver.short_name, x + 50, y + 1, 9)
+            printc(format_time(best_lap_time), x + 50, y + 9, 9)
         end
         -- pit stop panel
         if player.pit then
-            local x=gfx.SCREEN_WIDTH-110
-            gfx.rectangle(x,50,108,75,0.2,0.2,0.2)
-            printc("Choose tyre",x+55,52,7)
-            gfx.blit(66,8,24,12,x+55-12,62,0,0,false,false,1,1,1)
-            for i=0,2 do
-                gfx.blit(224,192,32,32, x+6+i*36,76,0,0,false,false,1,1,1)
-                gfx.blit(256+i*27,192,27,32,x+2+i*36,76,0,0,false,false,1,1,1)
+            local x = gfx.SCREEN_WIDTH - 110
+            gfx.rectangle(x, 50, 108, 75, 50, 50, 50)
+            printc("Choose tyre", x + 55, 52, 7)
+            gfx.blit(66, 8, 24, 12, x + 55 - 12, 62, 0, 0, false, false, 255, 255, 255)
+            for i = 0, 2 do
+                gfx.blit(224, 192, 32, 32, x + 6 + i * 36, 76, 0, 0, false, false, 255, 255, 255)
+                gfx.blit(256 + i * 27, 192, 27, 32, x + 2 + i * 36, 76, 0, 0, false, false, 255, 255, 255)
             end
-            rect(x+1+self.tyre*36,75,36,34,9)
-            printc(TYRE_TYPE[self.tyre+1],x+55,114,TYRE_COL[self.tyre+1])
+            rect(x + 1 + self.tyre * 36, 75, 36, 34, 9)
+            printc(TYRE_TYPE[self.tyre + 1], x + 55, 114, TYRE_COL[self.tyre + 1])
         end
 
         -- ranking board
@@ -2671,7 +2711,7 @@ function race()
                         60, y, car.is_player and 7 or 6)
                     rectfill(21, y, 27, y + 8, car.color)
                     if car.race_finished then
-                        gfx.blit(149,0,6,8,57,y,0,0,false,false,1,1,1)
+                        gfx.blit(149, 0, 6, 8, 57, y, 0, 0, false, false, 255, 255, 255)
                     end
                     y = y + 9
                 end
@@ -2708,7 +2748,7 @@ function race()
                 end
                 rectfill(69, y - 1, 75, y + 7, car.color)
                 if car.race_finished then
-                    gfx.blit(149,0,6,8,233,y,0,0,false,false,1,1,1)
+                    gfx.blit(149, 0, 6, 8, 233, y, 0, 0, false, false, 255, 255, 255)
                 end
             end
         end
@@ -2752,17 +2792,18 @@ function race()
             local count = -flr(time)
             local lit = 4 - count
             for i = 1, lit do
-                gfx.blit(34, 0, 20, 20, 217 + i * 22, 44, 0, 0, false, false, 1, 1, 1)
+                gfx.blit(34, 0, 20, 20, 217 + i * 22, 44, 0, 0, false, false, 255, 255, 255)
             end
             for i = lit + 1, 3 do
-                gfx.blit(14, 0, 20, 20, 217 + i * 22, 44, 0, 0, false, false, 1, 1, 1)
+                gfx.blit(14, 0, 20, 20, 217 + i * 22, 44, 0, 0, false, false, 255, 255, 255)
             end
         end
         if player.collision > 0 or self.completed then
             player.collision = player.collision - 0.1
         end
-        return minseg,maxseg
+        return minseg, maxseg
     end
+
     return race
 end
 
@@ -2844,6 +2885,7 @@ function paused_menu(game)
             end
         end
     end
+
     function m:draw()
         game:draw()
         rectfill(115, 40, 233, 88, 1)
@@ -2852,6 +2894,7 @@ function paused_menu(game)
         gprint("Restart race", 120, 66, selected == 2 and frame % 4 < 2 and 7 or 6)
         gprint("Exit", 120, 76, selected == 3 and frame % 4 < 2 and 7 or 6)
     end
+
     return m
 end
 
@@ -2881,11 +2924,13 @@ function completed_menu(game)
             end
         end
     end
+
     function m:draw()
         game:draw()
         gprint("Retry", 53, 204, self.selected == 1 and frame % 16 < 8 and 8 or 6)
         gprint("Exit", 53, 214, self.selected == 2 and frame % 16 < 8 and 8 or 6)
     end
+
     return m
 end
 
@@ -2909,7 +2954,7 @@ function clamp(val, lower, upper)
 end
 
 function clampv(v, max)
-    return vec(mid(-max, v.x, max), mid(-max, v.y, max))
+    return vec(mid( -max, v.x, max), mid( -max, v.y, max))
 end
 
 function format_number(n)
@@ -2942,8 +2987,8 @@ function onscreen(p)
     return p.x >= -30 and p.x <= gfx.SCREEN_WIDTH + 30 and p.y >= -30 and p.y <= gfx.SCREEN_HEIGHT + 30
 end
 
-function inside_rect(x,y,rx,ry,rw,rh)
-    return x >= rx and y >= ry and x <rx+rw and y <ry+rh
+function inside_rect(x, y, rx, ry, rw, rh)
+    return x >= rx and y >= ry and x < rx + rw and y < ry + rh
 end
 
 function length(v)
@@ -2964,12 +3009,12 @@ function side_of_line(v1, v2, px, py)
 end
 
 function car_lap_seg(s1, s2)
-    local pseg=s2.current_segment
-    while abs(s1+mapsize - pseg) < abs(s1-pseg) do
-        s1 = s1+mapsize
+    local pseg = s2.current_segment
+    while abs(s1 + mapsize - pseg) < abs(s1 - pseg) do
+        s1 = s1 + mapsize
     end
-    while abs(s1-mapsize - pseg) < abs(s1-pseg) do
-        s1=s1-mapsize
+    while abs(s1 - mapsize - pseg) < abs(s1 - pseg) do
+        s1 = s1 - mapsize
     end
     return s1
 end
@@ -2985,23 +3030,24 @@ function wrap(input, max)
 end
 
 function get_segment_from_section(sec)
-    for i=1,#vecmap do
-        if vecmap[i].section==sec then
+    for i = 1, #vecmap do
+        if vecmap[i].section == sec then
             return i
         end
     end
     return -1
 end
+
 function get_vec_from_vecmap(seg)
     seg = wrap(seg, mapsize)
-    local v = vecmap[seg+1]
-    return vec(v.x,v.y)
+    local v = vecmap[seg + 1]
+    return vec(v.x, v.y)
 end
 
 function find_segment_from_pos(pos, last_good_seg)
-    for seg=0,mapsize-1 do
-        local pseg = last_good_seg and last_good_seg+seg or seg+1
-        local seglostpoly=get_segment(pseg, true)
+    for seg = 0, mapsize - 1 do
+        local pseg = last_good_seg and last_good_seg + seg or seg + 1
+        local seglostpoly = get_segment(pseg, true)
         if seglostpoly and point_in_polygon(seglostpoly, pos) then
             return pseg
         end
@@ -3010,7 +3056,7 @@ end
 
 function get_data_from_vecmap(seg)
     seg = wrap(seg, mapsize)
-    return vecmap[seg+1]
+    return vecmap[seg + 1]
 end
 
 function get_segment(seg, enlarge, for_collision)
@@ -3021,45 +3067,45 @@ function get_segment(seg, enlarge, for_collision)
     local lastv = get_data_from_vecmap(seg)
     local lastlastv = get_vec_from_vecmap(seg - 1)
 
-    local front=v.front
+    local front = v.front
     local side = v.side
-    local lastfront=lastv.front
+    local lastfront = lastv.front
     local lastside = lastv.side
 
-    local lastwl = lastv.ltyp & 7==0 and lastv.w+4 or lastv.w+40
-    local lastwr = lastv.rtyp & 7==0 and lastv.w+4 or lastv.w+40
-    local wl = v.ltyp & 7==0 and v.w+4 or v.w+40
-    local wr = v.rtyp & 7==0 and v.w+4 or v.w+40
+    local lastwl = lastv.ltyp & 7 == 0 and lastv.w + 4 or lastv.w + 40
+    local lastwr = lastv.rtyp & 7 == 0 and lastv.w + 4 or lastv.w + 40
+    local wl = v.ltyp & 7 == 0 and v.w + 4 or v.w + 40
+    local wr = v.rtyp & 7 == 0 and v.w + 4 or v.w + 40
     if for_collision then
-        local lpit_entry,rpit_entry
+        local lpit_entry, rpit_entry
         if not lastv.has_lrail then
-            if v.ltyp//8 >= OBJ_PIT_EXIT1 then
-                lastwl =  lastv.w + 10+7*(3-(v.ltyp//8-OBJ_PIT_EXIT1))
-            elseif lastv.ltyp//8 >= OBJ_PIT_ENTRY1 then
-                lpit_entry=lastv.ltyp//8-OBJ_PIT_ENTRY1
-                lastwl =  lastv.w + 16+7*lpit_entry
+            if v.ltyp // 8 >= OBJ_PIT_EXIT1 then
+                lastwl = lastv.w + 10 + 7 * (3 - (v.ltyp // 8 - OBJ_PIT_EXIT1))
+            elseif lastv.ltyp // 8 >= OBJ_PIT_ENTRY1 then
+                lpit_entry = lastv.ltyp // 8 - OBJ_PIT_ENTRY1
+                lastwl = lastv.w + 16 + 7 * lpit_entry
             else
                 lastwl = 200
             end
         end
         if not lastv.has_rrail then
-            if v.rtyp//8 >= OBJ_PIT_EXIT1 then
-                lastwr =  lastv.w + 10+7*(3-(v.rtyp//8-OBJ_PIT_EXIT1))
-            elseif lastv.rtyp//8 >= OBJ_PIT_ENTRY1 then
-                rpit_entry=lastv.rtyp//8-OBJ_PIT_ENTRY1
-                lastwr =  lastv.w + 16+7*rpit_entry
+            if v.rtyp // 8 >= OBJ_PIT_EXIT1 then
+                lastwr = lastv.w + 10 + 7 * (3 - (v.rtyp // 8 - OBJ_PIT_EXIT1))
+            elseif lastv.rtyp // 8 >= OBJ_PIT_ENTRY1 then
+                rpit_entry = lastv.rtyp // 8 - OBJ_PIT_ENTRY1
+                lastwr = lastv.w + 16 + 7 * rpit_entry
             else
                 lastwr = 200
             end
         end
         if not v.has_lrail then
-            if nextv.ltyp//8 == OBJ_PIT_EXIT1 then
-                lastwl = lastv.w+31
+            if nextv.ltyp // 8 == OBJ_PIT_EXIT1 then
+                lastwl = lastv.w + 31
                 wl = lastwl
-            elseif v.ltyp//8 >= OBJ_PIT_EXIT1 then
-                wl = v.w + 10+7*(2-(v.ltyp//8-OBJ_PIT_EXIT1))
-            elseif v.ltyp//8 >= OBJ_PIT_ENTRY1 then
-                wl = v.w + 16+7*(v.ltyp//8-OBJ_PIT_ENTRY1)
+            elseif v.ltyp // 8 >= OBJ_PIT_EXIT1 then
+                wl = v.w + 10 + 7 * (2 - (v.ltyp // 8 - OBJ_PIT_EXIT1))
+            elseif v.ltyp // 8 >= OBJ_PIT_ENTRY1 then
+                wl = v.w + 16 + 7 * (v.ltyp // 8 - OBJ_PIT_ENTRY1)
             else
                 wl = 200
             end
@@ -3067,13 +3113,13 @@ function get_segment(seg, enlarge, for_collision)
             wl = lastwl
         end
         if not v.has_rrail then
-            if nextv.rtyp//8 == OBJ_PIT_EXIT1 then
-                lastwr = lastv.w+31
+            if nextv.rtyp // 8 == OBJ_PIT_EXIT1 then
+                lastwr = lastv.w + 31
                 wr = lastwr
-            elseif v.rtyp//8 >= OBJ_PIT_EXIT1 then
-                wr = v.w + 10+7*(2-(v.rtyp//8-OBJ_PIT_EXIT1))
-            elseif v.rtyp//8 >= OBJ_PIT_ENTRY1 then
-                wr = v.w + 16+7*(v.rtyp//8-OBJ_PIT_ENTRY1)
+            elseif v.rtyp // 8 >= OBJ_PIT_EXIT1 then
+                wr = v.w + 10 + 7 * (2 - (v.rtyp // 8 - OBJ_PIT_EXIT1))
+            elseif v.rtyp // 8 >= OBJ_PIT_ENTRY1 then
+                wr = v.w + 16 + 7 * (v.rtyp // 8 - OBJ_PIT_ENTRY1)
             else
                 wr = 200
             end
@@ -3091,29 +3137,29 @@ function get_segment(seg, enlarge, for_collision)
     local lastoffsetr = scalev(lastside, lastwr)
     local offsetl = scalev(side, wl)
     local offsetr = scalev(side, wr)
-    local front_left=vecadd(v, offsetl)
-    local front_right=vecsub(v, offsetr)
-    local back_left=vecadd(lastv, lastoffsetl)
-    local back_right=vecsub(lastv, lastoffsetr)
-    if dot(vecsub(front_left,v),lastfront)<dot(vecsub(back_left,v),lastfront) then
-        local v=intersection(front_left,front_right, back_left,back_right)
-        front_left,back_left=v,v
+    local front_left = vecadd(v, offsetl)
+    local front_right = vecsub(v, offsetr)
+    local back_left = vecadd(lastv, lastoffsetl)
+    local back_right = vecsub(lastv, lastoffsetr)
+    if dot(vecsub(front_left, v), lastfront) < dot(vecsub(back_left, v), lastfront) then
+        local v = intersection(front_left, front_right, back_left, back_right)
+        front_left, back_left = v, v
     end
-    if dot(vecsub(front_right,v),lastfront)<dot(vecsub(back_right,v),lastfront) then
-        local v=intersection(front_left,front_right, back_left,back_right)
-        front_right,back_right=v,v
+    if dot(vecsub(front_right, v), lastfront) < dot(vecsub(back_right, v), lastfront) then
+        local v = intersection(front_left, front_right, back_left, back_right)
+        front_right, back_right = v, v
     end
-    return {back_left, back_right, front_right, front_left}
+    return { back_left, back_right, front_right, front_left }
 end
 
 -- intersection between segments [ab] and [cd]
-function intersection(a,b,c,d)
-    local e=(a.x-b.x)*(c.y-d.y)-(a.y-b.y)*(c.x-d.x)
-    if e~=0 then
-        local i,j = a.x*b.y-a.y*b.x, c.x*d.y-c.y*d.x
-        local x=(i*(c.x-d.x)-j*(a.x-b.x))/e
-        local y=(i*(c.y-d.y)-j*(a.y-b.y))/e
-        return vec(x,y)
+function intersection(a, b, c, d)
+    local e = (a.x - b.x) * (c.y - d.y) - (a.y - b.y) * (c.x - d.x)
+    if e ~= 0 then
+        local i, j = a.x * b.y - a.y * b.x, c.x * d.y - c.y * d.x
+        local x = (i * (c.x - d.x) - j * (a.x - b.x)) / e
+        local y = (i * (c.y - d.y) - j * (a.y - b.y)) / e
+        return vec(x, y)
     end
     return nil
 end
@@ -3131,7 +3177,7 @@ function vecadd(a, b)
 end
 
 function vecinv(a)
-    return vec(-a.x,-a.y)
+    return vec( -a.x, -a.y)
 end
 
 function midpoint(a, b)
@@ -3219,143 +3265,145 @@ end
 function lerp(a, b, t)
     return (1 - t) * a + t * b
 end
+
 function lerpv(a, b, t)
     return vec(lerp(a.x, b.x, t), lerp(a.y, b.y, t))
 end
 
 TRACKS = {
-    [0] = {1337, 4, 128, 32, 25,48,0,0,  2, 128, 32, 9,48,0,0, 6, 128, 32, 9,56,0,0, 4, 128, 32, 1,1,0,0, 4, 128, 32, 17,25,0,0, 2, 128, 32, 25,25,0,0, 2, 128, 32, 1,1,0,-1,
+    [0] = { 1337, 4, 128, 32, 25, 48, 0, 0, 2, 128, 32, 9, 48, 0, 0, 6, 128, 32, 9, 56, 0, 0, 4, 128, 32, 1, 1, 0, 0, 4, 128, 32, 17, 25, 0, 0, 2, 128, 32, 25, 25, 0, 0, 2, 128, 32, 1, 1, 0, -1,
         -- prima variante
-        3, 120, 32, 1,1,-1,3, 3, 140, 32, 1,17,3,0,
+        3, 120, 32, 1, 1, -1, 3, 3, 140, 32, 1, 17, 3, 0,
         -- curva biassono
-        2, 126, 32, 1,0,0,0, 2, 126, 32, 17,24,1,0, 2, 126, 32, 25,24,0,0,
-        6, 128, 32, 25,24,0,0, 8, 126, 32, 26,24,0,0, 6, 127,32, 26,24,0,0, 6, 128, 32, 0,24,0,0, 1, 128, 32, 32,24,0,0, 2, 128, 32, 0,24,0,0, 1, 128, 32, 25,24,1,0,
+        2, 126, 32, 1, 0, 0, 0, 2, 126, 32, 17, 24, 1, 0, 2, 126, 32, 25, 24, 0, 0,
+        6, 128, 32, 25, 24, 0, 0, 8, 126, 32, 26, 24, 0, 0, 6, 127, 32, 26, 24, 0, 0, 6, 128, 32, 0, 24, 0, 0, 1, 128, 32, 32, 24, 0, 0, 2, 128, 32, 0, 24, 0, 0, 1, 128, 32, 25, 24, 1, 0,
         -- seconda variante
-        2, 137, 32, 25,27,1,0, 3, 123, 32, 26,27,0,0, 2, 128, 32, 24,16,0,0, 8, 128, 32, 24,24,0,0,
+        2, 137, 32, 25, 27, 1, 0, 3, 123, 32, 26, 27, 0, 0, 2, 128, 32, 24, 16, 0, 0, 8, 128, 32, 24, 24, 0, 0,
         -- prima curva di lesmo
-        9, 125, 32, 26,24,0,0, 8, 128, 32, 25,24,0,0,
+        9, 125, 32, 26, 24, 0, 0, 8, 128, 32, 25, 24, 0, 0,
         -- seconda curva di lesmo
-        4, 123.0, 32, 26,24,0,0,  4, 128, 32, 26,24,0,0, 8, 128, 32, 24,24,0,0,
+        4, 123.0, 32, 26, 24, 0, 0, 4, 128, 32, 26, 24, 0, 0, 8, 128, 32, 24, 24, 0, 0,
         -- curva del serraglio
-        5, 129, 32, 24,24,0,0, 16, 128, 32, 24,24,0,0,
+        5, 129, 32, 24, 24, 0, 0, 16, 128, 32, 24, 24, 0, 0,
         -- variante ascari
-        5, 131, 32, 25,26,0,0,
-        7, 125, 32,26,25,0,0,  6, 131, 32,25,18,0,0,  2, 128, 32,0,0,0,0, 6, 128, 32,0,8,0,0, 9, 128, 32,0,0,0,0, 1, 128, 32,32,0,0,0, 7, 128, 32,0,0,0,0, 1,128, 32,32,0,0,0, 1, 128, 32,0,0,0,0,
-        2, 128, 32,24,24,0,0, 6, 128, 32,16,24,0,0,  2, 128, 32,8,0,0,0,
+        5, 131, 32, 25, 26, 0, 0,
+        7, 125, 32, 26, 25, 0, 0, 6, 131, 32, 25, 18, 0, 0, 2, 128, 32, 0, 0, 0, 0, 6, 128, 32, 0, 8, 0, 0, 9, 128, 32, 0, 0, 0, 0, 1, 128, 32, 32, 0, 0, 0, 7, 128, 32, 0, 0, 0, 0, 1, 128, 32, 32, 0, 0, 0, 1, 128, 32, 0, 0, 0, 0,
+        2, 128, 32, 24, 24, 0, 0, 6, 128, 32, 16, 24, 0, 0, 2, 128, 32, 8, 0, 0, 0,
         -- curva parabolica
-        5, 121.1, 32,27,0,0,0,  7, 127.1, 32,27,0,0,0,  6, 126.8,32, 26,24,0,0, 2, 126.8,32, 10,24,0,0,
-        6, 128.0, 32, 10,24,0,0, 5, 128.0, 32, 9,56,0,0, 1, 128.0, 32, 41,56,0,0,  10, 128, 32, 9,48,0,0, 0, 0, 0,0,0,0,0},
-    {10, 128, 32, 10, 125, 32, 10, 127, 32, 6, 127, 32, 6, 121, 32, 6, 120, 32, 6, 120, 32, 6, 120, 32, 6, 125, 32, 6,
-     135, 32, 6, 131, 32, 6, 129, 32, 6, 130, 32, 6, 131, 32, 6, 130, 32, 6, 129, 32, 6, 128, 32, 6, 125, 32, 6, 125,
-     32, 6, 124, 32, 6, 124, 32, 6, 123, 32, 6, 121, 32, 6, 127, 32, 6, 136, 32, 6, 128, 32, 6, 128, 32, 6, 126, 32, 6,
-     125, 32, 6, 125, 32, 6, 125, 32, 6, 129, 32, 6, 131, 32, 3, 129, 32, 3, 125, 32, 3, 127, 32, 0, 0, 0},
-    {10, 128, 32, 10, 129, 32, 10, 129, 32, 10, 138, 32, 10, 138, 32, 10, 124, 32, 10, 125, 32, 10, 127, 32, 10, 129,
-     32, 10, 129, 32, 10, 128, 32, 10, 130, 32, 10, 129, 32, 10, 128, 32, 10, 122, 32, 10, 122, 32, 10, 123, 32, 10,
-     127, 32, 10, 131, 32, 10, 131, 32, 10, 128, 32, 10, 126, 32, 10, 126, 32, 10, 128, 32, 10, 128, 32, 10, 127, 32,
-     10, 122, 32, 10, 135, 32, 10, 121, 32, 10, 129, 32, 10, 130, 32, 10, 130, 32, 9, 129, 32, 4, 126, 32, 2, 124, 32,
-     2, 126, 32, 0, 0, 0},
-    {10, 128, 32, 10, 128, 32, 10, 132, 32, 10, 130, 32, 10, 121, 32, 10, 132, 32, 10, 134, 32, 10, 136, 32, 10, 122,
-     32, 10, 127, 32, 10, 126, 32, 10, 133, 32, 10, 130, 32, 10, 128, 32, 10, 128, 32, 10, 131, 32, 10, 128, 32, 10,
-     122, 32, 10, 122, 32, 10, 122, 32, 10, 122, 32, 10, 128, 32, 10, 128, 32, 10, 130, 32, 10, 132, 32, 10, 128, 32,
-     10, 126, 32, 10, 129, 32, 10, 126, 32, 10, 126, 32, 10, 128, 32, 10, 128, 32, 10, 127, 32, 10, 123, 32, 10, 129,
-     32, 10, 130, 32, 7, 127, 32, 4, 127, 32, 2, 124, 32, 2, 129, 32, 2, 126, 32, 0, 0, 0},
-    {10, 128, 32, 6, 136, 32, 3, 131, 32, 3, 113, 32, 3, 124, 32, 3, 125, 32, 3, 126, 32, 3, 138, 32, 3, 137, 32, 3,
-     140, 32, 3, 129, 32, 3, 128, 32, 3, 127, 32, 3, 127, 32, 3, 127, 32, 3, 127, 32, 3, 123, 32, 3, 122, 32, 3, 119,
-     32, 3, 123, 32, 3, 144, 32, 16, 129, 32, 3, 113, 32, 3, 144, 32, 3, 112, 32, 3, 145, 32, 3, 131, 32, 11, 126, 32,
-     11, 125, 32, 5, 129, 32, 5, 138, 32, 5, 138, 32, 5, 138, 32, 5, 138, 32, 5, 123, 32, 5, 127, 32, 2, 131, 32, 2,
-     130, 32, 2, 127, 32, 2, 129, 32, 1, 124, 32, 0, 0, 0},
-    {10, 127, 32, 10, 128, 32, 3, 120, 32, 3, 128, 32, 3, 128, 32, 3, 133, 32, 3, 133, 32, 3, 129, 32, 3, 131, 32, 3,
-     132, 32, 3, 133, 32, 3, 122, 32, 3, 128, 32, 3, 128, 32, 3, 128, 32, 3, 128, 32, 3, 135, 32, 3, 124, 32, 3, 122,
-     32, 3, 127, 32, 3, 133, 32, 2, 137, 32, 20, 124, 32, 13, 130, 32, 13, 126, 32, 13, 130, 32, 13, 126, 32, 13, 126,
-     32, 8, 128, 32, 8, 131, 32, 8, 130, 32, 8, 126, 32, 8, 124, 32, 8, 127, 32, 8, 129, 32, 8, 128, 32, 8, 127, 32, 8,
-     127, 32, 8, 127, 32, 8, 131, 32, 4, 132, 32, 4, 123, 32, 4, 128, 32, 4, 139, 32, 4, 126, 32, 4, 126, 32, 4, 126,
-     32, 4, 133, 32, 4, 130, 32, 4, 127, 32, 4, 127, 32, 4, 126, 32, 4, 126, 32, 4, 120, 32, 4, 120, 32, 4, 120, 32, 4,
-     120, 32, 4, 120, 32, 4, 123, 32, 4, 128, 32, 4, 130, 32, 4, 130, 32, 4, 131, 32, 4, 130, 32, 4, 129, 32, 3, 128,
-     32, 2, 127, 32, 2, 126, 32, 1, 132, 32, 0, 0, 0},
-    {10, 127, 32, 8, 129, 32, 8, 129, 32, 3, 118, 32, 3, 140, 32, 3, 134, 32, 3, 132, 32, 3, 120, 32, 3, 123, 32, 3,
-     127, 32, 3, 139, 32, 11, 126, 32, 11, 121, 32, 5, 126, 32, 5, 131, 32, 5, 131, 32, 4, 133, 32, 4, 121, 32, 6, 124,
-     32, 6, 130, 32, 6, 136, 32, 6, 125, 32, 6, 128, 32, 6, 129, 32, 2, 118, 32, 2, 120, 32, 4, 128, 32, 4, 126, 32, 4,
-     125, 32, 4, 134, 32, 4, 127, 32, 4, 122, 32, 4, 129, 32, 4, 140, 32, 10, 127, 32, 10, 127, 32, 10, 130, 32, 10,
-     129, 32, 10, 128, 32, 10, 128, 32, 3, 138, 32, 3, 115, 32, 3, 126, 32, 8, 131, 32, 8, 130, 32, 8, 126, 32, 8, 129,
-     32, 4, 120, 32, 8, 133, 32, 8, 128, 32, 8, 130, 32, 3, 122, 32, 8, 128, 32, 8, 131, 32, 8, 126, 32, 8, 136, 32, 8,
-     136, 32, 8, 136, 32, 8, 136, 32, 8, 128, 32, 8, 126, 32, 8, 123, 32, 8, 137, 32, 8, 119, 32, 8, 137, 32, 16, 124,
-     32, 16, 127, 32, 16, 132, 32, 16, 127, 32, 16, 127, 32, 16, 117, 32, 16, 132, 32, 6, 125, 32, 6, 128, 33, 3, 128,
-     33, 1, 131, 34, 0, 0, 0},
-    {10, 129, 32, 10, 128, 32, 3, 138, 32, 3, 118, 32, 3, 128, 32, 3, 137, 32, 3, 124, 32, 7, 126, 32, 6, 128, 32, 6,
-     124, 32, 6, 128, 32, 6, 125, 32, 6, 128, 32, 6, 128, 32, 6, 128, 32, 6, 129, 32, 6, 129, 32, 6, 126, 32, 6, 126,
-     32, 6, 127, 32, 6, 129, 32, 6, 128, 32, 2, 114, 32, 5, 128, 32, 2, 139, 32, 8, 128, 32, 11, 122, 32, 11, 122, 32,
-     11, 122, 32, 11, 122, 32, 4, 138, 32, 5, 124, 32, 5, 129, 32, 5, 136, 32, 5, 129, 32, 5, 129, 32, 5, 127, 32, 5,
-     128, 32, 2, 118, 32, 2, 125, 32, 2, 140, 32, 7, 129, 32, 4, 113, 32, 9, 130, 32, 9, 130, 32, 2, 104, 32, 6, 128,
-     32, 6, 132, 32, 6, 132, 32, 6, 131, 32, 6, 137, 32, 6, 137, 32, 6, 137, 32, 6, 137, 32, 6, 137, 32, 6, 137, 32, 6,
-     137, 32, 6, 129, 32, 6, 128, 32, 6, 128, 32, 6, 119, 32, 6, 119, 32, 6, 119, 32, 6, 126, 32, 6, 134, 32, 6, 129,
-     32, 6, 128, 32, 6, 123, 32, 6, 128, 32, 6, 126, 32, 6, 126, 32, 6, 132, 32, 3, 138, 32, 3, 132, 32, 3, 125, 32, 3,
-     125, 32, 2, 130, 33, 1, 127, 33, 0, 127, 33, 0, 0, 0}
+        5, 121.1, 32, 27, 0, 0, 0, 7, 127.1, 32, 27, 0, 0, 0, 6, 126.8, 32, 26, 24, 0, 0, 2, 126.8, 32, 10, 24, 0, 0,
+        6, 128.0, 32, 10, 24, 0, 0, 5, 128.0, 32, 9, 56, 0, 0, 1, 128.0, 32, 41, 56, 0, 0, 10, 128, 32, 9, 48, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    { 10, 128, 32, 10, 125, 32, 10, 127, 32, 6, 127, 32, 6, 121, 32, 6, 120, 32, 6, 120, 32, 6, 120, 32, 6, 125, 32, 6,
+        135, 32, 6, 131, 32, 6, 129, 32, 6, 130, 32, 6, 131, 32, 6, 130, 32, 6, 129, 32, 6, 128, 32, 6, 125, 32, 6, 125,
+        32, 6, 124, 32, 6, 124, 32, 6, 123, 32, 6, 121, 32, 6, 127, 32, 6, 136, 32, 6, 128, 32, 6, 128, 32, 6, 126, 32, 6,
+        125, 32, 6, 125, 32, 6, 125, 32, 6, 129, 32, 6, 131, 32, 3, 129, 32, 3, 125, 32, 3, 127, 32, 0, 0, 0 },
+    { 10, 128, 32, 10, 129, 32, 10, 129, 32, 10, 138, 32, 10, 138, 32, 10, 124, 32, 10, 125, 32, 10, 127, 32, 10, 129,
+        32, 10, 129, 32, 10, 128, 32, 10, 130, 32, 10, 129, 32, 10, 128, 32, 10, 122, 32, 10, 122, 32, 10, 123, 32, 10,
+        127, 32, 10, 131, 32, 10, 131, 32, 10, 128, 32, 10, 126, 32, 10, 126, 32, 10, 128, 32, 10, 128, 32, 10, 127, 32,
+        10, 122, 32, 10, 135, 32, 10, 121, 32, 10, 129, 32, 10, 130, 32, 10, 130, 32, 9, 129, 32, 4, 126, 32, 2, 124, 32,
+        2, 126, 32, 0, 0, 0 },
+    { 10, 128, 32, 10, 128, 32, 10, 132, 32, 10, 130, 32, 10, 121, 32, 10, 132, 32, 10, 134, 32, 10, 136, 32, 10, 122,
+        32, 10, 127, 32, 10, 126, 32, 10, 133, 32, 10, 130, 32, 10, 128, 32, 10, 128, 32, 10, 131, 32, 10, 128, 32, 10,
+        122, 32, 10, 122, 32, 10, 122, 32, 10, 122, 32, 10, 128, 32, 10, 128, 32, 10, 130, 32, 10, 132, 32, 10, 128, 32,
+        10, 126, 32, 10, 129, 32, 10, 126, 32, 10, 126, 32, 10, 128, 32, 10, 128, 32, 10, 127, 32, 10, 123, 32, 10, 129,
+        32, 10, 130, 32, 7, 127, 32, 4, 127, 32, 2, 124, 32, 2, 129, 32, 2, 126, 32, 0, 0, 0 },
+    { 10, 128, 32, 6, 136, 32, 3, 131, 32, 3, 113, 32, 3, 124, 32, 3, 125, 32, 3, 126, 32, 3, 138, 32, 3, 137, 32, 3,
+        140, 32, 3, 129, 32, 3, 128, 32, 3, 127, 32, 3, 127, 32, 3, 127, 32, 3, 127, 32, 3, 123, 32, 3, 122, 32, 3, 119,
+        32, 3, 123, 32, 3, 144, 32, 16, 129, 32, 3, 113, 32, 3, 144, 32, 3, 112, 32, 3, 145, 32, 3, 131, 32, 11, 126, 32,
+        11, 125, 32, 5, 129, 32, 5, 138, 32, 5, 138, 32, 5, 138, 32, 5, 138, 32, 5, 123, 32, 5, 127, 32, 2, 131, 32, 2,
+        130, 32, 2, 127, 32, 2, 129, 32, 1, 124, 32, 0, 0, 0 },
+    { 10, 127, 32, 10, 128, 32, 3, 120, 32, 3, 128, 32, 3, 128, 32, 3, 133, 32, 3, 133, 32, 3, 129, 32, 3, 131, 32, 3,
+        132, 32, 3, 133, 32, 3, 122, 32, 3, 128, 32, 3, 128, 32, 3, 128, 32, 3, 128, 32, 3, 135, 32, 3, 124, 32, 3, 122,
+        32, 3, 127, 32, 3, 133, 32, 2, 137, 32, 20, 124, 32, 13, 130, 32, 13, 126, 32, 13, 130, 32, 13, 126, 32, 13, 126,
+        32, 8, 128, 32, 8, 131, 32, 8, 130, 32, 8, 126, 32, 8, 124, 32, 8, 127, 32, 8, 129, 32, 8, 128, 32, 8, 127, 32, 8,
+        127, 32, 8, 127, 32, 8, 131, 32, 4, 132, 32, 4, 123, 32, 4, 128, 32, 4, 139, 32, 4, 126, 32, 4, 126, 32, 4, 126,
+        32, 4, 133, 32, 4, 130, 32, 4, 127, 32, 4, 127, 32, 4, 126, 32, 4, 126, 32, 4, 120, 32, 4, 120, 32, 4, 120, 32, 4,
+        120, 32, 4, 120, 32, 4, 123, 32, 4, 128, 32, 4, 130, 32, 4, 130, 32, 4, 131, 32, 4, 130, 32, 4, 129, 32, 3, 128,
+        32, 2, 127, 32, 2, 126, 32, 1, 132, 32, 0, 0, 0 },
+    { 10, 127, 32, 8, 129, 32, 8, 129, 32, 3, 118, 32, 3, 140, 32, 3, 134, 32, 3, 132, 32, 3, 120, 32, 3, 123, 32, 3,
+        127, 32, 3, 139, 32, 11, 126, 32, 11, 121, 32, 5, 126, 32, 5, 131, 32, 5, 131, 32, 4, 133, 32, 4, 121, 32, 6, 124,
+        32, 6, 130, 32, 6, 136, 32, 6, 125, 32, 6, 128, 32, 6, 129, 32, 2, 118, 32, 2, 120, 32, 4, 128, 32, 4, 126, 32, 4,
+        125, 32, 4, 134, 32, 4, 127, 32, 4, 122, 32, 4, 129, 32, 4, 140, 32, 10, 127, 32, 10, 127, 32, 10, 130, 32, 10,
+        129, 32, 10, 128, 32, 10, 128, 32, 3, 138, 32, 3, 115, 32, 3, 126, 32, 8, 131, 32, 8, 130, 32, 8, 126, 32, 8, 129,
+        32, 4, 120, 32, 8, 133, 32, 8, 128, 32, 8, 130, 32, 3, 122, 32, 8, 128, 32, 8, 131, 32, 8, 126, 32, 8, 136, 32, 8,
+        136, 32, 8, 136, 32, 8, 136, 32, 8, 128, 32, 8, 126, 32, 8, 123, 32, 8, 137, 32, 8, 119, 32, 8, 137, 32, 16, 124,
+        32, 16, 127, 32, 16, 132, 32, 16, 127, 32, 16, 127, 32, 16, 117, 32, 16, 132, 32, 6, 125, 32, 6, 128, 33, 3, 128,
+        33, 1, 131, 34, 0, 0, 0 },
+    { 10, 129, 32, 10, 128, 32, 3, 138, 32, 3, 118, 32, 3, 128, 32, 3, 137, 32, 3, 124, 32, 7, 126, 32, 6, 128, 32, 6,
+        124, 32, 6, 128, 32, 6, 125, 32, 6, 128, 32, 6, 128, 32, 6, 128, 32, 6, 129, 32, 6, 129, 32, 6, 126, 32, 6, 126,
+        32, 6, 127, 32, 6, 129, 32, 6, 128, 32, 2, 114, 32, 5, 128, 32, 2, 139, 32, 8, 128, 32, 11, 122, 32, 11, 122, 32,
+        11, 122, 32, 11, 122, 32, 4, 138, 32, 5, 124, 32, 5, 129, 32, 5, 136, 32, 5, 129, 32, 5, 129, 32, 5, 127, 32, 5,
+        128, 32, 2, 118, 32, 2, 125, 32, 2, 140, 32, 7, 129, 32, 4, 113, 32, 9, 130, 32, 9, 130, 32, 2, 104, 32, 6, 128,
+        32, 6, 132, 32, 6, 132, 32, 6, 131, 32, 6, 137, 32, 6, 137, 32, 6, 137, 32, 6, 137, 32, 6, 137, 32, 6, 137, 32, 6,
+        137, 32, 6, 129, 32, 6, 128, 32, 6, 128, 32, 6, 119, 32, 6, 119, 32, 6, 119, 32, 6, 126, 32, 6, 134, 32, 6, 129,
+        32, 6, 128, 32, 6, 123, 32, 6, 128, 32, 6, 126, 32, 6, 126, 32, 6, 132, 32, 3, 138, 32, 3, 132, 32, 3, 125, 32, 3,
+        125, 32, 2, 130, 33, 1, 127, 33, 0, 127, 33, 0, 0, 0 }
 }
 
 SFX =
-    {"PAT 12 D.2343 D.6615 D.6625 D.6615 D.2343 D.6615 D.6625 D.6615 D.2373 D.5603 D.2603 D.6643 D.2373 D.5603 D.6643 D.6643 D.2373 D.5603 D.2603 D.6643 D.2373 D.5603 D.6643 D.6643 D.2373 D.5603 D.5603 D.6643 D.2373 D.2303 D.6643 D.6643",
-     "PAT 24 D.1175 D.1155 D.1125 D.1115 D.2305 D.2305 D.2155 D.2125 F.1175 F.1155 F.1125 F.1115 D.2305 D.2305 A.2155 A.2125 G.2175 G.2155 G.2125 G.2115 G.2105 G.2105 F.2175 F.2155 F.2125 F.2115 D.4605 C.2605 A#2175 A#2155 A#2125 A#2115",
-     "PAT 24 D.2040 D.1040 D.2042 D.1042 D.2040 D.1040 D.2042 D.1042 F.2040 F.1040 F.2042 F.1042 E.2040 E.1040 E.2042 E.1042 G.2040 G.1040 G.2042 G.1042 A.2040 A.1040 A.2042 A.1042 A#2040 A#1040 A#2042 A.2042 D.2040 D.1040 D.2042 D.1042",
-     "PAT 48 D.2547 F.3537 A.2527 G.2517 D.2547 A.3537 F.2527 G.2517 D.2547 A#3537 G.2527 F.2517 D.2547 E.3537 F.2527 A.2517 D.2547 F.3537 A.2527 G.2517 G.2547 E.3537 F.2527 D.2517 D.2547 A.3537 A#2527 F.2517 A.2547 A#3537 D.2527 C.2517",
-     "PAT 24 D.3302 ...... F.3302 ...... D.3302 ...... E.3302 ...... F.3302 ...... D.3302 ...... E.3302 ...... G.3302 ...... D.3302 ...... C.3302 D.3302 C.3302 A.2302 A.3302 C.3302 D.3301 D.3302 F.3302 A.3302 A.3302 G.3301 D.3301 ......",
-     "PAT 12 D.3755 F.3755 A.3755 A#3755 D.3755 F.3755 A.3755 D.4755 D.4755 C.4755 D.4755 F.4755 A.4755 G.4755 A.4755 D.4755 D.4755 D.3755 C.4755 C.3755 E.3755 F.3755 A.3755 G.3755 D.4755 D.3755 D.4755 G.4755 F.4755 A.4755 A#4755 A.4755",
-     "PAT 12 D.4775 D.3775 D.4775 D.3775 D.4775 D.3775 D.4775 D.3775 D.4775 D.3775 D.4775 D.3775 D.4775 D.4775 D.4775 D.4775 E.4775 E.3775 E.4775 E.3775 D.4775 D.3775 D.4775 D.3775 F.4775 G.3775 G.4775 F.3775 D.4775 E.3775 D.4775 C.3775",
-     "PAT 12 D.3775 D.3705 D.2775 F.3705 F.2775 F.3705 F.2775 F.3705 F.3775 ...... F.2775 ...... A.2775 ...... A.2775 ...... A#3775 ...... A.2775 ...... G.2775 ...... F.2775 ...... E.3775 ...... E.2775 ...... D.2775 ...... C.2775 ......",
-     "PAT 24 D.1774 D.1772 D.1772 D.1772 D.1772 D.1772 D.1772 D.1772 D.1022 D.1022 D.1022 D.1022 D.1022 D.1022 D.1022 D.1022 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... C.1004",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 A.20F5 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 A.40F5 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 4 C.08F3 ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 3 D.4170 A#3170 F.3170 C#3170 G#2170 F.2170 D#2170 C.2170 A#1170 G#1170 F#1170 F.1170 E.1170 D#1170 D.1170 C#1170 C#1170",
-     "PAT 3 C#1170 C#1170 D#1170 E.1170 F.1170 F#1170 F#1170 G.1170 A.1170 A#1170 B.1170 C#2170 D#2170 F#2170 A.2170 A#2170 C#3170 D#3170 F.3170 F#3170 A.3170 A#3170",
-     "PAT 6 D.2610 D.2610 D.2610 D.2610 D.2610 D.2610 D.2610 D.2610",
-     "PAT 6 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620",
-     "PAT 6 A.3120 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620",
-     "PAT 3 C.6650 G.5650 D#5650 C.5640 E.4630 C#3620 F#2620 G#1610 C#3610 C#1310",
-     "PAT 6 A.3130 A.3620 A.3130 A.3620 A.3620 A.3620 A.3620 A.3620", "PAT 3 D#6650 C.6610 D#4610 D.2413",
-     "PAT 2 G#1600 D.1210 F.1210 A.1220 B.1230 D.2240 F.2240 G.2340 A#2350 G.2250 D#3360 G.3360 C.3260 B.3360 E.4360 E.3260 A.4360 G#5360 D.6360 F#4250 A#3350 G.4340 G.5340 D.6340",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
-     "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......"}
+{
+    "PAT 12 D.2343 D.6615 D.6625 D.6615 D.2343 D.6615 D.6625 D.6615 D.2373 D.5603 D.2603 D.6643 D.2373 D.5603 D.6643 D.6643 D.2373 D.5603 D.2603 D.6643 D.2373 D.5603 D.6643 D.6643 D.2373 D.5603 D.5603 D.6643 D.2373 D.2303 D.6643 D.6643",
+    "PAT 24 D.1175 D.1155 D.1125 D.1115 D.2305 D.2305 D.2155 D.2125 F.1175 F.1155 F.1125 F.1115 D.2305 D.2305 A.2155 A.2125 G.2175 G.2155 G.2125 G.2115 G.2105 G.2105 F.2175 F.2155 F.2125 F.2115 D.4605 C.2605 A#2175 A#2155 A#2125 A#2115",
+    "PAT 24 D.2040 D.1040 D.2042 D.1042 D.2040 D.1040 D.2042 D.1042 F.2040 F.1040 F.2042 F.1042 E.2040 E.1040 E.2042 E.1042 G.2040 G.1040 G.2042 G.1042 A.2040 A.1040 A.2042 A.1042 A#2040 A#1040 A#2042 A.2042 D.2040 D.1040 D.2042 D.1042",
+    "PAT 48 D.2547 F.3537 A.2527 G.2517 D.2547 A.3537 F.2527 G.2517 D.2547 A#3537 G.2527 F.2517 D.2547 E.3537 F.2527 A.2517 D.2547 F.3537 A.2527 G.2517 G.2547 E.3537 F.2527 D.2517 D.2547 A.3537 A#2527 F.2517 A.2547 A#3537 D.2527 C.2517",
+    "PAT 24 D.3302 ...... F.3302 ...... D.3302 ...... E.3302 ...... F.3302 ...... D.3302 ...... E.3302 ...... G.3302 ...... D.3302 ...... C.3302 D.3302 C.3302 A.2302 A.3302 C.3302 D.3301 D.3302 F.3302 A.3302 A.3302 G.3301 D.3301 ......",
+    "PAT 12 D.3755 F.3755 A.3755 A#3755 D.3755 F.3755 A.3755 D.4755 D.4755 C.4755 D.4755 F.4755 A.4755 G.4755 A.4755 D.4755 D.4755 D.3755 C.4755 C.3755 E.3755 F.3755 A.3755 G.3755 D.4755 D.3755 D.4755 G.4755 F.4755 A.4755 A#4755 A.4755",
+    "PAT 12 D.4775 D.3775 D.4775 D.3775 D.4775 D.3775 D.4775 D.3775 D.4775 D.3775 D.4775 D.3775 D.4775 D.4775 D.4775 D.4775 E.4775 E.3775 E.4775 E.3775 D.4775 D.3775 D.4775 D.3775 F.4775 G.3775 G.4775 F.3775 D.4775 E.3775 D.4775 C.3775",
+    "PAT 12 D.3775 D.3705 D.2775 F.3705 F.2775 F.3705 F.2775 F.3705 F.3775 ...... F.2775 ...... A.2775 ...... A.2775 ...... A#3775 ...... A.2775 ...... G.2775 ...... F.2775 ...... E.3775 ...... E.2775 ...... D.2775 ...... C.2775 ......",
+    "PAT 24 D.1774 D.1772 D.1772 D.1772 D.1772 D.1772 D.1772 D.1772 D.1022 D.1022 D.1022 D.1022 D.1022 D.1022 D.1022 D.1022 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... C.1004",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 A.20F5 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 A.40F5 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 4 C.08F3 ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 3 D.4170 A#3170 F.3170 C#3170 G#2170 F.2170 D#2170 C.2170 A#1170 G#1170 F#1170 F.1170 E.1170 D#1170 D.1170 C#1170 C#1170",
+    "PAT 3 C#1170 C#1170 D#1170 E.1170 F.1170 F#1170 F#1170 G.1170 A.1170 A#1170 B.1170 C#2170 D#2170 F#2170 A.2170 A#2170 C#3170 D#3170 F.3170 F#3170 A.3170 A#3170",
+    "PAT 6 D.2610 D.2610 D.2610 D.2610 D.2610 D.2610 D.2610 D.2610",
+    "PAT 6 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620",
+    "PAT 6 A.3120 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620 A.3620",
+    "PAT 3 C.6650 G.5650 D#5650 C.5640 E.4630 C#3620 F#2620 G#1610 C#3610 C#1310",
+    "PAT 6 A.3130 A.3620 A.3130 A.3620 A.3620 A.3620 A.3620 A.3620", "PAT 3 D#6650 C.6610 D#4610 D.2413",
+    "PAT 2 G#1600 D.1210 F.1210 A.1220 B.1230 D.2240 F.2240 G.2340 A#2350 G.2250 D#3360 G.3360 C.3260 B.3360 E.4360 E.3260 A.4360 G#5360 D.6360 F#4250 A#3350 G.4340 G.5340 D.6340",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
+    "PAT 16 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......" }
 
 -- pico8 instruments
 INST_TRIANGLE = "INST OVERTONE 1.0 TRIANGLE 1.0 METALIZER 0.85 NAM triangle"
@@ -3367,4 +3415,4 @@ INST_ORGAN = "INST OVERTONE 0.5 TRIANGLE 0.75 NAM organ"
 INST_NOISE = "INST NOISE 1.0 NOISE_COLOR 0.2 NAM noise"
 INST_PHASER = "INST OVERTONE 0.5 METALIZER 1.0 TRIANGLE 0.7 NAM phaser"
 INST_ENGINE = "INST OVERTONE 1.0 METALIZER 1.0 TRIANGLE 1.0 NAM engine"
-INST_TRIBUNE="SAMPLE ID 01 FILE pitstop/tribune.wav FREQ 17000 LOOP_START 0 LOOP_END 102013"
+INST_TRIBUNE = "SAMPLE ID 01 FILE pitstop/tribune.wav FREQ 17000 LOOP_START 0 LOOP_END 102013"

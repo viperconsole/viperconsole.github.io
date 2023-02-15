@@ -18,7 +18,7 @@ SHEET_WARRIOR = 1
 SHEET_GRASS = 2
 SHEET_VEGETATION = 3
 
-sheets = {{
+sheets = { {
     -- WARRIOR
     x = 64,
     y = 0,
@@ -39,34 +39,34 @@ sheets = {{
     w = GROUND_TILE_SIZE,
     h = GROUND_TILE_SIZE,
     cols = 2
-}}
+} }
 
-anims = {{
+anims = { {
     -- IDLE
-    frames = {0, 1, 2, 3},
+    frames = { 0, 1, 2, 3 },
     speed = 0.1,
     interruptible = true
 }, {
     -- WALK
-    frames = {12, 13, 14, 15},
+    frames = { 12, 13, 14, 15 },
     speed = 0.15,
     interruptible = true
 }, {
     -- JUMP
-    frames = {20, 21, 22, 23, 24, 25, 26, 27},
+    frames = { 20, 21, 22, 23, 24, 25, 26, 27 },
     speed = 0.2,
     interruptible = false
 }, {
     -- HIT
-    frames = {16, 17, 18, 19},
+    frames = { 16, 17, 18, 19 },
     speed = 0.2,
     interruptible = false
-}}
+} }
 
 map = {
-    tiles = {0, 0, 0, 2, 1, 0, 0, 1, 0, 2, 0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 2, 0, 1, 0,
-             2, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 1, 0, 0, 0,
-             0, 0, 0, 0, 2, 0, 1, 0, 0, 0, 2, 0}
+    tiles = { 0, 0, 0, 2, 1, 0, 0, 1, 0, 2, 0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 2, 0, 1, 0,
+        2, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 1, 0, 0, 0,
+        0, 0, 0, 0, 2, 0, 1, 0, 0, 0, 2, 0 }
 }
 
 function render_sprite(sheet_id, frame, x, y, hflip, vflip, r, g, b)
@@ -83,7 +83,7 @@ end
 function render_object(this)
     local x = math.floor(this.x + gfx.SCREEN_WIDTH / 2)
     local y = math.floor(this.y + gfx.SCREEN_HEIGHT / 2)
-    render_sprite(this.sheet, this.frame, x, y, this.flip, false, 1, 1, 1)
+    render_sprite(this.sheet, this.frame, x, y, this.flip, false, 255, 255, 255)
 end
 
 function render_character(this)
@@ -91,13 +91,13 @@ function render_character(this)
     local frame = anim.frames[math.floor(this.anim_frame) + 1]
     local x = math.floor(this.x + gfx.SCREEN_WIDTH / 2)
     local y = math.floor(this.y + gfx.SCREEN_HEIGHT / 2)
-    render_sprite(this.sheet, frame, x, y, this.flip, false, 1, 1, 1)
+    render_sprite(this.sheet, frame, x, y, this.flip, false, 255, 255, 255)
 end
 
 function render_shadow(character)
     local x = math.floor(character.x + gfx.SCREEN_WIDTH / 2)
     local y = math.floor(character.y + gfx.SCREEN_HEIGHT / 2)
-    gfx.blit(64, 502, 32, 10, x - 18, y - 8, 0, 0, character.flip, false, 0.5, 0.5, 0.5)
+    gfx.blit(64, 502, 32, 10, x - 18, y - 8, 0, 0, character.flip, false, 128, 128, 128)
 end
 
 function render_map(m, mx, my)
@@ -108,7 +108,7 @@ function render_map(m, mx, my)
         for y = 0, 6 do
             local dy = y * GROUND_TILE_SIZE
             local tile = m.tiles[x + y * 10 + 1]
-            render_sprite(SHEET_GRASS, tile, mx + dx, my + dy, false, false, 1, 1, 1)
+            render_sprite(SHEET_GRASS, tile, mx + dx, my + dy, false, false, 255, 255, 255)
         end
     end
 end
@@ -225,7 +225,7 @@ function init()
     gfx.show_layer(LAYER_ENTITIES)
     gfx.set_layer_operation(1, gfx.LAYEROP_MULTIPLY)
     gfx.set_mouse_cursor(LAYER_SPRITE, 64, 470, 16, 16)
-    entities = {hero, grass}
+    entities = { hero, grass }
 end
 
 local function compare_entity(a, b)
@@ -244,7 +244,7 @@ function render()
     gfx.clear(0, 0, 0)
     render_map(map, 0, 0)
     gfx.set_active_layer(LAYER_SHADOW)
-    gfx.clear(1, 1, 1)
+    gfx.clear(255, 255, 255)
     for _, entity in pairs(entities) do
         render_shadow(entity)
     end

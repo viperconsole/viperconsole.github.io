@@ -61,7 +61,7 @@ Each API might expose values and methods.
 
 The viper screen size is 384x224 pixels. You can get those values with `gfx.SCREEN_WIDTH` and `gfx.SCREEN_HEIGHT`. The graphics engine can display on screen any number of transparent layers. Viper doesn't use alpha blending, but a transparent key color that can be changed with `gfx.set_transparent_color(r,g,b)` (default is pure black).
 
-All colors are expressed with float component between 0.0 and 1.0. All coordinates are floats but for a pixel perfect result, you should truncate them to integers. But smooth movement can be achieved using float coordinates.
+All colors are expressed with integer component between 0 and 255. All coordinates are floats but for a pixel perfect result, you should truncate them to integers. But smooth movement can be achieved using float coordinates.
 
 Each layer can be resized with `gfx.set_layer_size(id, w, h)` and moved with `gfx.set_layer_offset(id,x,y)`.
 You can hide and show layers with `gfx.show_layer(id)` and `gfx.hide_layer(id)`. By default, only one layer (layer 0) is displayed.
@@ -125,11 +125,11 @@ You can get the number of frames rendered during the last second with :
 
     Example :
 
-    `gfx.blit_pixels(0,0,1,{255})` would blit a single blue pixel at position 0,0 (255 = 0x0000FF => r=0,g=0,b=1)
+    `gfx.blit_pixels(0,0,1,{255})` would blit a single blue pixel at position 0,0 (255 = 0x0000FF => r=0,g=0,b=255)
 
     Another way to write it :
 
-    `gfx.blit_pixels(0,0,1,{gfx.to_rgb24(0,0,1)})`
+    `gfx.blit_pixels(0,0,1,{gfx.to_rgb24(0,0,255)})`
 
     Note that this function is far slower than the `gfx.blit` function which is fully running on the GPU.
 
@@ -162,9 +162,9 @@ You can get the number of frames rendered during the last second with :
 * `print(text, x,y, r,g,b)`
     * print the text at position `x,y` using currently activated font
 
-    Example
+    Example : print hello at position 0,0 in white
 
-    `gfx.print("hello", 0,0, 1,0,0)`
+    `gfx.print("hello", 0,0, 255,255,255)`
 
 ### <a name="h2.4"></a>2.4. Sprite API
 
