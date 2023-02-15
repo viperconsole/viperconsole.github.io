@@ -132,8 +132,9 @@ local PAL <const> = {
     col(255, 110, 89),
     col(255, 157, 129),
     col(92, 84, 76),
+    col(255,255,255)
 }
-local SHADOW_COL <const> = PAL[22]
+local SHADOW_COL <const> = 22
 
 function cls()
     local c = PAL[21]
@@ -275,15 +276,17 @@ function mid(x, y, z)
     end
 end
 
-function gblit(x, y, w, h, p, r, g, b, dir)
+function gblit(x, y, w, h, p, col, dir)
     local p = cam2screen(p)
-    gfx.blit(x, y, w, h, p.x, p.y, w * camera_scale, h * camera_scale, false, false, r, g, b,
+    local c=PAL[col]
+    gfx.blit(x, y, w, h, p.x, p.y, w * camera_scale, h * camera_scale, false, false, c.r, c.g, c.b,
         from_pico_angle(camera_angle - dir))
 end
 
-function gblit_col(x, y, w, h, p, r, g, b, dir)
+function gblit_col(x, y, w, h, p, col, dir)
     local p = cam2screen(p)
-    gfx.blit_col(x, y, w, h, p.x, p.y, w * camera_scale, h * camera_scale, false, false, r, g, b,
+    local c=PAL[col]
+    gfx.blit_col(x, y, w, h, p.x, p.y, w * camera_scale, h * camera_scale, false, false, c.r, c.g, c.b,
         from_pico_angle(camera_angle - dir))
 end
 
@@ -304,145 +307,169 @@ local BOOST_CRITICAL_THRESH <const> = 15
 
 
 local TEAMS <const> = {
-    ["Williamson"] = {
+    {
+        name="Williamson",
         color = 1,
         color2 = 10,
         perf = 10,
-        short_name = "WIL"
+        short_name = "WIL",
+        pit=1
     },
-    ["MacLoran"] = {
+    {
+        name="MacLoran",
         color = 7,
         color2 = 8,
         perf = 9,
-        short_name = "MCL"
+        short_name = "MCL",
+        pit=2
     },
-    ["Benettson"] = {
+    {
+        name = "Benettson",
         color = 11,
         color2 = 26,
         perf = 9,
-        short_name = "BEN"
+        short_name = "BEN",
+        pit=3
     },
-    ["Ferrero"] = {
+    {
+        name = "Ferrero",
         color = 8,
         color2 = 8,
         perf = 8,
-        short_name = "FER"
+        short_name = "FER",
+        pit=4
     },
-    ["Leger"] = {
+    {
+        name="Leger",
         color = 28,
         color2 = 7,
         perf = 7,
-        short_name = "LEG"
+        short_name = "LEG",
+        pit=5
     },
-    ["Lotusi"] = {
+    {
+        name="Lotusi",
         color = 5,
         color2 = 7,
         perf = 5,
-        short_name = "LOT"
+        short_name = "LOT",
+        pit=6
     },
-    ["Soober"] = {
+    {
+        name = "Soober",
         color = 16,
         color2 = 16,
         perf = 5,
-        short_name = "SOO"
+        short_name = "SOO",
+        pit=7
     },
-    ["Jardon"] = {
+    {
+        name="Jardon",
         color = 29,
         color2 = 8,
         perf = 5,
-        short_name = "JAR"
+        short_name = "JAR",
+        pit=8
     }
 }
+
+function find_team_id(name)
+    for i = 1,#TEAMS do
+        if TEAMS[i].name==name then
+            return i
+        end
+    end
+end
 
 local DRIVERS <const> = { {
     name = "Anton Sanna",
     short_name = "ASA",
     skill = 8,
-    team = "MacLoran",
+    team = find_team_id("MacLoran"),
     helmet = 10
 }, {
     name = "Alan Presto",
     short_name = "APR",
     skill = 7,
-    team = "Williamson",
+    team = find_team_id("Williamson"),
     helmet = 11
 }, {
     name = "Nygel Mansale",
     short_name = "NMA",
     skill = 5,
-    team = "Jardon",
+    team = find_team_id("Jardon"),
     helmet = 12
 }, {
     name = "Gege Leyton",
     short_name = "GLE",
     skill = 6,
-    team = "Soober",
+    team = find_team_id("Soober"),
     helmet = 13
 }, {
     name = "Mike Shoemaker",
     short_name = "MSH",
     skill = 6,
-    team = "Benettson",
+    team = find_team_id("Benettson"),
     helmet = 14
 }, {
     name = "Pierre Lami",
     short_name = "PLA",
     skill = 5,
-    team = "Jardon",
+    team = find_team_id("Jardon"),
     helmet = 15
 }, {
     name = "Richard Petrez",
     short_name = "RPE",
     skill = 5,
-    team = "Benettson",
+    team = find_team_id("Benettson"),
     helmet = 22
 }, {
     name = "John HeartBerth",
     short_name = "JHE",
     skill = 4,
-    team = "Lotusi",
+    team = find_team_id("Lotusi"),
     helmet = 23
 }, {
     name = "Devon Hell",
     short_name = "DHE",
     skill = 6,
-    team = "Williamson",
+    team = find_team_id("Williamson"),
     helmet = 24
 }, {
     name = "Martin Blundle",
     short_name = "MBL",
     skill = 5,
-    team = "Leger",
+    team = find_team_id("Leger"),
     helmet = 25
 }, {
     name = "Gerard Bergler",
     short_name = "GBE",
     skill = 5,
-    team = "Ferrero",
+    team = find_team_id("Ferrero"),
     helmet = 26
 }, {
     name = "Mike Andrett",
     short_name = "MAN",
     skill = 4,
-    team = "MacLoran",
+    team = find_team_id("MacLoran"),
     helmet = 27
 }, {
     name = "Carl Wandling",
     short_name = "CWA",
     skill = 4,
-    team = "Soober",
+    team = find_team_id("Soober"),
     helmet = 28
 }, {
     name = "Marco Blundelli",
     short_name = "MBL",
     skill = 4,
-    team = "Leger",
+    team = find_team_id("Leger"),
     helmet = 29
 }, {
     name = "Mickael Hakinon",
     short_name = "MHA",
     skill = 5,
-    team = "Lotusi",
+    team = find_team_id("Lotusi"),
     helmet = 30
 } }
 
@@ -691,26 +718,31 @@ function create_car(race)
         local v = get_data_from_vecmap(current_segment)
         local nextv = get_data_from_vecmap(current_segment + 2)
         local pos = dot(vecsub(self.pos, v), v.side)
+        local team_pit=TEAMS[self.driver.team].pit
         if v.rtyp // 8 == OBJ_PIT_ENTRY3 and pos < -32 then
             if not self.pit then
                 self.race.tyre = 0
             end
             self.pit = -1
+            self.race.pits[team_pit] = true
         elseif v.ltyp // 8 == OBJ_PIT_ENTRY3 and pos > 32 then
             if not self.pit then
                 self.race.tyre = 0
             end
             self.pit = 1
+            self.race.pits[team_pit] = true
         elseif nextv.rtyp // 8 == OBJ_PIT_EXIT1 and pos < -32 then
             if not self.pit then
                 self.race.tyre = 0
             end
             self.pit = nil
+            self.race.pits[team_pit] = false
         elseif nextv.ltyp // 8 == OBJ_PIT_EXIT1 and pos > 32 then
             if not self.pit then
                 self.race.tyre = 0
             end
             self.pit = nil
+            self.race.pits[team_pit] = false
         end
         local segpoly = get_segment(current_segment, true)
         local poly
@@ -790,7 +822,7 @@ function create_car(race)
                         else
                             poly = get_segment(current_segment, false, true)
                             if current_segment - self.last_good_seg > 2 then
-                                self.ccut_timer = 150
+                                self.ccut_timer = 100
                             end
                         end
                     end
@@ -1159,7 +1191,8 @@ difficulty_names = {
 
 function intro:draw()
     cls()
-    sspr(0, 20, 224, 204, 80, 0)
+    sspr(0, 20, 224, 86, 80, 10)
+    sspr(0, 106, 224, 118, 80, 100)
     draw_intro_minimap( -95, -62, 0.015, 6)
     printr("x/c/arrows/esc", 300, 45, 6)
 
@@ -1760,6 +1793,15 @@ function race()
         end
         -- keep only signs when all 3 (150,100,50) exist
         local expected = 3
+        self.first_pit=nil
+        for i = 1, #vecmap do
+            local seg = wrap(i+#vecmap//2, mapsize)
+            local v = vecmap[seg+1]
+            if v.rtyp//8 == OBJ_PIT or v.ltyp//8 == OBJ_PIT then
+                self.first_pit=seg+1
+                break
+            end
+        end
         for i = 1, #vecmap do
             local v = vecmap[i]
             if v.lpanel ~= nil then
@@ -1821,6 +1863,7 @@ function race()
 
         self.objects = {}
         self.ranks = {}
+        self.pits = {}
         best_seg_times = {}
         best_lap_time = nil
         best_lap_driver = nil
@@ -1845,7 +1888,7 @@ function race()
             name = "Player",
             short_name = "PLA",
             is_best = false,
-            team = "Ferrero",
+            team = find_team_id("Ferrero"),
             helmet = 0
         }
         table.insert(self.ranks, p)
@@ -1889,7 +1932,7 @@ function race()
         local p4 = vecadd(p2, scalev(front, -32))
         quadfill(p, p2, p3, p4, 22)
         local p2s = vecadd(vecadd(p, scalev(side, 5)), scalev(front, -16))
-        gblit(224, 0, 20, 60, p2s, 255, 255, 255, dir)
+        gblit(224, 0, 20, 60, p2s, 33, dir)
         p = vecadd(p, scalev(side, 50))
         p3 = vecadd(p3, scalev(side, 50))
         gfx.set_active_layer(LAYER_TOP)
@@ -1905,9 +1948,6 @@ function race()
     end
 
     function race:draw_tribune2(li_rail, side, front, dir)
-        local sr = SHADOW_COL.r
-        local sg = SHADOW_COL.g
-        local sb = SHADOW_COL.b
         local p = vecadd(li_rail, scalev(side, 8))
         local p2 = vecadd(p, scalev(side, 40))
         local p3 = vecadd(p, scalev(front, -32))
@@ -1920,23 +1960,23 @@ function race()
         quadfill(p, p2, p3, p4, 22)
         gfx.set_active_layer(LAYER_TOP)
         local p2s = vecadd(vecadd(p, scalev(side, 5)), scalev(front, -16))
-        gblit(244, 0, 20, 60, p2s, 255, 255, 255, dir)
+        gblit(244, 0, 20, 60, p2s, 33, dir)
         local p2s = vecadd(vecadd(p, scalev(side, 15)), scalev(front, -16))
-        gblit(264, 0, 20, 60, p2s, 255, 255, 255, dir)
+        gblit(264, 0, 20, 60, p2s, 33, dir)
         local p2s = vecadd(vecadd(p, scalev(side, 25)), scalev(front, -16))
-        gblit(244, 0, 20, 60, p2s, 255, 255, 255, dir)
+        gblit(244, 0, 20, 60, p2s, 33, dir)
         local p2s = vecadd(vecadd(p, scalev(side, 35)), scalev(front, -16))
-        gblit(264, 0, 20, 60, p2s, 255, 255, 255, dir)
+        gblit(264, 0, 20, 60, p2s, 33, dir)
         gfx.set_active_layer(LAYER_SHADOW2)
         local sd = scalev(SHADOW_DELTA, 0.1)
         local p2s = vecadd(vecadd(vecadd(p, scalev(side, 5)), scalev(front, -16)), sd)
-        gblit_col(244, 0, 20, 60, p2s, sr, sg, sb, dir)
+        gblit_col(244, 0, 20, 60, p2s, SHADOW_COL, dir)
         local p2s = vecadd(vecadd(vecadd(p, scalev(side, 15)), scalev(front, -16)), sd)
-        gblit_col(264, 0, 20, 60, p2s, sr, sg, sb, dir)
+        gblit_col(264, 0, 20, 60, p2s, SHADOW_COL, dir)
         local p2s = vecadd(vecadd(vecadd(p, scalev(side, 25)), scalev(front, -16)), sd)
-        gblit_col(244, 0, 20, 60, p2s, sr, sg, sb, dir)
+        gblit_col(244, 0, 20, 60, p2s, SHADOW_COL, dir)
         local p2s = vecadd(vecadd(vecadd(p, scalev(side, 35)), scalev(front, -16)), sd)
-        gblit_col(264, 0, 20, 60, p2s, sr, sg, sb, dir)
+        gblit_col(264, 0, 20, 60, p2s, SHADOW_COL, dir)
         gfx.set_active_layer(0)
     end
 
@@ -1952,33 +1992,30 @@ function race()
             local tree_pos = trees[i].p
             local p = vecsub(vecsub(li_rail, scalev(side, tree_pos.x)), scalev(front, tree_pos.y))
             if typ == 1 then
-                gblit(224, 60, 20, 20, p, 255, 255, 255, dir)
+                gblit(224, 60, 20, 20, p, 33, dir)
             elseif typ == 2 then
-                gblit(224, 80, 30, 30, p, 255, 255, 255, dir)
+                gblit(224, 80, 30, 30, p, 33, dir)
             elseif typ == 3 then
-                gblit(224, 110, 40, 40, p, 255, 255, 255, dir)
+                gblit(224, 110, 40, 40, p, 33, dir)
             end
         end
         gfx.set_active_layer(LAYER_SHADOW2)
-        local sr = SHADOW_COL.r
-        local sg = SHADOW_COL.g
-        local sb = SHADOW_COL.b
         for i = 1, #trees do
             local typ = trees[i].typ
             local tree_pos = trees[i].p
             local p = vecadd(vecsub(vecsub(li_rail, scalev(side, tree_pos.x)), scalev(front, tree_pos.y)), SHADOW_DELTA)
             if typ == 1 then
-                gblit_col(224, 60, 20, 20, p, sr, sg, sb, dir)
+                gblit_col(224, 60, 20, 20, p, SHADOW_COL, dir)
             elseif typ == 2 then
-                gblit_col(224, 80, 30, 30, p, sr, sg, sb, dir)
+                gblit_col(224, 80, 30, 30, p, SHADOW_COL, dir)
             elseif typ == 3 then
-                gblit_col(224, 110, 40, 40, p, sr, sg, sb, dir)
+                gblit_col(224, 110, 40, 40, p, SHADOW_COL, dir)
             end
         end
         gfx.set_active_layer(0)
     end
 
-    function race:draw_pit(ri_rail, side, front, flipflop)
+    function race:draw_pit(ri_rail, side, front, flipflop, seg, dir)
         local p = vecsub(ri_rail, scalev(side, 24))
         local p2 = vecsub(p, scalev(side, 8))
         local p3 = vecadd(p, scalev(front, -33))
@@ -1992,10 +2029,11 @@ function race()
         p2 = vecadd(p, perp)
         p4 = vecadd(p3, perp)
         perp = scalev(perp, 0.125)
-        local perp2 = scalev(front, -2)
+        local perp2 = scalev(front, -6)
         quadfill(p, p3, p2, p4, 22)
         local lp = vecadd(vecadd(p, perp), perp2)
         local lp2 = vecadd(vecsub(p2, perp), perp2)
+        perp2 = scalev(front, -2)
         local lp3 = vecadd(lp, perp2)
         local lp4 = vecadd(lp2, perp2)
         linevec(lp, lp3, 7)
@@ -2006,6 +2044,10 @@ function race()
         p = vecadd(p2, perp)
         p3 = vecadd(p4, perp)
         quadfill(p, p3, p2, p4, 13)
+        local team=(wrap(seg,mapsize)-self.first_pit)//2+1
+        if self.pits[team] and not flipflop then
+            self:draw_pit_crew(ri_rail,side,front,team,dir)
+        end
         gfx.set_active_layer(LAYER_SHADOW2)
         p = vecsub(p, SHADOW_DELTA)
         p2 = vecsub(p2, SHADOW_DELTA)
@@ -2060,6 +2102,15 @@ function race()
         local p4 = vecadd(p3, scalev(front, -33))
         quadfill(p, p2, p3, p4, 27)
         self:draw_rail(p, p2)
+    end
+
+    function race:draw_pit_crew(ri_rail, side, front, team, dir)
+        local c1=TEAMS[team].color
+        local c2=TEAMS[team].color2
+        local p=vecsub(vecsub(ri_rail, scalev(side, 44)),scalev(front,10))
+        gblit(323,224,17,23,p,c1,dir)
+        gblit(340,224,17,23,p,33,dir)
+        gblit(357,224,17,23,p,c2,dir)
     end
 
     function race:draw_rail(p1, p2)
@@ -2493,9 +2544,6 @@ function race()
                     -- track side objects
                     local lobj = v.ltyp // 8
                     local robj = v.rtyp // 8
-                    local sr = SHADOW_COL.r
-                    local sg = SHADOW_COL.g
-                    local sb = SHADOW_COL.b
                     if lobj == OBJ_TRIBUNE then
                         self:draw_tribune(li_rail, v.side, v.front, v.dir, seg % 2 == 0)
                     elseif lobj == OBJ_TRIBUNE2 then
@@ -2504,28 +2552,28 @@ function race()
                         self:draw_tree(v.ltrees, li_rail, lastv.left_inner_rail, v.side, lastv.side, v.front, v.dir)
                     elseif lobj == OBJ_BRIDGE then
                         gfx.set_active_layer(LAYER_TOP)
-                        gblit(141, 224, 182, 30, v, 255, 255, 255, v.dir)
+                        gblit(141, 224, 182, 30, v, 33, v.dir)
                         gfx.set_active_layer(LAYER_SHADOW2)
                         local p = vecadd(v, SHADOW_DELTA)
-                        gblit_col(141, 224, 182, 30, p, sr, sg, sb, v.dir)
+                        gblit_col(141, 224, 182, 30, p, SHADOW_COL, v.dir)
                         gfx.set_active_layer(0)
                     elseif lobj == OBJ_BRIDGE2 then
                         local p2 = vecadd(v, scalev(v.side, -48))
-                        gblit(141, 224, 8, 30, p2, 255, 255, 255, v.dir)
+                        gblit(141, 224, 8, 30, p2, 33, v.dir)
                         local p3 = vecadd(v, scalev(v.side, 48))
-                        gblit(315, 224, 8, 30, p3, 255, 255, 255, v.dir)
+                        gblit(315, 224, 8, 30, p3, 33, v.dir)
                         gfx.set_active_layer(LAYER_TOP)
-                        gblit(141, 260, 182, 11, v, 255, 255, 255, v.dir)
+                        gblit(141, 260, 182, 11, v, 33, v.dir)
                         gfx.set_active_layer(LAYER_SHADOW2)
                         local p = vecadd(v, SHADOW_DELTA)
                         p2 = vecadd(p2, SHADOW_DELTA)
                         p3 = vecadd(p3, SHADOW_DELTA)
-                        gblit_col(141, 260, 182, 11, p, sr, sg, sb, v.dir)
-                        gblit_col(141, 224, 8, 30, p2, sr, sg, sb, v.dir)
-                        gblit_col(315, 224, 8, 30, p3, sr, sg, sb, v.dir)
+                        gblit_col(141, 260, 182, 11, p, SHADOW_COL, v.dir)
+                        gblit_col(141, 224, 8, 30, p2, SHADOW_COL, v.dir)
+                        gblit_col(315, 224, 8, 30, p3, SHADOW_COL, v.dir)
                         gfx.set_active_layer(0)
                     elseif lobj == OBJ_PIT then
-                        self:draw_pit(li_rail, vecinv(v.side), v.front, seg % 2 == 0)
+                        self:draw_pit(li_rail, vecinv(v.side), v.front, seg % 2 == 0, seg, v.dir)
                     elseif lobj == OBJ_PIT_LINE then
                         self:draw_pitline(li_rail, vecinv(v.side), v.front)
                     elseif lobj == OBJ_PIT_LINE_START then
@@ -2541,7 +2589,7 @@ function race()
                         self:draw_tree(v.rtrees, ri_rail, lastv.right_inner_rail, vecinv(v.side), vecinv(lastv.side),
                             v.front, v.dir)
                     elseif robj == OBJ_PIT then
-                        self:draw_pit(ri_rail, v.side, v.front, seg % 2 == 0)
+                        self:draw_pit(ri_rail, v.side, v.front, seg % 2 == 0, seg, v.dir)
                     elseif robj == OBJ_PIT_LINE then
                         self:draw_pitline(ri_rail, v.side, v.front)
                     elseif robj == OBJ_PIT_LINE_START then
@@ -2580,7 +2628,7 @@ function race()
 
         for i = 1, #panels do
             local p = panels[i]
-            gblit(91, p.y, 24, 10, p.p, 255, 255, 255, p.dir)
+            gblit(91, p.y, 24, 10, p.p, 33, p.dir)
         end
         -- draw objects
         gfx.set_active_layer(LAYER_CARS)
