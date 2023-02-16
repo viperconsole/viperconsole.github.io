@@ -191,6 +191,30 @@ end
 planet = {}
 function planet.update(this)
     this.rot = this.rot + 0.0001
+    this.tick = (this.tick + 1)%3
+    if this.tick == 0 then
+        this.sprite = {}
+        local cols = { 7, 6, 5, 12, 11, 4 }
+        local i = 1
+        for y = this.lut.ystart, this.lut.yend do
+            for x = this.lut.xstart, this.lut.xend do
+                local pix = this.lut.pixel_data[i]
+                if pix.black then
+                    table.insert(this.sprite, 0)
+                else
+                    local tex = clamp((fbm2(pix.xsphere * 0.3 + this.rot, pix.ysphere * 0.3 + 20) + 1) * 0.5, 0, 1)
+                    local color = tex ^ 0.8 * 6
+                    color = clamp(color, 1, 6)
+                    local c = conf.PALETTE[cols[flr(color)]]
+                    local r = max(1, c.r * pix.light)
+                    local g = max(1, c.g * pix.light)
+                    local b = max(1, c.b * pix.light)
+                    table.insert(this.sprite, gfx.to_rgb24(r, g, b))
+                end
+                i = i + 1
+            end
+        end
+    end
 end
 
 function planet.compute_lut(p, light)
@@ -250,7 +274,8 @@ function planet.new(light)
         radius = radius,
         rot = 0,
         tex_width = min(gfx.SCREEN_WIDTH, flr(const.PI2 * radius)),
-        tex_height = min(gfx.SCREEN_HEIGHT, radius * 2)
+        tex_height = min(gfx.SCREEN_HEIGHT, radius * 2),
+        tick = 0
     }
     planet.compute_lut(p, light)
     p.render = planet.render
@@ -259,28 +284,9 @@ function planet.new(light)
 end
 
 function planet.render(this)
-    local sprite = {}
-    local cols = { 7, 6, 5, 12, 11, 4 }
-    local i = 1
-    for y = this.lut.ystart, this.lut.yend do
-        for x = this.lut.xstart, this.lut.xend do
-            local pix = this.lut.pixel_data[i]
-            if pix.black then
-                table.insert(sprite, 0)
-            else
-                local tex = clamp((fbm2(pix.xsphere * 0.3 + this.rot, pix.ysphere * 0.3 + 20) + 1) * 0.5, 0, 1)
-                local color = tex ^ 0.8 * 6
-                color = clamp(color, 1, 6)
-                local c = conf.PALETTE[cols[flr(color)]]
-                local r = max(1, c.r * pix.light)
-                local g = max(1, c.g * pix.light)
-                local b = max(1, c.b * pix.light)
-                table.insert(sprite, gfx.to_rgb24(r, g, b))
-            end
-            i = i + 1
-        end
+    if this.sprite then
+        gfx.blit_pixels(this.lut.xstart, this.lut.ystart, this.lut.xend - this.lut.xstart + 1, this.sprite)
     end
-    gfx.blit_pixels(this.lut.xstart, this.lut.ystart, this.lut.xend - this.lut.xstart + 1, sprite)
 end
 
 -- ################################## SECTOR ##################################
@@ -420,7 +426,7 @@ function gui.render_button(this)
     local tx = compute_x(this.x, #this.msg * 6, this.align)
     local bx = compute_x(this.x, const.BUTTON_WIDTH, this.align)
     local fcoef = ease_out_cubic(this.focus, 0, 1, 1)
-    local col_coef = 0.7 + fcoef * 0.3
+    local col_coef = 180 + fcoef * 75
     gui.render_button_bkgnd(bx, this.y, const.BUTTON_WIDTH, fcoef * 10, col_coef)
     local col = conf.PALETTE[6]
     local fcolr = conf.PALETTE[7].r - col.r
@@ -719,6 +725,7 @@ function init()
     gfx.set_scanline(gfx.SCANLINE_HARD)
     g_screen = screen.new()
     local seed = flr(elapsed() * 10000000)
+    seed=78408
     print(string.format("sector seed %d", seed))
     table.insert(g_screen.entities, sector.new(seed, planet))
     table.insert(g_screen.entities, ship.generate_random())
