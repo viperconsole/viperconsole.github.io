@@ -157,7 +157,10 @@ You can get the number of frames rendered during the last second with :
     * if `charset` is not set, the ascii table order is expected.
     * `chars_width` is an array containing the width of each character.
     * if `chars_width` is not set, we assume every character's width is char_width
-    * The console is preloaded with a default font that contains the ascii table as 8x8 characters. You can reset to the default font with  `gfx.activate_font(gfx.SYSTEM_LAYER, 0,0,512,32, 8,8, "")`
+    * The console is preloaded with three fonts :
+        * the default 8x8 mono font that contains the complete 128 ascii table characters. You can reset to this font with  `gfx.activate_systemfont_8x8_mono()`
+        * a smaller 5x7 non-mono font that contains the 93 ascii characters from `!` to `~`. You can reset to this font with  `gfx.activate_systemfont_5x7()`
+        * a very small 4x6 mono font that contains the 93 ascii characters from `!` to `~`. You can reset to this font with  `gfx.activate_systemfont_4x6_mono()`
 
 * `print(text, x,y, r,g,b)`
     * print the text at position `x,y` using currently activated font
