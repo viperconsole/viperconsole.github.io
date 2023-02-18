@@ -2108,9 +2108,9 @@ function race()
         local c1=TEAMS[team].color
         local c2=TEAMS[team].color2
         local p=vecsub(vecsub(ri_rail, scalev(side, 44)),scalev(front,10))
-        gblit(323,224,17,23,p,c1,dir)
-        gblit(340,224,17,23,p,33,dir)
-        gblit(357,224,17,23,p,c2,dir)
+        gblit(323,224,22,26,p,c1,dir)
+        gblit(345,224,22,26,p,33,dir)
+        gblit(323,250,22,26,p,c2,dir)
     end
 
     function race:draw_rail(p1, p2)
