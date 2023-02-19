@@ -646,7 +646,7 @@ function create_car(race)
         local vel = self.vel
         local accel = self.accel
         local controls = self.controls
-        if controls.accel then --and (not controls.brake or not self.is_player) then
+        if controls.accel then
             accel = accel + self.accsqr * 0.3
         else
             accel = accel * 0.95
@@ -726,7 +726,10 @@ function create_car(race)
             -- engine noise
             local sgear = self.speed*14/328 * 8
             self.gear = flr(clamp(sgear,1,7))
-            local freq = 5+(sgear-self.gear)*50
+            local base_freq=self.gear == 1 and 5 or 15
+            local max_freq = self.controls.brake and 40-base_freq or 60-base_freq
+            local freq = base_freq + (sgear-self.gear)* max_freq
+            self.freq=freq
             snd.play_note(freq, (0.5 + self.accel) * 0.5, 8, 1)
             sc1 = 35
         end
@@ -890,8 +893,17 @@ function create_car(race)
             end
         end
 
+        local v = get_data_from_vecmap(self.current_segment)
+        local sidepos = dot(vecsub(self.pos, v), v.side)
+        local ground_type = sidepos > 32 and (v.ltyp & 7) or (sidepos < -32 and (v.rtyp & 7) or 0)
+
         local car_dir = vec(cos(angle), sin(angle))
         self.vel = vecadd(vel, scalev(car_dir, accel))
+        if ground_type == 0 or ground_type == 3 then
+            -- asphalt
+            local no_slide = scalev(car_dir,length(self.vel))
+            self.vel = lerpv(self.vel,no_slide,0.05)
+        end
         self.pos = vecadd(self.pos, scalev(self.vel, 0.3))
         -- aspiration
         local asp = 0
@@ -920,9 +932,6 @@ function create_car(race)
             speed = speed - WIND_COEF * (speed*speed) * 0.01
             self.vel = scalev(normalize(self.vel),speed)
         end
-        local v = get_data_from_vecmap(self.current_segment)
-        local sidepos = dot(vecsub(self.pos, v), v.side)
-        local ground_type = sidepos > 32 and (v.ltyp & 7) or (sidepos < -32 and (v.rtyp & 7) or 0)
         local ground_type_inner = sidepos > 36 and (v.ltyp & 7) or (sidepos < -36 and (v.rtyp & 7) or 0)
         if self.is_player and speed > 1 and frame % flr(60 / speed) == 0 then
             if (v.has_lkerb and sidepos <= 36 and sidepos >= 24)
@@ -1907,6 +1916,7 @@ function race()
         p.angle = v.dir
         p.rank = 1
         p.gear = 0
+        p.freq = 0
         p.maxacc = p.maxacc
         camera_angle = v.dir
         p.driver = {
@@ -2712,7 +2722,7 @@ function race()
             printc(player.gear == 0 and "N" or ""..player.gear, gfx.SCREEN_WIDTH-32,gfx.SCREEN_HEIGHT-31,28)
             gfx.blit(66, 224, 25 * min(1, player.speed / 15), 8, gfx.SCREEN_WIDTH - 28, gfx.SCREEN_HEIGHT - 23, 0, 0,
                 false, false, 255, 255, 255)
-            gfx.blit(66, 232, 19 * min(1, (player.accel ^ 3) / (1.5 ^ 3)), 9, gfx.SCREEN_WIDTH - 60,
+            gfx.blit(66, 232, 19 * clamp(player.freq / 50,0,1), 9, gfx.SCREEN_WIDTH - 60,
                 gfx.SCREEN_HEIGHT - 22, 0, 0, false, false, 255, 255, 255)
 
             if player.cooldown > 0 then
