@@ -2,6 +2,9 @@
 -- by impbox software
 local WIND_COEF <const> = 0.45
 local BRAKE_COEF <const> = 0.97
+local CAR_BASE_MASS <const> = 505
+-- 1993 regulation : max fuel 220 liters = 146kg. average consumption 3.5liter/km = 2.3kg/km
+local FUEL_MASS_PER_KM <const> = 2.3
 local TEAM_PERF_COEF <const> = 1.0
 local X_OFFSET <const> = 130
 local MINIMAP_START <const> = -10
@@ -40,19 +43,19 @@ local CARS <const> = { {
     name = "Easy",
     maxacc = 3,
     steer = 0.0225,
-    accsqr = 0.05,
+    accsqr = 0.1,
     player_adv = 0.2
 }, {
     name = "Medium",
     maxacc = 3,
     steer = 0.0185,
-    accsqr = 0.05,
+    accsqr = 0.1,
     player_adv = 0.1
 }, {
     name = "Hard",
     maxacc = 3,
     steer = 0.0165,
-    accsqr = 0.05,
+    accsqr = 0.1,
     player_adv = 0
 } }
 
@@ -620,6 +623,7 @@ function create_car(race)
         wrong_way = 0,
         speed = 0,
         accel = 0,
+        asp = 0,
         accsqr = c.accsqr,
         steer = c.steer,
         maxacc = c.maxacc,
@@ -636,7 +640,8 @@ function create_car(race)
         best_time = nil,
         verts = {},
         seg_times = {},
-        ccut_timer = -1
+        ccut_timer = -1,
+        mass=CAR_BASE_MASS
     }
     car.controls = {}
     car.pos = copyv(get_vec_from_vecmap(car.current_segment))
@@ -724,11 +729,11 @@ function create_car(race)
         end
         if self.is_player and not completed then
             -- engine noise
-            local sgear = self.speed*14/328 * 8
+            local sgear = (self.speed*14/328)^0.75 * 8
             self.gear = flr(clamp(sgear,1,7))
             local base_freq=self.gear == 1 and 5 or 15
-            local max_freq = self.controls.brake and 40-base_freq or 60-base_freq
-            local freq = base_freq + (sgear-self.gear)* max_freq
+            local max_freq = self.controls.accel and 60-base_freq or 40-base_freq
+            local freq = min(60,base_freq + (sgear-self.gear)* max_freq)
             self.freq=freq
             snd.play_note(freq, (0.5 + self.accel) * 0.5, 8, 1)
             sc1 = 35
@@ -791,6 +796,7 @@ function create_car(race)
                         and (self.race.race_mode == MODE_TIME_ATTACK or current_segment <= mapsize * self.race.lap_count) then
                         -- new lap
                         local lap_time = time
+                        self.mass = self.mass - FUEL_MASS_PER_KM
                         if self.race.race_mode == MODE_RACE then
                             lap_time = lap_time - self.delta_time
                         end
@@ -898,15 +904,15 @@ function create_car(race)
         local ground_type = sidepos > 32 and (v.ltyp & 7) or (sidepos < -32 and (v.rtyp & 7) or 0)
 
         local car_dir = vec(cos(angle), sin(angle))
-        self.vel = vecadd(vel, scalev(car_dir, accel))
+        self.vel = vecadd(vel, scalev(car_dir, accel * CAR_BASE_MASS / self.mass))
         if ground_type == 0 or ground_type == 3 then
-            -- asphalt
+            -- less slide on asphalt
             local no_slide = scalev(car_dir,length(self.vel))
             self.vel = lerpv(self.vel,no_slide,0.05)
         end
         self.pos = vecadd(self.pos, scalev(self.vel, 0.3))
         -- aspiration
-        local asp = 0
+        local asp = false
         if not self.pit and self.is_player then
             for i = 1, #self.race.objects do
                 local car = self.race.objects[i]
@@ -916,13 +922,18 @@ function create_car(race)
                     local perp = perpendicular(car_dir)
                     local dist = dot(vecsub(car.pos, self.pos), perp)
                     if abs(dist) <= 10 then
-                        asp = 3
+                        asp = true
                         break
                     end
                 end
             end
         end
-        local speed_coef = (500 + (self.perf - 5) * TEAM_PERF_COEF + asp) / 500
+        if asp then
+            self.asp = min(3.5,self.asp + 0.1)
+        else
+            self.asp = max(0,self.asp - 0.04)
+        end
+        local speed_coef = (500 + (self.perf - 5) * TEAM_PERF_COEF + self.asp) / 500
         if self.pit then
             speed_coef = 0.7 * speed_coef
         end
@@ -1918,6 +1929,7 @@ function race()
         p.gear = 0
         p.freq = 0
         p.maxacc = p.maxacc
+        p.mass = p.mass + FUEL_MASS_PER_KM * self.lap_count
         camera_angle = v.dir
         p.driver = {
             name = "Player",
@@ -1934,6 +1946,7 @@ function race()
             for i = 1, #DRIVERS do
                 local ai_car = create_car(self)
                 ai_car.maxacc = ai_car.maxacc - CARS[intro.car].player_adv
+                ai_car.mass = ai_car.mass + FUEL_MASS_PER_KM * self.lap_count
                 ai_car.current_segment = -1 - i // 2
                 ai_car.driver = DRIVERS[i]
                 ai_car.color = TEAMS[ai_car.driver.team].color
