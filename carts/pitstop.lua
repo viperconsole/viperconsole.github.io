@@ -658,7 +658,11 @@ function create_car(race)
         end
         local speed = length(vel)
         -- accelerate
-        local angle_speed = min(1,speed)
+        local MAX_ANGLE=(speed < 7 and accel > 0.5 and (controls.left or controls.right)) and 5 or 3
+        local angle_speed = speed < 5 and speed/5 or speed < 10 and 1+(MAX_ANGLE-1)*(speed-5)/5 or speed < 20 and MAX_ANGLE-(speed-10)*(MAX_ANGLE-1)/10 or 1
+        -- if self.is_player then
+        --     print(string.format("acc %.1f speed %.1f aspeed %.2f",accel,speed,angle_speed))
+        -- end
         if controls.left then
             angle = angle + angle_speed * self.steer * 0.3
         end
@@ -668,11 +672,12 @@ function create_car(race)
         if self.ccut_timer >= 0 then
             self.ccut_timer = self.ccut_timer - 1
         end
+
         -- brake
         local sb_left
         local sb_right
         if controls.brake then
-            if speed > 0.2 then
+            if speed > 0.2 and speed < 1 then
                 local dangle=min(0.1/speed,0.03)
                 if controls.left then
                     angle = angle + dangle
