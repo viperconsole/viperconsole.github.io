@@ -1,6 +1,6 @@
 -- inspired by pico racer 2048
 -- by impbox software
-local WIND_COEF <const> = 0.88
+local WIND_COEF <const> = 0.45
 local BRAKE_COEF <const> = 0.97
 local TEAM_PERF_COEF <const> = 1.0
 local X_OFFSET <const> = 130
@@ -40,19 +40,19 @@ local CARS <const> = { {
     name = "Easy",
     maxacc = 3,
     steer = 0.0225,
-    accsqr = 0.1,
-    player_adv = 0.15
+    accsqr = 0.05,
+    player_adv = 0.2
 }, {
     name = "Medium",
     maxacc = 3,
     steer = 0.0185,
-    accsqr = 0.15,
+    accsqr = 0.05,
     player_adv = 0.1
 }, {
     name = "Hard",
     maxacc = 3,
     steer = 0.0165,
-    accsqr = 0.2,
+    accsqr = 0.05,
     player_adv = 0
 } }
 
@@ -555,38 +555,48 @@ function ai_controls(car)
     ai.car = car
     function ai:update()
         self.decisions = self.decisions + DT * (self.skill + 4 + rnd(6))
+        if self.decisions < 1 then
+            return
+        end
         local c = car.controls
         local car = self.car
         if not car.current_segment then
             return
         end
-        local s = flr(2 * car.maxacc)
-        if self.decisions < 1 then
-            return
-        end
-        local t = car.current_segment + s
+        local e = flr(2 * car.maxacc)
+        local s = flr(car.maxacc)
+        local t = car.current_segment + e
         if t < (mapsize * car.race.lap_count) + 10 then
-            local v5 = get_vec_from_vecmap(t)
-            if v5 then
-                local a = to_pico_angle(atan2(v5.y - car.pos.y, v5.x - car.pos.x))
-                local diff = a - car.angle
-                while diff > 0.5 do
-                    diff = diff - 1
+            local diff=0
+            for t=car.current_segment+e,car.current_segment+e do
+                local v5 = get_vec_from_vecmap(t)
+                if v5 then
+                    local ta = to_pico_angle(atan2(v5.y - car.pos.y, v5.x - car.pos.x)) - car.angle
+                    if abs(ta) > abs(diff) then
+                        diff = ta
+                    end
                 end
-                while diff < -0.5 do
-                    diff = diff + 1
-                end
-                if abs(diff) > 0.02 and rnd(50) > 40 + self.skill then
-                    self.decisions = 0
-                end
-                local steer = car.steer
-                c.accel = abs(diff) < steer * 100
-                c.right = diff < -steer / 3
-                c.left = diff > steer / 3
-                c.brake = abs(diff) > steer
-                c.boost = false --car.boost > 24 - self.riskiness and (abs(diff) < steer / 2 or car.accel < 0.5)
-                self.decisions = self.decisions - 1
             end
+            while diff > 0.5 do
+                diff = diff - 1
+            end
+            while diff < -0.5 do
+                diff = diff + 1
+            end
+            if abs(diff) > 0.02 and rnd(50) > 40 + self.skill then
+                self.decisions = 0
+            end
+            local steer = car.steer
+            local speed=length(car.vel)
+            c.accel = abs(diff) < steer * 10
+            c.right = diff < -steer / 3
+            c.left = diff > steer / 3
+            c.brake = abs(diff) > steer
+            -- if car.driver.short_name=="ASA" then
+            --     print(car.current_segment..":"..steer.." "..abs(diff).." "..(steer*100).." "..(c.accel and "acc" or "").." "..(c.brake and "bra" or ""))
+            -- end
+            c.boost = false --car.boost > 24 - self.riskiness and (abs(diff) < steer / 2 or car.accel < 0.5)
+            self.decisions = self.decisions - 1
         else
             c.accel = false
             c.boost = false
@@ -636,18 +646,19 @@ function create_car(race)
         local vel = self.vel
         local accel = self.accel
         local controls = self.controls
-        if controls.accel then
+        if controls.accel then --and (not controls.brake or not self.is_player) then
             accel = accel + self.accsqr * 0.3
         else
-            accel = accel * 0.98
+            accel = accel * 0.95
         end
         local speed = length(vel)
         -- accelerate
+        local angle_speed = min(1,speed)
         if controls.left then
-            angle = angle + self.steer * 0.3
+            angle = angle + angle_speed * self.steer * 0.3
         end
         if controls.right then
-            angle = angle - self.steer * 0.3
+            angle = angle - angle_speed * self.steer * 0.3
         end
         if self.ccut_timer >= 0 then
             self.ccut_timer = self.ccut_timer - 1
@@ -656,12 +667,17 @@ function create_car(race)
         local sb_left
         local sb_right
         if controls.brake then
-            if controls.left then
-                angle = angle + speed * 0.001
-            elseif controls.right then
-                angle = angle - speed * 0.001
+            if speed > 0.1 then
+                local dangle=min(0.1/speed,0.03)
+                if controls.left then
+                    angle = angle + dangle
+                elseif controls.right then
+                    angle = angle - dangle
+                end
             end
-            vel = scalev(vel, BRAKE_COEF)
+            local brake_speed=max(0,speed - BRAKE_COEF)
+            vel = brake_speed == 0 and vec(0,0) or scalev(normalize(vel), brake_speed)
+            speed= brake_speed
         end
         accel = min(accel, self.boosting and self.maxboost or self.maxacc)
         -- boosting
@@ -891,11 +907,16 @@ function create_car(race)
                 end
             end
         end
-        local speed_coef = WIND_COEF * (500 + (self.perf - 5) * TEAM_PERF_COEF + asp) / 500
+        local speed_coef = (500 + (self.perf - 5) * TEAM_PERF_COEF + asp) / 500
         if self.pit then
             speed_coef = 0.7 * speed_coef
         end
         self.vel = scalev(self.vel, speed_coef)
+        local speed=length(self.vel)
+        if speed > 0.1 then
+            speed = speed - WIND_COEF * (speed*speed) * 0.01
+            self.vel = scalev(normalize(self.vel),speed)
+        end
         local v = get_data_from_vecmap(self.current_segment)
         local sidepos = dot(vecsub(self.pos, v), v.side)
         local ground_type = sidepos > 32 and (v.ltyp & 7) or (sidepos < -32 and (v.rtyp & 7) or 0)
