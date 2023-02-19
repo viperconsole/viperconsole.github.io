@@ -667,7 +667,7 @@ function create_car(race)
         local sb_left
         local sb_right
         if controls.brake then
-            if speed > 0.1 then
+            if speed > 0.2 then
                 local dangle=min(0.1/speed,0.03)
                 if controls.left then
                     angle = angle + dangle
@@ -724,7 +724,10 @@ function create_car(race)
         end
         if self.is_player and not completed then
             -- engine noise
-            snd.play_note(5 + self.speed * 2, (0.5 + self.accel) * 0.5, 8, 1)
+            local sgear = self.speed*14/328 * 8
+            self.gear = flr(clamp(sgear,1,7))
+            local freq = 5+(sgear-self.gear)*50
+            snd.play_note(freq, (0.5 + self.accel) * 0.5, 8, 1)
             sc1 = 35
         end
 
@@ -1903,6 +1906,7 @@ function race()
         p.pos = vecadd(vecadd(p.pos, scalev(v.side, 14)), scalev(v.front, -6))
         p.angle = v.dir
         p.rank = 1
+        p.gear = 0
         p.maxacc = p.maxacc
         camera_angle = v.dir
         p.driver = {
@@ -2705,6 +2709,7 @@ function race()
         if not self.completed and self.race_mode ~= MODE_EDITOR then
             gfx.blit(0, 224, 66, 35, gfx.SCREEN_WIDTH - 66, gfx.SCREEN_HEIGHT - 35, 0, 0, false, false, 255, 255, 255)
             printc("" .. flr(player.speed * 14), 370, 210, 28)
+            printc(player.gear == 0 and "N" or ""..player.gear, gfx.SCREEN_WIDTH-32,gfx.SCREEN_HEIGHT-31,28)
             gfx.blit(66, 224, 25 * min(1, player.speed / 15), 8, gfx.SCREEN_WIDTH - 28, gfx.SCREEN_HEIGHT - 23, 0, 0,
                 false, false, 255, 255, 255)
             gfx.blit(66, 232, 19 * min(1, (player.accel ^ 3) / (1.5 ^ 3)), 9, gfx.SCREEN_WIDTH - 60,
