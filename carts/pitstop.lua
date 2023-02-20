@@ -2735,14 +2735,32 @@ function race()
 
         -- car dashboard
         if not self.completed and self.race_mode ~= MODE_EDITOR then
-            gfx.blit(0, 224, 66, 35, gfx.SCREEN_WIDTH - 66, gfx.SCREEN_HEIGHT - 35, 0, 0, false, false, 255, 255, 255)
+            local x=gfx.SCREEN_WIDTH-66
+            local y=gfx.SCREEN_HEIGHT-35
+            gfx.blit(0, 224, 66, 35, x, y, 0, 0, false, false, 255, 255, 255)
+            -- speed indicator
             printc("" .. flr(player.speed * 14), 370, 210, 28)
+            -- gear
             printc(player.gear == 0 and "N" or ""..player.gear, gfx.SCREEN_WIDTH-32,gfx.SCREEN_HEIGHT-31,28)
+            -- engine speed
             gfx.blit(66, 224, 25 * min(1, player.speed / 15), 8, gfx.SCREEN_WIDTH - 28, gfx.SCREEN_HEIGHT - 23, 0, 0,
                 false, false, 255, 255, 255)
             gfx.blit(66, 232, 19 * clamp(player.freq / 50,0,1), 9, gfx.SCREEN_WIDTH - 60,
                 gfx.SCREEN_HEIGHT - 22, 0, 0, false, false, 255, 255, 255)
+            -- car status
+            -- front wing
+            gfx.line(x+31,y+25,x+35,y+25, 0,228,54)
+            -- rear wing
+            gfx.line(x+31,y+33,x+35,y+33, 0,228,54)
+            -- tires
+            gfx.line(x+30,y+27,x+30,y+29, 0,228,54)
+            gfx.line(x+30,y+30,x+30,y+32, 0,228,54)
+            gfx.line(x+35,y+27,x+35,y+29, 0,228,54)
+            gfx.line(x+35,y+30,x+35,y+32, 0,228,54)
+            -- engine
+            gfx.rectangle(x+32,y+30,2,2, 0,228,54)
 
+            -- boost : TODO remove
             if player.cooldown > 0 then
                 if frame % 4 < 2 then
                     gfx.blit(66, 249, 21 * (1 - player.cooldown / 30), 4, gfx.SCREEN_WIDTH - 61, gfx.SCREEN_HEIGHT - 11,
