@@ -1,8 +1,10 @@
 -- inspired by pico racer 2048
 -- by impbox software
-local WIND_COEF <const> = 0.45
+local WIND_COEF <const> = 0.036
 local BRAKE_COEF <const> = 0.97
 local CAR_BASE_MASS <const> = 505
+local COLLISION_COEF <const> = 1.5/5
+local ASPIRATION_COEF <const> = 1.5
 -- 1993 regulation : max fuel 220 liters = 146kg. average consumption 3.5liter/km = 2.3kg/km
 local FUEL_MASS_PER_KM <const> = 2.3
 local TEAM_PERF_COEF <const> = 1.0
@@ -47,21 +49,21 @@ local TYRE_PERF <const> = { 1.1, 1.0, 0.9, 0.8, 0.7}
 local TYRE_COL <const> = { 8, 10, 7, 11, 28 }
 local CARS <const> = { {
     name = "Easy",
-    maxacc = 3,
+    maxacc = 0.2,
     steer = 0.0225,
-    accsqr = 0.1,
-    player_adv = 0.2
+    accsqr = 0.05,
+    player_adv = 0.04
 }, {
     name = "Medium",
-    maxacc = 3,
+    maxacc = 0.2,
     steer = 0.0185,
-    accsqr = 0.1,
-    player_adv = 0.1
+    accsqr = 0.05,
+    player_adv = 0.02
 }, {
     name = "Hard",
-    maxacc = 3,
+    maxacc = 0.2,
     steer = 0.0165,
-    accsqr = 0.1,
+    accsqr = 0.05,
     player_adv = 0
 } }
 
@@ -320,7 +322,7 @@ local TEAMS <const> = {
         name="Williamson",
         color = 1,
         color2 = 10,
-        perf = 10,
+        perf = 5,
         short_name = "WIL",
         pit=1
     },
@@ -328,7 +330,7 @@ local TEAMS <const> = {
         name="MacLoran",
         color = 7,
         color2 = 8,
-        perf = 9,
+        perf = 4,
         short_name = "MCL",
         pit=2
     },
@@ -336,7 +338,7 @@ local TEAMS <const> = {
         name = "Benettson",
         color = 11,
         color2 = 26,
-        perf = 9,
+        perf = 4,
         short_name = "BEN",
         pit=3
     },
@@ -344,7 +346,7 @@ local TEAMS <const> = {
         name = "Ferrero",
         color = 8,
         color2 = 8,
-        perf = 8,
+        perf = 3,
         short_name = "FER",
         pit=4
     },
@@ -352,7 +354,7 @@ local TEAMS <const> = {
         name="Leger",
         color = 28,
         color2 = 7,
-        perf = 7,
+        perf = 2,
         short_name = "LEG",
         pit=5
     },
@@ -360,7 +362,7 @@ local TEAMS <const> = {
         name="Lotusi",
         color = 5,
         color2 = 7,
-        perf = 5,
+        perf = 0,
         short_name = "LOT",
         pit=6
     },
@@ -368,7 +370,7 @@ local TEAMS <const> = {
         name = "Soober",
         color = 16,
         color2 = 16,
-        perf = 5,
+        perf = 0,
         short_name = "SOO",
         pit=7
     },
@@ -376,7 +378,7 @@ local TEAMS <const> = {
         name="Jardon",
         color = 29,
         color2 = 8,
-        perf = 5,
+        perf = 0,
         short_name = "JAR",
         pit=8
     }
@@ -572,8 +574,8 @@ function ai_controls(car)
         if not car.current_segment then
             return
         end
-        local e = flr(2 * car.maxacc)
-        local s = flr(car.maxacc)
+        local e = 6
+        local s = 3
         local t = car.current_segment + e
         if t < (mapsize * car.race.lap_count) + 10 then
             local diff=0
@@ -600,9 +602,9 @@ function ai_controls(car)
             c.accel = abs(diff) < steer * 10
             c.right = diff < -steer / 3
             c.left = diff > steer / 3
-            c.brake = abs(diff) > steer
+            c.brake = abs(diff) > steer*2
             -- if car.driver.short_name=="ASA" then
-            --     print(car.current_segment..":"..steer.." "..abs(diff).." "..(steer*100).." "..(c.accel and "acc" or "").." "..(c.brake and "bra" or ""))
+            --     print(car.current_segment..":"..steer.." "..abs(diff).." "..(steer*100).." "..(c.accel and "^" or "").." "..(c.brake and "v" or "").." "..(c.left and "<" or "").." "..(c.right and ">" or ""))
             -- end
             c.boost = false --car.boost > 24 - self.riskiness and (abs(diff) < steer / 2 or car.accel < 0.5)
             self.decisions = self.decisions - 1
@@ -668,7 +670,7 @@ function create_car(race)
         end
         local speed = length(vel)
         -- accelerate
-        local MAX_ANGLE=(speed < 7 and accel > 0.5 and (controls.left or controls.right)) and 7 or 3
+        local MAX_ANGLE=(speed < 7 and accel >= self.maxacc and (controls.left or controls.right)) and 7 or 3
         local angle_speed = speed < 5 and speed/5 or speed < 10 and 1+(MAX_ANGLE-1)*(speed-5)/5 or speed < 20 and MAX_ANGLE-(speed-10)*(MAX_ANGLE-1)/10 or 1
         -- if self.is_player then
         --     print(string.format("acc %.1f speed %.1f aspeed %.2f",accel,speed,angle_speed))
@@ -746,11 +748,11 @@ function create_car(race)
             -- engine noise
             local sgear = (self.speed*14/328)^0.75 * 8
             self.gear = flr(clamp(sgear,1,7))
-            local base_freq=self.gear == 1 and 5 or 15
+            local base_freq=self.gear == 1 and 5 or 30
             local max_freq = self.controls.accel and 60-base_freq or 40-base_freq
             local freq = min(60,base_freq + (sgear-self.gear)* max_freq)
             self.freq=freq
-            snd.play_note(freq, (0.5 + self.accel) * 0.5, 8, 1)
+            snd.play_note(freq, (0.5 + 0.5*self.accel/self.maxacc) * 0.5, 8, 1)
             sc1 = 35
         end
 
@@ -897,7 +899,7 @@ function create_car(race)
                     if pen > 5 then
                         pen = 5
                     end
-                    vel = vecsub(vel, scalev(rv, pen))
+                    vel = vecsub(vel, scalev(rv, pen * COLLISION_COEF))
                     accel = accel * (1.0 - (pen / 10))
                     create_spark(self.current_segment, point, rv, false)
                     self.collision = self.collision + pen
@@ -942,7 +944,7 @@ function create_car(race)
         if ground_type == 0 or ground_type == 3 then
             -- less slide on asphalt
             local no_slide = scalev(car_dir,length(self.vel))
-            self.vel = lerpv(self.vel,no_slide,0.05)
+            self.vel = lerpv(self.vel,no_slide,0.1)
         end
         self.pos = vecadd(self.pos, scalev(self.vel, 0.3))
         -- aspiration
@@ -961,20 +963,21 @@ function create_car(race)
                     end
                 end
             end
+            if asp then
+                self.asp = min(3.5,self.asp + 0.1)
+            else
+                self.asp = max(0,self.asp - 0.04)
+            end
         end
-        if asp then
-            self.asp = min(3.5,self.asp + 0.1)
-        else
-            self.asp = max(0,self.asp - 0.04)
-        end
-        local speed_coef = (500 + (self.perf - 5) * TEAM_PERF_COEF + self.asp) / 500
-        if self.pit then
-            speed_coef = 0.7 * speed_coef
-        end
-        self.vel = scalev(self.vel, speed_coef)
         local speed=length(self.vel)
         if speed > 0.1 then
-            speed = speed - WIND_COEF * (speed*speed) * 0.01
+            if self.pit then
+                speed=min(speed,70/14)
+            else
+                local asp = 1-self.asp*ASPIRATION_COEF/100
+                local team_perf = 1 - self.perf * TEAM_PERF_COEF / 100
+                speed = speed - WIND_COEF * asp * team_perf * (speed*speed) * 0.01
+            end
             self.vel = scalev(normalize(self.vel),speed)
         end
         local ground_type_inner = sidepos > 36 and (v.ltyp & 7) or (sidepos < -36 and (v.rtyp & 7) or 0)
@@ -989,7 +992,7 @@ function create_car(race)
             --grass
             local r = rnd(10)
             if r < 4 and ground_type_inner == 1 then
-                self.vel = scalev(self.vel, 0.9)
+                self.vel = scalev(self.vel, 0.95)
                 local angle_vel_impact = min(5.0, speed) / 5.0
                 local da = math.random( -20, 20) * angle_vel_impact
                 angle = wrap(angle, 1) * (1000 + da) / 1000
@@ -1000,7 +1003,7 @@ function create_car(race)
         elseif ground_type == 2 then
             -- sand
             if ground_type_inner == 2 then
-                self.vel = scalev(self.vel, 0.8)
+                self.vel = scalev(self.vel, 0.95)
                 angle = angle + (self.angle - angle) * 0.5
             end
             if speed > 2 then
@@ -2344,7 +2347,7 @@ function race()
                                     if p > 5 then
                                         p = 5
                                     end
-                                    p = p * 1.5
+                                    p = p * COLLISION_COEF
                                     obj.vel = vecadd(obj.vel, scalev(rv, p))
                                     obj2.vel = vecsub(obj2.vel, scalev(rv, p))
                                     create_spark(obj.current_segment, point, rv, false)
