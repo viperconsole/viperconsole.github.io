@@ -1,6 +1,6 @@
 -- inspired by pico racer 2048
 -- by impbox software
-local WIND_COEF <const> = 0.036
+local AIR_RESISTANCE <const> = 0.036
 local BRAKE_COEF <const> = 0.97
 local CAR_BASE_MASS <const> = 505
 local COLLISION_COEF <const> = 1.5/5
@@ -66,7 +66,9 @@ local CARS <const> = { {
     accsqr = 0.05,
     player_adv = 0
 } }
-
+-- car tracked by camera. nil = player
+tracked=nil
+cam_car=nil
 minimap_offset = MINIMAP_RACE_OFFSET
 cam_pos = {
     x = 0,
@@ -575,16 +577,16 @@ function ai_controls(car)
             return
         end
         local e = 6
-        local s = 3
+        local s = 6
         local t = car.current_segment + e
         if t < (mapsize * car.race.lap_count) + 10 then
             local diff=0
-            for t=car.current_segment+e,car.current_segment+e do
+            for t=car.current_segment+s,car.current_segment+e do
                 local v5 = get_vec_from_vecmap(t)
                 if v5 then
                     local ta = to_pico_angle(atan2(v5.y - car.pos.y, v5.x - car.pos.x)) - car.angle
                     if abs(ta) > abs(diff) then
-                        diff = ta
+                        diff=ta
                     end
                 end
             end
@@ -598,14 +600,16 @@ function ai_controls(car)
                 self.decisions = 0
             end
             local steer = car.steer
-            local speed=length(car.vel)
+            local speed=length(car.vel)*14
             c.accel = abs(diff) < steer * 10
-            c.right = diff < -steer / 3
-            c.left = diff > steer / 3
-            c.brake = abs(diff) > steer*2
-            -- if car.driver.short_name=="ASA" then
-            --     print(car.current_segment..":"..steer.." "..abs(diff).." "..(steer*100).." "..(c.accel and "^" or "").." "..(c.brake and "v" or "").." "..(c.left and "<" or "").." "..(c.right and ">" or ""))
-            -- end
+            c.right = 4*diff < -steer / 3
+            c.left = 4*diff > steer / 3
+            c.brake = speed*abs(diff)/170 > steer*3
+            if car == cam_car then
+                print(string.format("%s L%d|%3d %f %.4f %.4f %s%s%s%s",
+                    car.driver.short_name,car.current_segment//mapsize+1,car.current_segment,steer,speed*abs(diff)/100,steer*3,
+                    c.accel and '^' or ' ',c.brake and 'v' or ' ',c.left and '<' or ' ',c.right and '>' or ' '))
+            end
             c.boost = false --car.boost > 24 - self.riskiness and (abs(diff) < steer / 2 or car.accel < 0.5)
             self.decisions = self.decisions - 1
         else
@@ -658,6 +662,7 @@ function create_car(race)
     car.controls = {}
     car.pos = copyv(get_vec_from_vecmap(car.current_segment))
     function car:update(completed, time)
+
         local angle = self.angle
         local pos = self.pos
         local vel = self.vel
@@ -683,6 +688,9 @@ function create_car(race)
         end
         if self.ccut_timer >= 0 then
             self.ccut_timer = self.ccut_timer - 1
+        end
+        if tracked==nil and self.is_player then
+            print(self.driver.short_name.." "..self.current_segment..":"..self.steer.." "..(controls.accel and "^" or "").." "..(controls.brake and "v" or "").." "..(controls.left and "<" or "").." "..(controls.right and ">" or ""))
         end
 
         -- brake
@@ -845,7 +853,7 @@ function create_car(race)
                         current_segment = current_segment - 1
                         self.wrong_way = self.wrong_way + 1
                     else
-                        -- completely lost the player
+                        -- completely lost the car
                         current_segment = find_segment_from_pos(self.pos, self.last_good_seg)
                         if current_segment == nil then
                             self.lost_count = self.lost_count + 1
@@ -976,7 +984,7 @@ function create_car(race)
             else
                 local asp = 1-self.asp*ASPIRATION_COEF/100
                 local team_perf = 1 - self.perf * TEAM_PERF_COEF / 100
-                speed = speed - WIND_COEF * asp * team_perf * (speed*speed) * 0.01
+                speed = speed - AIR_RESISTANCE * asp * team_perf * (speed*speed) * 0.01
             end
             self.vel = scalev(normalize(self.vel),speed)
         end
@@ -1011,7 +1019,7 @@ function create_car(race)
             end
         end
         if self.ccut_timer >= 0 then
-            self.vel = scalev(self.vel, 0.8)
+            self.vel = scalev(self.vel, 0.95)
         end
         for i = 1, #car_verts do
             self.verts[i] = rotate_point(vecadd(self.pos, car_verts[i]), angle, self.pos)
@@ -1026,8 +1034,7 @@ function create_car(race)
         self.speed = speed -- used for showing speedo
         self.angle = angle
         self.current_segment = current_segment
-        local player = self.race.player
-        if abs(current_segment - player.current_segment) < 10 then
+        if abs(current_segment - cam_car.current_segment) < 10 then
             local spawn_pos = vecsub(self.pos, scalev(self.vel, 0.5))
             if not self.pit then
                 local caccel = accel / CARS[intro.car].maxacc
@@ -1046,9 +1053,9 @@ function create_car(race)
         end
     end
 
-    function car:draw_minimap(player)
-        local seg = car_lap_seg(self.current_segment, player)
-        local pseg = player.current_segment
+    function car:draw_minimap(cam_car)
+        local seg = car_lap_seg(self.current_segment, cam_car)
+        local pseg = cam_car.current_segment
         if seg >= pseg + MINIMAP_START and seg < pseg + MINIMAP_END then
             minimap_disk(self.pos, self.color)
         end
@@ -1936,6 +1943,7 @@ function race()
         self.completed = false
         self.time = self.race_mode == MODE_RACE and -4 or 0
         camera_lastpos = vec()
+        tracked=nil
         self.start_timer = self.race_mode == MODE_RACE
         self.record_replay = nil
         self.play_replay_step = 1
@@ -1958,6 +1966,7 @@ function race()
         local p = create_car(self)
         table.insert(self.objects, p)
         self.player = p
+        cam_car=p
         p.is_player = true
         local v = get_data_from_vecmap(p.current_segment)
         p.pos = vecadd(vecadd(p.pos, scalev(v.side, 14)), scalev(v.front, -6))
@@ -2381,7 +2390,7 @@ function race()
         -- particles
         for _, p in pairs(particles) do
             if p.enabled then
-                if abs(car_lap_seg(p.seg, self.player) - player.current_segment) > 10 then
+                if abs(car_lap_seg(p.seg, cam_car) - cam_car.current_segment) > 10 then
                     p.enabled = false
                 else
                     p.x = p.x + p.xv
@@ -2397,7 +2406,7 @@ function race()
         end
         for _, p in pairs(smokes) do
             if p.enabled then
-                if abs(car_lap_seg(p.seg, self.player) - player.current_segment) > 10 then
+                if abs(car_lap_seg(p.seg, cam_car) - cam_car.current_segment) > 10 then
                     p.enabled = false
                 else
                     p.x = p.x + p.xv
@@ -2412,7 +2421,7 @@ function race()
             end
         end
         -- lerp_angle
-        local diff = wrap(player.angle - camera_angle, 1)
+        local diff = wrap(cam_car.angle - camera_angle, 1)
         local dist = wrap(2 * diff, 1) - diff
         camera_angle = camera_angle + dist * 0.05
 
@@ -2475,6 +2484,24 @@ function race()
             local target = 1.5 - 0.8 * (self.player.speed / 23)
             camera_scale = camera_scale + (target - camera_scale) * 0.2
         end
+        if inp.key_pressed(inp.KEY_PAGEUP) then
+            if tracked==nil then
+                tracked=1
+            else
+                tracked=(tracked-2+#self.ranks) % #self.ranks +1
+            end
+            cam_car = self.ranks[tracked]
+        elseif inp.key_pressed(inp.KEY_PAGEDOWN) then
+            if tracked==nil then
+                tracked=#self.ranks
+            else
+                tracked=(tracked%#self.ranks) + 1
+            end
+            cam_car = self.ranks[tracked]
+        elseif inp.key_pressed(inp.KEY_HOME) then
+            tracked=nil -- go back to tracking the player
+            cam_car = self.player
+        end
     end
 
     function race:draw()
@@ -2485,8 +2512,8 @@ function race()
         local tp = cbufget(player.trails, player.trails._size - 8) or player.pos
         local trail = clampv(vecsub(player.pos, tp), 34)
         if self.race_mode ~= MODE_EDITOR then
-            local camera_pos = vecadd(player.pos, trail)
-            if player.collision > 0 then
+            local camera_pos = vecadd(cam_car.pos, trail)
+            if cam_car.collision > 0 then
                 camera(camera_pos.x + rnd(3) - 2, camera_pos.y + rnd(3) - 2)
             else
                 local c = lerpv(camera_lastpos, camera_pos, 1)
@@ -2495,7 +2522,7 @@ function race()
 
             camera_lastpos = copyv(camera_pos)
         end
-        local current_segment = player.current_segment
+        local current_segment = cam_car.current_segment
         local player_sec = get_data_from_vecmap(current_segment).section
         -- draw track
 
@@ -2697,6 +2724,7 @@ function race()
                         panels[#panels + 1] = { y = y, p = p, dir = v.dir }
                     end
                     if self.race_mode == MODE_EDITOR and v.section == player_sec then
+                        -- highlight current section in map editor
                         gfx.set_active_layer(LAYER_TOP)
                         linevec(lastv.right_kerb, lastv.left_kerb, 10)
                         linevec(v.right_kerb, v.left_kerb, 10)
@@ -2718,8 +2746,8 @@ function race()
         -- draw objects
         gfx.set_active_layer(LAYER_CARS)
         for _, obj in pairs(self.objects) do
-            local oseg = car_lap_seg(obj.current_segment, self.player)
-            if abs(oseg - player.current_segment) < 10 then
+            local oseg = car_lap_seg(obj.current_segment, cam_car)
+            if abs(oseg - cam_car.current_segment) < 10 then
                 obj:draw()
             end
         end
@@ -2740,11 +2768,11 @@ function race()
         end
 
         -- DEBUG : display segments collision shapes
-        -- seg=get_segment(player.current_segment-1,false,true)
+        -- seg=get_segment(cam_car.current_segment-1,false,true)
         -- quadfill(seg[1],seg[2],seg[4],seg[3],11)
-        -- local seg=get_segment(player.current_segment+1,false,true)
+        -- local seg=get_segment(cam_car.current_segment+1,false,true)
         -- quadfill(seg[1],seg[2],seg[4],seg[3],12)
-        -- local seg=get_segment(player.current_segment,false,true)
+        -- local seg=get_segment(cam_car.current_segment,false,true)
         -- quadfill(seg[1],seg[2],seg[4],seg[3],8)
         gfx.set_active_layer(LAYER_TOP)
         -- draw_minimap
@@ -2758,7 +2786,7 @@ function race()
                 lastv = v
             end
             for _, car in pairs(self.objects) do
-                car:draw_minimap(self.player)
+                car:draw_minimap(cam_car)
             end
         end
 
@@ -2934,7 +2962,7 @@ function race()
         end
         -- lap times
         if not self.completed and self.race_mode == MODE_RACE then
-            if lap > 1 then
+            if lap > 1 and player.lap_times[lap - 1] then
                 local is_personal_best = player.lap_times[lap - 1] == player.best_time
                 if lap > self.lap_count or time < player.lap_times[lap - 1] + 5 then
                     if lap > self.lap_count or frame % 10 > 2 then
