@@ -37,8 +37,14 @@ local OBJ_COUNT <const> = 16
 local SHADOW_DELTA <const> = { x = -10, y = 10 }
 local MINIMAP_RACE_OFFSET <const> = { x = 340, y = 120 }
 local MINIMAP_EDITOR_OFFSET <const> = { x = 340, y = 200 }
-local TYRE_TYPE <const> = { "soft", "hard", "wet" }
-local TYRE_COL <const> = { 8, 7, 28 }
+local TYRE_TYPE <const> = { "soft", "medium", "hard", "inter", "wet" }
+-- how many segments to heat the tyres ?
+local TYRE_HEAT <const> = { 100, 175, 250, 50, 50}
+-- how many segment before the tyre might get flat
+local TYRE_LIFE <const> = { 250*10, 250*15, 250*20, 250*20, 250*25}
+-- base impact on speed,acceleration,steering
+local TYRE_PERF <const> = { 1.1, 1.0, 0.9, 0.8, 0.7}
+local TYRE_COL <const> = { 8, 10, 7, 11, 28 }
 local CARS <const> = { {
     name = "Easy",
     maxacc = 3,
@@ -612,6 +618,8 @@ end
 
 function create_car(race)
     c = CARS[intro.car]
+    local tyre_type = 1
+    local tyre_heat=TYRE_HEAT[tyre_type]
     local car = {
         race = race,
         vel = vec(),
@@ -641,7 +649,9 @@ function create_car(race)
         verts = {},
         seg_times = {},
         ccut_timer = -1,
-        mass=CAR_BASE_MASS
+        mass=CAR_BASE_MASS,
+        tyre_type=tyre_type, -- 1 = soft 2=medium 3=hard 4=inter 5=wet
+        tyre_wear={-tyre_heat,-tyre_heat,-tyre_heat,-tyre_heat} -- <0 = cold
     }
     car.controls = {}
     car.pos = copyv(get_vec_from_vecmap(car.current_segment))
@@ -658,7 +668,7 @@ function create_car(race)
         end
         local speed = length(vel)
         -- accelerate
-        local MAX_ANGLE=(speed < 7 and accel > 0.5 and (controls.left or controls.right)) and 5 or 3
+        local MAX_ANGLE=(speed < 7 and accel > 0.5 and (controls.left or controls.right)) and 7 or 3
         local angle_speed = speed < 5 and speed/5 or speed < 10 and 1+(MAX_ANGLE-1)*(speed-5)/5 or speed < 20 and MAX_ANGLE-(speed-10)*(MAX_ANGLE-1)/10 or 1
         -- if self.is_player then
         --     print(string.format("acc %.1f speed %.1f aspeed %.2f",accel,speed,angle_speed))
@@ -747,6 +757,7 @@ function create_car(race)
         -- check collisions
         -- get a width enlarged version of this segment to help prevent losing the car
         local current_segment = self.current_segment
+        local old_segment=current_segment
         local v = get_data_from_vecmap(current_segment)
         local nextv = get_data_from_vecmap(current_segment + 2)
         local pos = dot(vecsub(self.pos, v), v.side)
@@ -801,7 +812,6 @@ function create_car(race)
                         and (self.race.race_mode == MODE_TIME_ATTACK or current_segment <= mapsize * self.race.lap_count) then
                         -- new lap
                         local lap_time = time
-                        self.mass = self.mass - FUEL_MASS_PER_KM
                         if self.race.race_mode == MODE_RACE then
                             lap_time = lap_time - self.delta_time
                         end
@@ -902,6 +912,25 @@ function create_car(race)
                     end
                 end
             end
+        end
+        if old_segment ~= current_segment then
+            -- fuel consumption
+            self.mass = self.mass - FUEL_MASS_PER_KM / mapsize
+            local base_wear = self.controls.brake and 1.25 or self.controls.accel and 0.75 or 0.5
+            -- tyre wear
+            local more = self.controls.brake or self.controls.accel
+            for i=1,4 do
+                local wear = self.controls.brake and (i<3 and 1.25 or 1)
+                    or self.controls.accel and (i<3 and 1 or 0.75)
+                    or 0.5
+                if self.controls.left then
+                    wear=wear + (i%2 == 1 and 0.25 or 0.75)
+                elseif self.controls.right then
+                    wear=wear + (i%2 == 0 and 0.25 or 0.75)
+                end
+                self.tyre_wear[i] = self.tyre_wear[i] + (more and 1.5*wear or wear)
+            end
+            --print(string.format("tyres %.1f %.1f   %.1f %.1f",self.tyre_wear[1],self.tyre_wear[2],self.tyre_wear[3],self.tyre_wear[4]))
         end
 
         local v = get_data_from_vecmap(self.current_segment)
@@ -2218,9 +2247,9 @@ function race()
             end
             if player.pit then
                 if inp.up_pressed() then
-                    self.tyre = (self.tyre + 1) % 3
+                    self.tyre = (self.tyre + 1) % 5
                 elseif inp.down_pressed() then
-                    self.tyre = (self.tyre + 2) % 3
+                    self.tyre = (self.tyre + 4) % 5
                 end
             end
         end
@@ -2753,10 +2782,39 @@ function race()
             -- rear wing
             gfx.line(x+31,y+33,x+35,y+33, 0,228,54)
             -- tires
-            gfx.line(x+30,y+27,x+30,y+29, 0,228,54)
-            gfx.line(x+30,y+30,x+30,y+32, 0,228,54)
-            gfx.line(x+35,y+27,x+35,y+29, 0,228,54)
-            gfx.line(x+35,y+30,x+35,y+32, 0,228,54)
+            for i=1,4 do
+                local tx = x + (i%2==1 and 30 or 35)
+                local ty = y + (i < 3 and 27 or 30)
+                local tr,tg,tb
+                if player.tyre_wear[i] <= 0 then
+                    local coef = -player.tyre_wear[i]/TYRE_HEAT[player.tyre_type]
+                    tr=0
+                    tg=228
+                    tb=54+(201*coef)
+                else
+                    local coef = player.tyre_wear[i] / TYRE_LIFE[player.tyre_type]
+                    if coef <= 0.5 then
+                        -- from green to orange
+                        coef=coef*2
+                        tr=255*coef
+                        tg=228 + (163-228)*coef
+                        tb=54 -54*coef
+                    elseif coef <= 1 then
+                        -- from orange to red
+                        coef=(coef-0.5)*2
+                        tr=255*coef
+                        tg=228-228*coef
+                        tb=54+(77-54)*coef
+                    else
+                        -- above 1, blinking red
+                        local black=frame%10 < 5
+                        tr = black and 8 or 255
+                        tg = black and 13 or 0
+                        tb = black and 25 or 77
+                    end
+                end
+                gfx.line(tx,ty,tx,ty+2, tr,tg,tb)
+            end
             -- engine
             gfx.rectangle(x+32,y+30,2,2, 0,228,54)
 
@@ -2807,11 +2865,10 @@ function race()
             gfx.rectangle(x, 50, 108, 75, 50, 50, 50)
             printc("Choose tyre", x + 55, 52, 7)
             gfx.blit(66, 8, 24, 12, x + 55 - 12, 62, 0, 0, false, false, 255, 255, 255)
-            for i = 0, 2 do
-                gfx.blit(224, 192, 32, 32, x + 6 + i * 36, 76, 0, 0, false, false, 255, 255, 255)
-                gfx.blit(256 + i * 27, 192, 27, 32, x + 2 + i * 36, 76, 0, 0, false, false, 255, 255, 255)
-            end
-            rect(x + 1 + self.tyre * 36, 75, 36, 34, 9)
+            local tx = self.tyre < 2 and 0 or self.tyre < 4 and 1 or 2
+            gfx.blit(224, 192, 32, 32, x + 42, 76, 0, 0, false, false, 255, 255, 255)
+            gfx.blit(256 + tx * 27, 192, 27, 32, x + 38, 76, 0, 0, false, false, 255, 255, 255)
+            rect(x + 37, 75, 36, 34, 9)
             printc(TYRE_TYPE[self.tyre + 1], x + 55, 114, TYRE_COL[self.tyre + 1])
         end
 
