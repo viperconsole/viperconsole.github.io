@@ -239,7 +239,7 @@ function cam2screen(p)
     }
 end
 
-function draw_tires(p1, p2, p3, p4, col)
+function draw_tyres(p1, p2, p3, p4, col)
     local x = scalev(normalize(vecsub(p3, p1)), 1.5)
     local y = scalev(normalize(vecsub(p2, p1)), 0.7)
     local p1px = vecadd(p1, x)
@@ -358,7 +358,7 @@ local TEAMS <const> = {
     {
         name = "Ferrero",
         color = 8,
-        color2 = 8,
+        color2 = 24,
         perf = 3,
         short_name = "FER",
         pit=4
@@ -657,7 +657,7 @@ function create_car(race)
         last_good_pos = vec(),
         last_good_seg = 1,
         color = 8,
-        color2 = 8,
+        color2 = 24,
         collision = 0,
         delta_time = 0,
         lap_times = {},
@@ -1039,7 +1039,7 @@ function create_car(race)
             end
         end
         if self.ccut_timer >= 0 then
-            self.vel = scalev(self.vel, 0.95)
+            self.vel = scalev(self.vel, 0.97)
         end
         for i = 1, #car_verts do
             self.verts[i] = rotate_point(vecadd(self.pos, car_verts[i]), angle, self.pos)
@@ -1091,20 +1091,14 @@ function create_car(race)
         local angle = self.angle
         local color = self.color
         local v = self.verts
-        local a = v[1]
-        local b = v[2]
-        local c = v[3]
         local boost = self.boost
         linevec(v[6], v[7], 18) -- front suspension
         quadfill(v[8], v[9], v[10], v[11], color) -- front wing
-        trifill(a, b, c, color < 16 and (color + 16) or (color - 16)) -- hull
+        trifill(v[23],v[24],v[25],color) -- hull
+        quadfill(v[26],v[27],v[28],v[29],color) -- hull
         trifill(v[13], v[14], v[15], self.color2)
         trifill(v[16], v[17], v[18], self.color2)
-        -- hull outline
-        linevec(a, b, color)
-        linevec(b, c, color)
-        linevec(c, a, color)
-        draw_tires(v[4], v[5], v[6], v[7], 0)
+        draw_tyres(v[4], v[5], v[6], v[7], 0)
         circfill(v[12].x, v[12].y, 1, self.driver.helmet)
         quadfill(v[19], v[20], v[21], v[22], color) -- rear wing
         -- shadow
@@ -1116,8 +1110,9 @@ function create_car(race)
         gfx.set_active_layer(LAYER_SHADOW)
         linevec(sv[6], sv[7], 22)
         quadfill(sv[8], sv[9], sv[10], sv[11], 22)
-        trifill(sv[1], sv[2], sv[3], 22)
-        draw_tires(sv[4], sv[5], sv[6], sv[7], 22)
+        trifill(v[23],v[24],v[25],22)
+        quadfill(v[26],v[27],v[28],v[29],22)
+        draw_tyres(sv[4], sv[5], sv[6], sv[7], 22)
         quadfill(v[19], v[20], v[21], v[22], 22)
         gfx.set_active_layer(LAYER_CARS)
     end
@@ -1145,13 +1140,17 @@ function set_game_mode(m)
 end
 
 function init()
-    car_verts = { vec( -4, -3), vec(4, 0), vec( -4, 3), -- hull
-        vec( -3, -3), vec( -3, 3), vec(2, -3), vec(2, 3), -- tires positions
-        vec(4, -3), vec(4, 3), vec(5, -3), vec(5, 3), -- front wing
-        vec(0, 0), -- pilot helmet position
-        vec( -4, -3), vec(0, -1.5), vec( -4, 0), vec( -4, 3), vec(0, 1.5), vec( -4, 0), -- second color
-        vec( -3, -3), vec( -3, 3), vec( -5, -3), vec( -5, 3), -- rear wing
+    car_verts = { vec( -9, -2.5), vec(7, 0), vec( -9, 2.6), -- collision shape
+        vec( -7, -3), vec(-7, 3), vec(3, -3), vec(3, 3), -- tires positions
+        vec(5, -2.5), vec(5, 2.6), vec(7, -2.5), vec(7, 2.6), -- front wing
+        vec(-1, 0), -- pilot helmet position
+        vec( -3, -2.5), vec(-7, -3), vec( -9, 0), vec( -7, 3), vec(-3, 2.6), vec( -9, 0), -- second color
+        vec( -9, -2.5), vec( -9, 2.5), vec( -11, -2.5), vec( -11, 2.5), -- rear wing
+        vec(-3,-2.5),vec(7,0),vec(-3,2.6),vec(-3,-2.5),vec( -9, -3),vec(-3,2.6),vec(-9, 3) -- hull
     }
+    for i=1,#car_verts do
+        car_verts[i] = scalev(car_verts[i],0.7)
+    end
     for _, sfx in pairs(SFX) do
         snd.new_pattern(sfx)
     end
@@ -2246,11 +2245,6 @@ function race()
         if self.best_lap_timer >= 0 then
             self.best_lap_timer = self.best_lap_timer - 1
         end
-        if inp.up_pressed() then
-            panel = (panel-2+#panels) % #panels + 1
-        elseif inp.down_pressed() then
-            panel = (panel % #panels) + 1
-        end
 
         if self.completed then
             self.completed_countdown = self.completed_countdown - DT
@@ -2287,6 +2281,12 @@ function race()
                     self.tyre = (self.tyre + 1) % 5
                 elseif inp.down_pressed() then
                     self.tyre = (self.tyre + 4) % 5
+                end
+            elseif self.race_mode ~= MODE_EDITOR then
+                if inp.up_pressed() then
+                    panel = (panel-2+#panels) % #panels + 1
+                elseif inp.down_pressed() then
+                    panel = (panel % #panels) + 1
                 end
             end
         end
@@ -2931,7 +2931,7 @@ function race()
             gfx.blit(256 + tx * 27, 192, 27, 32, x + 38, 76, 0, 0, false, false, 255, 255, 255)
             rect(x + 37, 75, 36, 34, 9)
             printc(TYRE_TYPE[self.tyre + 1], x + 55, 114, TYRE_COL[self.tyre + 1])
-        elseif panel == PANEL_CAR_STATUS then
+        elseif not self.completed and panel == PANEL_CAR_STATUS then
             local x = gfx.SCREEN_WIDTH - 66
             local y = 105
             gfx.rectangle(x, y, 66, 75, 50, 50, 50)
