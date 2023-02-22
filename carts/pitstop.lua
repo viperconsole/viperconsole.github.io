@@ -1,10 +1,18 @@
 -- inspired by pico racer 2048
 -- by impbox software
 local AIR_RESISTANCE <const> = 0.036
-local BRAKE_COEF <const> = 0.97
+local BRAKE_COEF <const> = 0.5
 local CAR_BASE_MASS <const> = 505
 local COLLISION_COEF <const> = 1.5/5
 local ASPIRATION_COEF <const> = 1.5
+-- impact of tyre wear on maxacc
+local TYRE_WEAR_ACC_IMPACT <const> = 0.03
+-- impact of tyre wear on BRAKE_COEF
+local TYRE_WEAR_BRAKE_IMPACT <const> = 0.3
+-- impact of tyre wear on steer
+local TYRE_WEAR_STEER_IMPACT <const> = 0.002
+-- wear level where performances start to decrease
+local TYRE_WEAR_THRESHOLD <const> = 0.5
 -- 1993 regulation : max fuel 220 liters = 146kg. average consumption 3.5liter/km = 2.3kg/km
 local FUEL_MASS_PER_KM <const> = 2.3
 local TEAM_PERF_COEF <const> = 1.0
@@ -602,14 +610,14 @@ function ai_controls(car)
             local steer = car.steer
             local speed=length(car.vel)*14
             c.accel = abs(diff) < steer * 10
-            c.right = 4*diff < -steer / 3
-            c.left = 4*diff > steer / 3
-            c.brake = speed*abs(diff)/170 > steer*3
-            if car == cam_car then
-                print(string.format("%s L%d|%3d %f %.4f %.4f %s%s%s%s",
-                    car.driver.short_name,car.current_segment//mapsize+1,car.current_segment,steer,speed*abs(diff)/100,steer*3,
-                    c.accel and '^' or ' ',c.brake and 'v' or ' ',c.left and '<' or ' ',c.right and '>' or ' '))
-            end
+            c.right = 12*diff < -steer
+            c.left = 12*diff > steer
+            c.brake = speed*speed*abs(diff)/100000 > steer
+            -- if car == cam_car then
+            --     print(string.format("%s L%d|%3d %f %.4f %.4f %s%s%s%s",
+            --         car.driver.short_name,car.current_segment//mapsize+1,car.current_segment,steer,speed*speed*abs(diff)/30000,steer*3,
+            --         c.accel and '^' or ' ',c.brake and 'v' or ' ',c.left and '<' or ' ',c.right and '>' or ' '))
+            -- end
             c.boost = false --car.boost > 24 - self.riskiness and (abs(diff) < steer / 2 or car.accel < 0.5)
             self.decisions = self.decisions - 1
         else
@@ -657,7 +665,8 @@ function create_car(race)
         ccut_timer = -1,
         mass=CAR_BASE_MASS,
         tyre_type=tyre_type, -- 1 = soft 2=medium 3=hard 4=inter 5=wet
-        tyre_wear={-tyre_heat,-tyre_heat,-tyre_heat,-tyre_heat} -- <0 = cold
+        tyre_wear={-tyre_heat,-tyre_heat,-tyre_heat,-tyre_heat}, -- <0 = cold
+        global_wear = 0
     }
     car.controls = {}
     car.pos = copyv(get_vec_from_vecmap(car.current_segment))
@@ -675,23 +684,28 @@ function create_car(race)
         end
         local speed = length(vel)
         -- accelerate
-        local MAX_ANGLE=(speed < 7 and accel >= self.maxacc and (controls.left or controls.right)) and 7 or 3
+        local maxacc = self.maxacc
+        local wear_coef = clamp((self.global_wear - TYRE_WEAR_THRESHOLD) / (1 - TYRE_WEAR_THRESHOLD),0,1)
+        maxacc = maxacc - TYRE_WEAR_ACC_IMPACT * wear_coef
+        local MAX_ANGLE=(speed < 7 and accel >= maxacc and (controls.left or controls.right)) and 7 or 3
         local angle_speed = speed < 5 and speed/5 or speed < 10 and 1+(MAX_ANGLE-1)*(speed-5)/5 or speed < 20 and MAX_ANGLE-(speed-10)*(MAX_ANGLE-1)/10 or 1
         -- if self.is_player then
         --     print(string.format("acc %.1f speed %.1f aspeed %.2f",accel,speed,angle_speed))
         -- end
+        local steer=self.steer - wear_coef * TYRE_WEAR_STEER_IMPACT
         if controls.left then
-            angle = angle + angle_speed * self.steer * 0.3
+            angle = angle + angle_speed * steer * 0.3
         end
         if controls.right then
-            angle = angle - angle_speed * self.steer * 0.3
+            angle = angle - angle_speed * steer * 0.3
         end
         if self.ccut_timer >= 0 then
             self.ccut_timer = self.ccut_timer - 1
         end
-        if tracked==nil and self.is_player then
-            print(self.driver.short_name.." "..self.current_segment..":"..self.steer.." "..(controls.accel and "^" or "").." "..(controls.brake and "v" or "").." "..(controls.left and "<" or "").." "..(controls.right and ">" or ""))
-        end
+        -- if tracked==nil and self.is_player then
+        --     print(string.format("%s %4d steer %.3f maxacc %.2f wear %.0f%%",
+        --         self.driver.short_name,self.current_segment,steer,maxacc,wear_coef*100))
+        -- end
 
         -- brake
         local sb_left
@@ -705,11 +719,11 @@ function create_car(race)
                     angle = angle - dangle
                 end
             end
-            local brake_speed=max(0,speed - BRAKE_COEF)
+            local brake_speed=max(0,speed - BRAKE_COEF + wear_coef * TYRE_WEAR_BRAKE_IMPACT)
             vel = brake_speed == 0 and vec(0,0) or scalev(normalize(vel), brake_speed)
             speed= brake_speed
         end
-        accel = min(accel, self.boosting and self.maxboost or self.maxacc)
+        accel = min(accel, self.boosting and self.maxboost or maxacc)
         -- boosting
 
         if controls.boost and self.boost > 0 and self.cooldown <= 0 then
@@ -929,6 +943,7 @@ function create_car(race)
             local base_wear = self.controls.brake and 1.25 or self.controls.accel and 0.75 or 0.5
             -- tyre wear
             local more = self.controls.brake or self.controls.accel
+            local global_wear=0
             for i=1,4 do
                 local wear = self.controls.brake and (i<3 and 1.25 or 1)
                     or self.controls.accel and (i<3 and 1 or 0.75)
@@ -939,7 +954,9 @@ function create_car(race)
                     wear=wear + (i%2 == 0 and 0.25 or 0.75)
                 end
                 self.tyre_wear[i] = self.tyre_wear[i] + (more and 1.5*wear or wear)
+                global_wear = global_wear + self.tyre_wear[i]
             end
+            self.global_wear = global_wear / (4*TYRE_LIFE[self.tyre_type])
             --print(string.format("tyres %.1f %.1f   %.1f %.1f",self.tyre_wear[1],self.tyre_wear[2],self.tyre_wear[3],self.tyre_wear[4]))
         end
 
