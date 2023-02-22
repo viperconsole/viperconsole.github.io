@@ -74,6 +74,9 @@ local CARS <const> = { {
     accsqr = 0.05,
     player_adv = 0
 } }
+local PANEL_CAR_STATUS <const> = 1
+panels={nil,PANEL_CAR_STATUS}
+panel=0
 -- car tracked by camera. nil = player
 tracked=nil
 cam_car=nil
@@ -687,7 +690,7 @@ function create_car(race)
         local maxacc = self.maxacc
         local wear_coef = clamp((self.global_wear - TYRE_WEAR_THRESHOLD) / (1 - TYRE_WEAR_THRESHOLD),0,1)
         maxacc = maxacc - TYRE_WEAR_ACC_IMPACT * wear_coef
-        local MAX_ANGLE=(speed < 7 and accel >= maxacc and (controls.left or controls.right)) and 7 or 3
+        local MAX_ANGLE=(speed < 7 and accel >= maxacc and (controls.left or controls.right)) and 12 or 3
         local angle_speed = speed < 5 and speed/5 or speed < 10 and 1+(MAX_ANGLE-1)*(speed-5)/5 or speed < 20 and MAX_ANGLE-(speed-10)*(MAX_ANGLE-1)/10 or 1
         -- if self.is_player then
         --     print(string.format("acc %.1f speed %.1f aspeed %.2f",accel,speed,angle_speed))
@@ -969,7 +972,7 @@ function create_car(race)
         if ground_type == 0 or ground_type == 3 then
             -- less slide on asphalt
             local no_slide = scalev(car_dir,length(self.vel))
-            self.vel = lerpv(self.vel,no_slide,0.1)
+            self.vel = lerpv(self.vel,no_slide,0.12)
         end
         self.pos = vecadd(self.pos, scalev(self.vel, 0.3))
         -- aspiration
@@ -2243,6 +2246,11 @@ function race()
         if self.best_lap_timer >= 0 then
             self.best_lap_timer = self.best_lap_timer - 1
         end
+        if inp.up_pressed() then
+            panel = (panel-2+#panels) % #panels + 1
+        elseif inp.down_pressed() then
+            panel = (panel % #panels) + 1
+        end
 
         if self.completed then
             self.completed_countdown = self.completed_countdown - DT
@@ -2811,6 +2819,8 @@ function race()
         printr(gfx.fps() .. " fps", gfx.SCREEN_WIDTH - 1, 1, 7)
 
         -- car dashboard
+        local tyre_col={}
+        local tyre_wear={}
         if not self.completed and self.race_mode ~= MODE_EDITOR then
             local x=gfx.SCREEN_WIDTH-66
             local y=gfx.SCREEN_HEIGHT-35
@@ -2839,20 +2849,21 @@ function race()
                     tr=0
                     tg=228
                     tb=54+(201*coef)
+                    table.insert(tyre_wear,100)
                 else
                     local coef = player.tyre_wear[i] / TYRE_LIFE[player.tyre_type]
                     if coef <= 0.5 then
                         -- from green to orange
-                        coef=coef*2
-                        tr=255*coef
-                        tg=228 + (163-228)*coef
-                        tb=54 -54*coef
+                        local ccoef=coef*2
+                        tr=255*ccoef
+                        tg=228 + (163-228)*ccoef
+                        tb=54 -54*ccoef
                     elseif coef <= 1 then
                         -- from orange to red
-                        coef=(coef-0.5)*2
-                        tr=255*coef
-                        tg=228-228*coef
-                        tb=54+(77-54)*coef
+                        local ccoef=(coef-0.5)*2
+                        tr=255
+                        tg=163-163*ccoef
+                        tb=77*ccoef
                     else
                         -- above 1, blinking red
                         local black=frame%10 < 5
@@ -2860,8 +2871,10 @@ function race()
                         tg = black and 13 or 0
                         tb = black and 25 or 77
                     end
+                    table.insert(tyre_wear,max(0,flr((1-coef)*100)))
                 end
                 gfx.line(tx,ty,tx,ty+2, tr,tg,tb)
+                table.insert(tyre_col,{tr,tg,tb})
             end
             -- engine
             gfx.rectangle(x+32,y+30,2,2, 0,228,54)
@@ -2918,6 +2931,23 @@ function race()
             gfx.blit(256 + tx * 27, 192, 27, 32, x + 38, 76, 0, 0, false, false, 255, 255, 255)
             rect(x + 37, 75, 36, 34, 9)
             printc(TYRE_TYPE[self.tyre + 1], x + 55, 114, TYRE_COL[self.tyre + 1])
+        elseif panel == PANEL_CAR_STATUS then
+            local x = gfx.SCREEN_WIDTH - 66
+            local y = 105
+            gfx.rectangle(x, y, 66, 75, 50, 50, 50)
+            gfx.blit(326,0,29,63,x+34-15,y+4,0,0,false,false,255,255,255)
+            gfx.blit(355,14,7,9,x+34-15,y+13,0,0,false,false,tyre_col[1][1],tyre_col[1][2],tyre_col[1][3])
+            gfx.blit(377,14,7,9,x+41,y+13,0,0,false,false,tyre_col[2][1],tyre_col[2][2],tyre_col[2][3])
+            gfx.blit(356,48,6,8,x+34-14,y+52,0,0,false,false,tyre_col[3][1],tyre_col[3][2],tyre_col[3][3])
+            gfx.blit(377,48,6,8,x+41,y+52,0,0,false,false,tyre_col[4][1],tyre_col[4][2],tyre_col[4][3])
+            gfx.blit(362,55,15,8,x+34-8,y+58,0,0,false,false,255,255,255)
+            gfx.blit(360,0,19,14,x+34-10,y+4,0,0,false,false,255,255,255)
+            gfx.activate_systemfont_4x6_mono()
+            gfx.print(string.format("%3d%%",tyre_wear[1]),x+2,y+13,255,255,255)
+            gfx.print(string.format("%3d%%",tyre_wear[2]),gfx.SCREEN_WIDTH -17,y+13,255,255,255)
+            gfx.print(string.format("%3d%%",tyre_wear[3]),x+2,y+52,255,255,255)
+            gfx.print(string.format("%3d%%",tyre_wear[4]),gfx.SCREEN_WIDTH -17,y+52,255,255,255)
+            gfx.activate_systemfont_8x8_mono()
         end
 
         -- ranking board
