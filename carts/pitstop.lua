@@ -240,7 +240,7 @@ function cam2screen(p)
 end
 
 function draw_tyres(p1, p2, p3, p4, col)
-    local x = scalev(normalize(vecsub(p3, p1)), 1.5)
+    local x = scalev(normalize(vecsub(p3, p1)), 1)
     local y = scalev(normalize(vecsub(p2, p1)), 0.7)
     local p1px = vecadd(p1, x)
     local p1mx = vecsub(p1, x)
@@ -690,7 +690,7 @@ function create_car(race)
         local maxacc = self.maxacc
         local wear_coef = clamp((self.global_wear - TYRE_WEAR_THRESHOLD) / (1 - TYRE_WEAR_THRESHOLD),0,1)
         maxacc = maxacc - TYRE_WEAR_ACC_IMPACT * wear_coef
-        local MAX_ANGLE=(speed < 7 and accel >= maxacc and (controls.left or controls.right)) and 12 or 3
+        local MAX_ANGLE=(speed < 7 and accel >= maxacc and (controls.left or controls.right)) and 10 or 3
         local angle_speed = speed < 5 and speed/5 or speed < 10 and 1+(MAX_ANGLE-1)*(speed-5)/5 or speed < 20 and MAX_ANGLE-(speed-10)*(MAX_ANGLE-1)/10 or 1
         -- if self.is_player then
         --     print(string.format("acc %.1f speed %.1f aspeed %.2f",accel,speed,angle_speed))
