@@ -3,7 +3,7 @@
 local AIR_RESISTANCE <const> = 0.036
 local BRAKE_COEF <const> = 0.5
 local CAR_BASE_MASS <const> = 505
-local COLLISION_COEF <const> = 1.5/5
+local COLLISION_COEF <const> = 1.5/3
 local ASPIRATION_COEF <const> = 1.5
 -- impact of tyre wear on maxacc
 local TYRE_WEAR_ACC_IMPACT <const> = 0.03
@@ -1102,7 +1102,7 @@ function create_car(race)
         circfill(v[12].x, v[12].y, 1, self.driver.helmet)
         quadfill(v[19], v[20], v[21], v[22], color) -- rear wing
         -- shadow
-        local sd = scalev(SHADOW_DELTA, 0.1)
+        local sd = scalev(SHADOW_DELTA, 0.075)
         local sv = {}
         for i = 1, #v do
             sv[i] = vecadd(v[i], sd)
@@ -1110,10 +1110,12 @@ function create_car(race)
         gfx.set_active_layer(LAYER_SHADOW)
         linevec(sv[6], sv[7], 22)
         quadfill(sv[8], sv[9], sv[10], sv[11], 22)
-        trifill(v[23],v[24],v[25],22)
-        quadfill(v[26],v[27],v[28],v[29],22)
+        trifill(sv[23],sv[24],sv[25],22)
+        quadfill(sv[26],sv[27],sv[28],sv[29],22)
         draw_tyres(sv[4], sv[5], sv[6], sv[7], 22)
-        quadfill(v[19], v[20], v[21], v[22], 22)
+        quadfill(sv[19], sv[20], sv[21], sv[22], 22)
+        gfx.set_active_layer(LAYER_SHADOW2)
+        trifill(v[12],midpoint(v[19],v[20]), sv[12],22)
         gfx.set_active_layer(LAYER_CARS)
     end
 
@@ -1149,7 +1151,8 @@ function init()
         vec(-3,-2.5),vec(7,0),vec(-3,2.6),vec(-3,-2.5),vec( -9, -3),vec(-3,2.6),vec(-9, 3) -- hull
     }
     for i=1,#car_verts do
-        car_verts[i] = scalev(car_verts[i],0.7)
+        car_verts[i].x = car_verts[i].x*0.8
+        car_verts[i] = scalev(car_verts[i],0.8)
     end
     for _, sfx in pairs(SFX) do
         snd.new_pattern(sfx)
