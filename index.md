@@ -68,7 +68,7 @@ You can hide and show layers with `gfx.show_layer(id)` and `gfx.hide_layer(id)`.
 
 The console renders the layers in increasing id order (first layer 0, then 1 on top of it and so on).
 
-Layers can be used to overlay graphics on screen or store bitmap fonts/sprite sheets offscreen. You can copy an image from a layer to another with `gfx.set_sprite_layer(id)`, `gfx.set_active_layer(id)` and `gfx.blit(sx,sy,sw,sh, dx,dy,dw,dh, hflip, vflip, r,g,b, angle)`. You can load an image in the current active layer with `gfx.load_img(resource_name, filepath)`.
+Layers can be used to overlay graphics on screen or store bitmap fonts/sprite sheets offscreen. You can copy an image from a layer to another with `gfx.set_sprite_layer(id)`, `gfx.set_active_layer(id)` and `gfx.blit(sx,sy,sw,sh, dx,dy,dw,dh, hflip, vflip, r,g,b, angle)`. You can load an image in the current active layer with `gfx.load_img(filepath, [resource_name])`.
 
 Each visible layer applies a color operation between its color and the underlying color :
 
@@ -93,7 +93,7 @@ You can get the number of frames rendered during the last second with :
     * set current drawing layer.
     * id is an arbitrary integer value. Visible layers are rendered in ascending id order.
 
-* `load_img(resource_name, filepath)`
+* `load_img(filepath, [resource_name])`
     * load an image in the current active layer
 
     filepath is an URL :
@@ -104,7 +104,7 @@ You can get the number of frames rendered during the last second with :
 
     TODO To convert an image into data url, simply drag and drop it on the console screen.
 
-    If resource_name is not an empty string `""`, this image can be overriden by the player by running the console with res parameters. This makes it easy for users to mod the game graphics by replacing a named resource with another image.
+    If resource_name is defined and not empty, this image can be overriden by the player by running the console with res parameters. This makes it easy for users to mod the game graphics by replacing a named resource with another image.
 
 * `set_layer_offset(id, x, y)`
     * set a layer scrolling offset.
