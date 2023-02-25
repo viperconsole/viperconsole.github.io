@@ -1164,7 +1164,6 @@ function init()
     snd.new_instrument(INST_ENGINE)
     snd.new_instrument(INST_TRIBUNE)
     gfx.set_active_layer(1)
-    gfx.set_layer_size(1, 384, 320)
     gfx.load_img("pitstop/pitstop.png","sprites")
     gfx.set_sprite_layer(1)
     gfx.show_layer(LAYER_SMOKE) -- smoke fx

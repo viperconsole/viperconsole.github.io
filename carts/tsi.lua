@@ -11,7 +11,6 @@ SPRITE_PER_ROW = 16
 SPRITE_SIZE = 14
 SCREEN_SIZE = 16 * SPRITE_SIZE
 LAYER_SPRITE = 7
-SPRITESHEET_SIZE = 224
 
 p1 = {}
 lrs = {}
@@ -1347,7 +1346,6 @@ end
 
 function init()
     inp.set_ls_neutral_zone(0.2)
-    gfx.set_layer_size(LAYER_SPRITE, SPRITESHEET_SIZE, SPRITESHEET_SIZE)
     gfx.set_active_layer(LAYER_SPRITE)
     gfx.load_img("tsi/tsi.png")
     gfx.set_active_layer(0)

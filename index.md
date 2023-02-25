@@ -94,7 +94,8 @@ You can get the number of frames rendered during the last second with :
     * id is an arbitrary integer value. Visible layers are rendered in ascending id order.
 
 * `load_img(filepath, [resource_name])`
-    * load an image in the current active layer
+    * load an image in the current active layer.
+    * warning ! the layer is resized to match the image size.
 
     filepath is an URL :
 

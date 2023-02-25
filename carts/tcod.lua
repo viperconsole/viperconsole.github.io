@@ -214,7 +214,6 @@ local grass = {
 }
 
 function init()
-    gfx.set_layer_size(LAYER_SPRITE, SPRITESHEET_SIZE, SPRITESHEET_SIZE)
     gfx.set_layer_size(LAYER_GROUND_SPRITE, SPRITESHEET_SIZE, SPRITESHEET_SIZE)
     gfx.set_active_layer(LAYER_SPRITE)
     gfx.load_img("tcod/char.png","sprites")
