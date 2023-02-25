@@ -1555,10 +1555,10 @@ function render()
 	end
 
 	gfx.set_active_layer(1)
-	gfx.clear(0, 0, 0)
+	gfx.clear()
 	map(x, y, 0, 0, 16, 16, 4)
 	gfx.set_active_layer(2)
-	gfx.clear(0, 0, 0)
+	gfx.clear()
 
 	-- platforms / big chests
 	for _, obj in pairs(objects) do

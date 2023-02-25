@@ -241,7 +241,7 @@ end
 
 function render()
     gfx.set_active_layer(0)
-    gfx.clear(0, 0, 0)
+    gfx.clear()
     render_map(map, 0, 0)
     gfx.set_active_layer(LAYER_SHADOW)
     gfx.clear(255, 255, 255)
@@ -249,7 +249,7 @@ function render()
         render_shadow(entity)
     end
     gfx.set_active_layer(LAYER_ENTITIES)
-    gfx.clear(0, 0, 0)
+    gfx.clear()
     for _, entity in pairs(entities) do
         entity:render()
     end

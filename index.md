@@ -114,8 +114,8 @@ You can get the number of frames rendered during the last second with :
     * set the layer color operation.
     * layer_op values : `gfx.LAYEROP_SET`/`gfx.LAYEROP_ADD`/`gfx.LAYEROP_AVERAGE`/`gfx.LAYEROP_SUBTRACT`/`gfx.LAYEROP_MULTIPLY`.
 
-* `clear(r,g,b)`
-    * fill the active layer with the color `r,g,b`
+* `clear([r,g,b])`
+    * fill the active layer with the color `r,g,b`. If the color is not defined, use the transparent color (default black).
 
 * `blit_pixels(x,y, width, rgb)`
     * set pixel colors on current layer.

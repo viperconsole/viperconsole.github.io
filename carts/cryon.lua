@@ -306,9 +306,9 @@ end
 
 function Sector:render()
     gfx.set_active_layer(const.LAYER_TRAILS)
-    gfx.clear(0, 0, 0)
+    gfx.clear()
     gfx.set_active_layer(const.LAYER_ENTITIES)
-    gfx.clear(0, 0, 0)
+    gfx.clear()
     for _, e in pairs(self.entities) do
         if e.render ~= nil then
             if e.typ == const.E_TRAIL then
@@ -649,7 +649,7 @@ function Screen:render()
         end
     end
     gfx.set_active_layer(const.LAYER_GUI)
-    gfx.clear(0, 0, 0)
+    gfx.clear()
     for _, g in pairs(self.gui) do
         if g.render ~= nil then
             g:render()

@@ -163,13 +163,13 @@ local SHADOW_COL <const> = 22
 function cls()
     local c = PAL[21]
     gfx.set_active_layer(LAYER_TOP)
-    gfx.clear(0, 0, 0)
+    gfx.clear()
     gfx.set_active_layer(LAYER_SHADOW)
-    gfx.clear(0, 0, 0)
+    gfx.clear()
     gfx.set_active_layer(LAYER_SHADOW2)
-    gfx.clear(0, 0, 0)
+    gfx.clear()
     gfx.set_active_layer(LAYER_CARS)
-    gfx.clear(0, 0, 0)
+    gfx.clear()
     gfx.set_active_layer(0)
     gfx.clear(c.r, c.g, c.b)
 end
@@ -227,7 +227,7 @@ end
 function minimap_disk(p, c)
     p = world2minimap(p)
     c = flr(c)
-    gfx.disk(p.x, p.y, 2, PAL[c].r, PAL[c].g, PAL[c].b)
+    gfx.disk(p.x+0.5, p.y, 2, PAL[c].r, PAL[c].g, PAL[c].b)
 end
 
 function cam2screen(p)
@@ -1289,7 +1289,7 @@ function intro:update()
 end
 
 difficulty_names = {
-    [0] = "Monzana",
+    [0] = "Manzana",
     "Vancouver",
     "Melbourne",
     "Detroit",
@@ -2786,7 +2786,7 @@ function race()
             end
         end
         gfx.set_active_layer(LAYER_SMOKE)
-        gfx.clear(0, 0, 0)
+        gfx.clear()
         if not self.completed then
             for _, p in pairs(smokes) do
                 if p.enabled then
