@@ -200,8 +200,35 @@ Source and destination cannot be the same layer.
     * `dw,dh` : destination size in pixel (if 0,0, or nil,nil, uses the source size). The sprite will be stretched to fill dw,dh
     * `hflip, vflip` : whether to flip the sprite horizontally or vertically (default false)
 
-### <a name="h2.5"></a>2.5. Tile map
-TODO
+### <a name="h2.5"></a>2.5. Spritesheets
+You can define a spritesheet on any layer using the `gfx.set_spritesheet` function.
+* `set_spritesheet(layer, sprite_w, sprite_h, [off_x], [off_y], [grid_width])`
+    * create a return the id of a spritesheet that can be used to easily blit sprites
+    * `layer` the layer containing the sprites
+    * `sprite_w, sprite_h` : the size of a sprite in pixels
+    * `off_x, off_y` : the top-left position of the sprite grid in the layer (default 0,0)
+    * `grid_width` : in case the spritesheet doesn't use all the layer width, how many sprites are in a row
+
+You can then blit a sprite from this layer using `gfx.blit_sprite` :
+* `blit_sprite(spritesheet_id, sprite_num, dx, dy, [r,g,b], [angle], [dw],[dh], [hflip],[vflip])`
+    * blit a sprite from a predefined spritesheet to the active layer.
+    * warning : using angle = 0 or angle = nil does not produce the same result. See dx,dy description below
+    * `spritesheet_id` : id returned by the `set_spritesheet` function
+    * `sprite_num` : number of the sprite in the grid (0 = top-left, row-first order)
+    * `dx,dy` : destination on active pixel buffer (the sprite's top left position if angle==nil, else center position)
+    * `r,g,b` : multiply the sprite colors with this color (default white)
+    * `angle` : an optional rotation angle in radians
+    * `dw,dh` : destination size in pixel (if 0,0, or nil,nil, uses the sprite size). The sprite will be stretched to fill dw,dh
+    * `hflip, vflip` : whether to flip the sprite horizontally or vertically (default false)
+
+Example :
+
+```lua
+-- define layer 1 as a grid of 32x32 pixels sprites
+spritesheet_id = gfx.set_spritesheet(1, 32, 32)
+-- blit the top left sprite (#0) on the current layer at position 10,10
+gfx.blit_sprite(spritesheet_id, 0, 10, 10)
+```
 
 ## <a name="h3"></a>3. Sound API (snd)
 The viper has 6 channels that each can play stereo sound at 48kHz with float32 samples.
