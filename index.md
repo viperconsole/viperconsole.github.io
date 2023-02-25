@@ -59,16 +59,16 @@ Each API might expose values and methods.
 
 ### <a name="h2.1"></a>2.1. Architecture
 
-The viper screen size is 384x224 pixels. You can get those values with `gfx.SCREEN_WIDTH` and `gfx.SCREEN_HEIGHT`. The graphics engine can display on screen any number of transparent layers. Viper doesn't use alpha blending, but a transparent key color that can be changed with `gfx.set_transparent_color(r,g,b)` (default is pure black).
+The viper screen size is 384x224 pixels. You can get those values with `gfx.SCREEN_WIDTH` and `gfx.SCREEN_HEIGHT`. The graphics engine can display on screen any number of transparent layers. Viper doesn't use alpha blending, but a transparent key color that can be changed with `gfx.set_transparent_color` (default is pure black).
 
 All colors are expressed with integer component between 0 and 255. All coordinates are floats but for a pixel perfect result, you should truncate them to integers. But smooth movement can be achieved using float coordinates.
 
-Each layer can be resized with `gfx.set_layer_size(id, w, h)` and moved with `gfx.set_layer_offset(id,x,y)`.
-You can hide and show layers with `gfx.show_layer(id)` and `gfx.hide_layer(id)`. By default, only one layer (layer 0) is displayed.
+Each layer can be resized with `gfx.set_layer_size` and moved with `gfx.set_layer_offset`.
+You can hide and show layers with `gfx.show_layer` and `gfx.hide_layer`. By default, only one layer (layer 0) is displayed.
 
 The console renders the layers in increasing id order (first layer 0, then 1 on top of it and so on).
 
-Layers can be used to overlay graphics on screen or store bitmap fonts/sprite sheets offscreen. You can copy an image from a layer to another with `gfx.set_sprite_layer(id)`, `gfx.set_active_layer(id)` and `gfx.blit(sx,sy,sw,sh, dx,dy,dw,dh, hflip, vflip, r,g,b, angle)`. You can load an image in the current active layer with `gfx.load_img(filepath, [resource_name])`.
+Layers can be used to overlay graphics on screen or store bitmap fonts/sprite sheets offscreen. You can copy an image from a layer to another with `gfx.set_sprite_layer`, `gfx.set_active_layer` and `gfx.blit`. You can load an image in the current active layer with `gfx.load_img`.
 
 Each visible layer applies a color operation between its color and the underlying color :
 
@@ -177,26 +177,28 @@ Source and destination cannot be the same layer.
 * `set_sprite_layer(id)`
     * define the current source for sprite blitting operations
 
-* `blit(sx,sy,sw,sh, dx,dy,dw,dh, hflip,vflip, r,g,b, angle)`
+* `blit(sx,sy,sw,sh, dx,dy, [r,g,b], [angle], [dw],[dh], [hflip],[vflip])`
     * blit a rectangular zone from the current sprite layer to the active layer
+    * warning : using angle = 0 or angle = nil does not produce the same result. See dx,dy description below
     * `sx,sy` : top left pixel position in the spritesheet
     * `sw,sh` : rectangular zone size in the spritesheet in pixels
     * `dx,dy` : destination on active pixel buffer (top left position if angle==nil, else center position)
-    * `dw,dh` : destination size in pixel (if 0,0, uses the source size). The sprite will be stretched to fill dw,dh
-    * `hflip, vflip` : whether to flip the sprite horizontally or vertically
-    * `r,g,b` : multiply the sprite colors with this color
+    * `r,g,b` : multiply the sprite colors with this color (default white)
     * `angle` : an optional rotation angle in radians
+    * `dw,dh` : destination size in pixel (if 0,0, or nil,nil, uses the source size). The sprite will be stretched to fill dw,dh
+    * `hflip, vflip` : whether to flip the sprite horizontally or vertically (default false)
 
-* `blit_col(sx,sy,sw,sh, dx,dy,dw,dh, hflip,vflip, r,g,b, angle)`
+* `blit_col(sx,sy,sw,sh, dx,dy, [r,g,b], [angle], [dw],[dh], [hflip],[vflip])`
     * blit a rectangular zone from the current sprite layer to the active layer replacing all non transparent pixels with r,g,b.
+    * warning : using angle = 0 or angle = nil does not produce the same result. See dx,dy description below
     * This function is useful for example if you want to blit a sprite with all white pixels for a hit effect, or to black for drop shadow effects.
     * `sx,sy` : top left pixel position in the spritesheet
     * `sw,sh` : rectangular zone size in the spritesheet in pixels
     * `dx,dy` : destination on active pixel buffer (top left position if angle==nil, else center position)
-    * `dw,dh` : destination size in pixel (if 0,0, uses the source size). The sprite will be stretched to fill dw,dh
-    * `hflip, vflip` : whether to flip the sprite horizontally or vertically
-    * `r,g,b` : replace all sprite's pixels with this color
+    * `r,g,b` : replace all sprite's pixels with this color (default white)
     * `angle` : an optional rotation angle in radians
+    * `dw,dh` : destination size in pixel (if 0,0, or nil,nil, uses the source size). The sprite will be stretched to fill dw,dh
+    * `hflip, vflip` : whether to flip the sprite horizontally or vertically (default false)
 
 ### <a name="h2.5"></a>2.5. Tile map
 TODO

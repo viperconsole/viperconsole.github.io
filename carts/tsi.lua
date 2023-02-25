@@ -69,16 +69,15 @@ function sprc(n, x, y, w, h, c)
     local int_spr = math.floor(n)
     local spritex = (int_spr % SPRITE_PER_ROW) * SPRITE_SIZE
     local spritey = math.floor(int_spr / SPRITE_PER_ROW) * SPRITE_SIZE
-    gfx.blit(spritex, spritey, w * SPRITE_SIZE, h * SPRITE_SIZE, math.floor(x + X_OFFSET), math.floor(y + Y_OFFSET), 0,
-        0, false, false, PAL[c + 1].r, PAL[c + 1].g, PAL[c + 1].b)
+    gfx.blit(spritex, spritey, w * SPRITE_SIZE, h * SPRITE_SIZE, math.floor(x + X_OFFSET), math.floor(y + Y_OFFSET),
+        PAL[c + 1].r, PAL[c + 1].g, PAL[c + 1].b)
 end
 
 function ssprc(n, x, y, w, h)
     local int_spr = math.floor(n)
     local spritex = (int_spr % SPRITE_PER_ROW) * SPRITE_SIZE
     local spritey = math.floor(int_spr / SPRITE_PER_ROW) * SPRITE_SIZE
-    gfx.blit(spritex, spritey, SPRITE_SIZE, SPRITE_SIZE, math.floor(x + X_OFFSET), math.floor(y + Y_OFFSET), w, h,
-        false, false, 306, 306, 306)
+    gfx.blit(spritex, spritey, SPRITE_SIZE, SPRITE_SIZE, math.floor(x + X_OFFSET), math.floor(y + Y_OFFSET), 306, 306, 306, nil, w, h)
 end
 
 function spr(n, x, y, w, h)

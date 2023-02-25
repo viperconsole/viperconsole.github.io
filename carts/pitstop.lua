@@ -174,10 +174,6 @@ function cls()
     gfx.clear(c.r, c.g, c.b)
 end
 
-function sspr(x, y, w, h, dx, dy, dw, dh, hflip, vflip)
-    gfx.blit(x, y, w, h, dx, dy, dw or 0, dh or 0, hflip or false, vflip or false, 255, 255, 255)
-end
-
 cos = function(v)
     return math.cos(from_pico_angle(v))
 end
@@ -303,15 +299,13 @@ end
 function gblit(x, y, w, h, p, col, dir)
     local p = cam2screen(p)
     local c=PAL[col]
-    gfx.blit(x, y, w, h, p.x, p.y, w * camera_scale, h * camera_scale, false, false, c.r, c.g, c.b,
-        from_pico_angle(camera_angle - dir))
+    gfx.blit(x, y, w, h, p.x, p.y, c.r, c.g, c.b, from_pico_angle(camera_angle - dir), w * camera_scale, h * camera_scale)
 end
 
 function gblit_col(x, y, w, h, p, col, dir)
     local p = cam2screen(p)
     local c=PAL[col]
-    gfx.blit_col(x, y, w, h, p.x, p.y, w * camera_scale, h * camera_scale, false, false, c.r, c.g, c.b,
-        from_pico_angle(camera_angle - dir))
+    gfx.blit_col(x, y, w, h, p.x, p.y, c.r, c.g, c.b, from_pico_angle(camera_angle - dir), w * camera_scale, h * camera_scale)
 end
 
 function gprint(msg, px, py, col)
@@ -1301,8 +1295,8 @@ difficulty_names = {
 
 function intro:draw()
     cls()
-    sspr(0, 20, 224, 86, 80, 10)
-    sspr(0, 106, 224, 118, 80, 100)
+    gfx.blit(0, 20, 224, 86, 80, 10)
+    gfx.blit(0, 106, 224, 118, 80, 100)
     draw_intro_minimap( -95, -62, 0.015, 6)
     printr("x/c/arrows/esc", 300, 45, 6)
 
@@ -1654,32 +1648,32 @@ function mapeditor:draw()
     rect(gfx.SCREEN_WIDTH / 2 + 16, 19, 16, 16, inside_rect(mx, my, gfx.SCREEN_WIDTH / 2 + 16, 19, 16, 16) and 10 or 7)
     local y = 3
     if self.display == 0 then
-        gfx.blit(162, 8, 12, 12, 17, y, 0, 0, false, false, 255, 255, 255)
+        gfx.blit(162, 8, 12, 12, 17, y)
         gprint("  delete", 17, y + 2, 7)
         y = y + 12
-        gfx.blit(174, 8, 12, 12, 17, y, 0, 0, false, false, 255, 255, 255)
+        gfx.blit(174, 8, 12, 12, 17, y)
         gprint("  add", 17, y + 2, 7)
         y = y + 12
-        gfx.blit(66, 8, 24, 12, 5, y, 0, 0, false, false, 255, 255, 255)
+        gfx.blit(66, 8, 24, 12, 5, y)
         gprint("    length", 1, y + 2, 7)
         y = y + 12
-        gfx.blit(90, 8, 24, 12, 5, y, 0, 0, false, false, 255, 255, 255)
+        gfx.blit(90, 8, 24, 12, 5, y)
         gprint("    curve", 1, y + 2, 7)
         y = y + 12
-        gfx.blit(138, 8, 24, 12, 5, y, 0, 0, false, false, 255, 255, 255)
+        gfx.blit(138, 8, 24, 12, 5, y)
         gprint("    zoom", 1, y + 2, 7)
         y = y + 12
-        gfx.blit(114, 8, 24, 12, 5, y, 0, 0, false, false, 255, 255, 255)
+        gfx.blit(114, 8, 24, 12, 5, y)
         gprint("    width", 1, y + 2, 7)
         y = y + 12
     end
-    gfx.blit(186, 8, 24, 12, 5, y, 0, 0, false, false, 255, 255, 255)
+    gfx.blit(186, 8, 24, 12, 5, y)
     gprint("    section", 1, y + 2, 7)
     y = y + 12
-    gfx.blit(54, 8, 12, 12, 17, y, 0, 0, false, false, 255, 255, 255)
+    gfx.blit(54, 8, 12, 12, 17, y)
     gprint("  menu", 17, y + 2, 7)
     y = y + 12
-    gfx.blit(210, 8, 12, 12, 17, y, 0, 0, false, false, 255, 255, 255)
+    gfx.blit(210, 8, 12, 12, 17, y)
     gprint("  display", 17, y + 2, 7)
 end
 
@@ -2660,8 +2654,8 @@ function race()
                     -- starting line
                     if seg % mapsize == 0 then
                         p = cam2screen(vecadd(v, scalev(v.front, -6)))
-                        gfx.blit(162, 254, 110, 6, p.x, p.y, 110 * camera_scale, 6 * camera_scale, false, false, 255, 255,
-                            255, from_pico_angle(camera_angle - v.dir))
+                        gfx.blit(162, 254, 110, 6, p.x, p.y, 255, 255, 255,
+                            from_pico_angle(camera_angle - v.dir), 110 * camera_scale, 6 * camera_scale)
                     end
                     -- starting grid
                     local wseg = wrap(seg, mapsize)
@@ -2827,16 +2821,14 @@ function race()
         if not self.completed and self.race_mode ~= MODE_EDITOR then
             local x=gfx.SCREEN_WIDTH-66
             local y=gfx.SCREEN_HEIGHT-35
-            gfx.blit(0, 224, 66, 35, x, y, 0, 0, false, false, 255, 255, 255)
+            gfx.blit(0, 224, 66, 35, x, y)
             -- speed indicator
             printc("" .. flr(player.speed * 14), 370, 210, 28)
             -- gear
             printc(player.gear == 0 and "N" or ""..player.gear, gfx.SCREEN_WIDTH-32,gfx.SCREEN_HEIGHT-31,28)
             -- engine speed
-            gfx.blit(66, 224, 25 * min(1, player.speed / 15), 8, gfx.SCREEN_WIDTH - 28, gfx.SCREEN_HEIGHT - 23, 0, 0,
-                false, false, 255, 255, 255)
-            gfx.blit(66, 232, 19 * clamp(player.freq / 50,0,1), 9, gfx.SCREEN_WIDTH - 60,
-                gfx.SCREEN_HEIGHT - 22, 0, 0, false, false, 255, 255, 255)
+            gfx.blit(66, 224, 25 * min(1, player.speed / 15), 8, gfx.SCREEN_WIDTH - 28, gfx.SCREEN_HEIGHT - 23)
+            gfx.blit(66, 232, 19 * clamp(player.freq / 50,0,1), 9, gfx.SCREEN_WIDTH - 60, gfx.SCREEN_HEIGHT - 22)
             -- car status
             -- front wing
             gfx.line(x+31,y+25,x+35,y+25, 0,228,54)
@@ -2885,13 +2877,11 @@ function race()
             -- boost : TODO remove
             if player.cooldown > 0 then
                 if frame % 4 < 2 then
-                    gfx.blit(66, 249, 21 * (1 - player.cooldown / 30), 4, gfx.SCREEN_WIDTH - 61, gfx.SCREEN_HEIGHT - 11,
-                        0, 0, false, false, 255, 255, 255)
+                    gfx.blit(66, 249, 21 * (1 - player.cooldown / 30), 4, gfx.SCREEN_WIDTH - 61, gfx.SCREEN_HEIGHT - 11)
                 end
             else
                 local spritey = (player.boost < BOOST_WARNING_THRESH and frame % 4 < 2) and 245 or 241
-                gfx.blit(66, spritey, 21 * (player.boost / 100), 4, gfx.SCREEN_WIDTH - 61, gfx.SCREEN_HEIGHT - 11, 0, 0,
-                    false, false, 255, 255, 255)
+                gfx.blit(66, spritey, 21 * (player.boost / 100), 4, gfx.SCREEN_WIDTH - 61, gfx.SCREEN_HEIGHT - 11)
             end
             if self.race_mode == MODE_RACE and self.panel_timer >= 0 then
                 -- stand panel
@@ -2913,7 +2903,7 @@ function race()
                 printc("Warning!", x + 45, 53, 8)
                 printc("Corner", x + 45, 63, 9)
                 printc("cutting", x + 45, 73, 9)
-                gfx.blit(115, 224, 26, 16, x + 45 - 13, 83, 0, 0, false, false, 255, 255, 255)
+                gfx.blit(115, 224, 26, 16, x + 45 - 13, 83)
             end
         end
         if self.race_mode == MODE_RACE and self.best_lap_timer >= 0 then
@@ -2928,23 +2918,23 @@ function race()
             local x = gfx.SCREEN_WIDTH - 110
             gfx.rectangle(x, 50, 108, 75, 50, 50, 50)
             printc("Choose tyre", x + 55, 52, 7)
-            gfx.blit(66, 8, 24, 12, x + 55 - 12, 62, 0, 0, false, false, 255, 255, 255)
+            gfx.blit(66, 8, 24, 12, x + 55 - 12, 62)
             local tx = self.tyre < 2 and 0 or self.tyre < 4 and 1 or 2
-            gfx.blit(224, 192, 32, 32, x + 42, 76, 0, 0, false, false, 255, 255, 255)
-            gfx.blit(256 + tx * 27, 192, 27, 32, x + 38, 76, 0, 0, false, false, 255, 255, 255)
+            gfx.blit(224, 192, 32, 32, x + 42, 76)
+            gfx.blit(256 + tx * 27, 192, 27, 32, x + 38, 76)
             rect(x + 37, 75, 36, 34, 9)
             printc(TYRE_TYPE[self.tyre + 1], x + 55, 114, TYRE_COL[self.tyre + 1])
         elseif not self.completed and panel == PANEL_CAR_STATUS then
             local x = gfx.SCREEN_WIDTH - 66
             local y = 105
             gfx.rectangle(x, y, 66, 75, 50, 50, 50)
-            gfx.blit(326,0,29,63,x+34-15,y+4,0,0,false,false,255,255,255)
-            gfx.blit(355,14,7,9,x+34-15,y+13,0,0,false,false,tyre_col[1][1],tyre_col[1][2],tyre_col[1][3])
-            gfx.blit(377,14,7,9,x+41,y+13,0,0,false,false,tyre_col[2][1],tyre_col[2][2],tyre_col[2][3])
-            gfx.blit(356,48,6,8,x+34-14,y+52,0,0,false,false,tyre_col[3][1],tyre_col[3][2],tyre_col[3][3])
-            gfx.blit(377,48,6,8,x+41,y+52,0,0,false,false,tyre_col[4][1],tyre_col[4][2],tyre_col[4][3])
-            gfx.blit(362,55,15,8,x+34-8,y+58,0,0,false,false,255,255,255)
-            gfx.blit(360,0,19,14,x+34-10,y+4,0,0,false,false,255,255,255)
+            gfx.blit(326,0,29,63,x+34-15,y+4)
+            gfx.blit(355,14,7,9,x+34-15,y+13,tyre_col[1][1],tyre_col[1][2],tyre_col[1][3])
+            gfx.blit(377,14,7,9,x+41,y+13,tyre_col[2][1],tyre_col[2][2],tyre_col[2][3])
+            gfx.blit(356,48,6,8,x+34-14,y+52,tyre_col[3][1],tyre_col[3][2],tyre_col[3][3])
+            gfx.blit(377,48,6,8,x+41,y+52,tyre_col[4][1],tyre_col[4][2],tyre_col[4][3])
+            gfx.blit(362,55,15,8,x+34-8,y+58)
+            gfx.blit(360,0,19,14,x+34-10,y+4)
             gfx.activate_systemfont_4x6_mono()
             gfx.print(string.format("%3d%%",tyre_wear[1]),x+2,y+13,255,255,255)
             gfx.print(string.format("%3d%%",tyre_wear[2]),gfx.SCREEN_WIDTH -17,y+13,255,255,255)
@@ -2969,7 +2959,7 @@ function race()
                         60, y, car.is_player and 7 or 6)
                     rectfill(21, y, 27, y + 8, car.color)
                     if car.race_finished then
-                        gfx.blit(149, 0, 6, 8, 57, y, 0, 0, false, false, 255, 255, 255)
+                        gfx.blit(149, 0, 6, 8, 57, y)
                     end
                     y = y + 9
                 end
@@ -3006,7 +2996,7 @@ function race()
                 end
                 rectfill(69, y - 1, 75, y + 7, car.color)
                 if car.race_finished then
-                    gfx.blit(149, 0, 6, 8, 233, y, 0, 0, false, false, 255, 255, 255)
+                    gfx.blit(149, 0, 6, 8, 233, y)
                 end
             end
         end
@@ -3050,10 +3040,10 @@ function race()
             local count = -flr(time)
             local lit = 4 - count
             for i = 1, lit do
-                gfx.blit(34, 0, 20, 20, 217 + i * 22, 44, 0, 0, false, false, 255, 255, 255)
+                gfx.blit(34, 0, 20, 20, 217 + i * 22, 44)
             end
             for i = lit + 1, 3 do
-                gfx.blit(14, 0, 20, 20, 217 + i * 22, 44, 0, 0, false, false, 255, 255, 255)
+                gfx.blit(14, 0, 20, 20, 217 + i * 22, 44)
             end
         end
         if player.collision > 0 or self.completed then

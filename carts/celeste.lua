@@ -96,11 +96,11 @@ function spr(n, x, y, w, h, hflip, vflip)
 		h * SPRITE_SIZE,
 		math.floor(x + X_OFFSET),
 		math.floor(y + Y_OFFSET),
-		0,
-		0,
+		255, 255, 255, nil,
+		nil,
+		nil,
 		hflip,
-		vflip,
-		255, 255, 255
+		vflip
 	)
 end
 
@@ -1311,8 +1311,7 @@ function map(cx, cy, sx, sy, cw, ch, layer)
 				local spritey = (v // SPRITE_PER_ROW) * SPRITE_SIZE
 				gfx.blit(spritex, spritey, SPRITE_SIZE, SPRITE_SIZE,
 					sx + X_OFFSET + (x - cx) * SPRITE_SIZE,
-					sy + Y_OFFSET + (y - cy) * SPRITE_SIZE,
-					0, 0, false, false, 255, 255, 255
+					sy + Y_OFFSET + (y - cy) * SPRITE_SIZE
 				)
 			end
 		end

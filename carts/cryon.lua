@@ -371,15 +371,15 @@ function gui.render_label(lab)
 end
 
 function gui.render_button_bkgnd(x, y, len, len2, col)
-    gfx.blit(6, 36, 6, 18, x - 6, y - 6, 0, 0, false, false, col, col, col)
-    gfx.blit(12, 36, 6, 18, x, y - 6, len, 0, false, false, col, col, col)
+    gfx.blit(6, 36, 6, 18, x - 6, y - 6, col, col, col)
+    gfx.blit(12, 36, 6, 18, x, y - 6, col, col, col, nil, len, 0)
     if len2 > 0 then
-        gfx.blit(24, 36, 6, 18, x + len, y - 6, 0, 0, false, false, col, col, col)
+        gfx.blit(24, 36, 6, 18, x + len, y - 6, col, col, col)
         if len2 > 6 then
-            gfx.blit(30, 36, 6, 18, x + len + 6, y - 6, 0, 0, false, false, col, col, col)
+            gfx.blit(30, 36, 6, 18, x + len + 6, y - 6, col, col, col)
         end
     end
-    gfx.blit(18, 36, 6, 18, round(x + len + len2), y - 6, 0, 0, false, false, col, col, col)
+    gfx.blit(18, 36, 6, 18, round(x + len + len2), y - 6, col, col, col)
 end
 
 function gui.gen_frame(x, y, w, h)
@@ -419,7 +419,7 @@ function gui.gen_label(msg, x, y, col, align)
 end
 
 function gui.render_image(img)
-    gfx.blit(img.sx, img.sy, img.sw, img.sh, img.dx, img.dy, 0, 0, false, false, 255, 255, 255)
+    gfx.blit(img.sx, img.sy, img.sw, img.sh, img.dx, img.dy)
 end
 
 function gui.render_button(this)
@@ -452,11 +452,11 @@ function gui.update_button(this)
 end
 
 function gui.render_frame(f)
-    gfx.blit(42, 37, 15, 1, f.x, f.y, f.w, 1, false, false, 255, 255, 255)
-    gfx.blit(42, 53, 15, 1, f.x, f.y + f.h - 1, f.w, 1, false, false, 255, 255, 255)
-    gfx.blit(42, 38, 1, 15, f.x, f.y + 1, 1, f.h - 2, false, false, 255, 255, 255)
-    gfx.blit(54, 38, 3, 15, f.x + f.w - 1, f.y + 1, 3, f.h - 2, false, false, 255, 255, 255)
-    gfx.blit(43, 38, 11, 15, f.x + 1, f.y + 1, f.w - 2, f.h - 2, false, false, 255, 255, 255)
+    gfx.blit(42, 37, 15, 1, f.x, f.y, 255, 255, 255, nil, f.w, 1)
+    gfx.blit(42, 53, 15, 1, f.x, f.y + f.h - 1, 255, 255, 255, nil, f.w, 1)
+    gfx.blit(42, 38, 1, 15, f.x, f.y + 1, 255, 255, 255, nil, 1, f.h - 2)
+    gfx.blit(54, 38, 3, 15, f.x + f.w - 1, f.y + 1, 255, 255, 255, nil, 3, f.h - 2)
+    gfx.blit(43, 38, 11, 15, f.x + 1, f.y + 1, 255, 255, 255, nil, f.w - 2, f.h - 2)
 end
 
 function gui.gen_button(msg, x, y, align, evt)
@@ -562,10 +562,9 @@ end
 
 function Ship:render()
     -- gfx.set_sprite_layer(const.LAYER_SHIP_MODELS)
-    -- gfx.blit(self.sx, self.sy, self.sw, self.sh, flr(self.x - self.sw / 2), flr(self.y), 0, 0, false, false, 255,255,255)
+    -- gfx.blit(self.sx, self.sy, self.sw, self.sh, flr(self.x - self.sw / 2), flr(self.y))
     -- gfx.set_sprite_layer(const.LAYER_SPRITES)
-    gfx.blit(conf.SPRITE.x, conf.SPRITE.y, conf.SPRITE.w, conf.SPRITE.h, flr(self.x - self.sw / 2), flr(self.y), 0, 0,
-        false, false, 255, 255, 255, elapsed() * 0.3)
+    gfx.blit(conf.SPRITE.x, conf.SPRITE.y, conf.SPRITE.w, conf.SPRITE.h, flr(self.x - self.sw / 2), flr(self.y), 255, 255, 255, elapsed() * 0.3)
 end
 
 function Ship:new(hull_num, engine_num, shield_num, x, y)
@@ -576,11 +575,9 @@ function Ship:new(hull_num, engine_num, shield_num, x, y)
     local w = hull.w * 6
     local h = hull.h * 6
     gfx.rectangle(0, 0, w, h, 0, 0, 0)
-    gfx.blit(engine.x * 6, engine.y * 6, engine.w * 6, engine.h * 6, w / 2 - engine.w * 3, h - engine.h * 6, 0, 0,
-        false, false, 255, 255, 255)
-    gfx.blit(hull.x, hull.y, hull.w, hull.h, 0, 0, 0, 0, false, false, 255, 255, 255)
-    gfx.blit(shield.x * 6, shield.y * 6, shield.w * 6, shield.h * 6, w / 2 - shield.w * 3, h / 2 - shield.h * 3, 0, 0,
-        false, false, 255, 255, 255)
+    gfx.blit(engine.x * 6, engine.y * 6, engine.w * 6, engine.h * 6, w / 2 - engine.w * 3, h - engine.h * 6)
+    gfx.blit(hull.x, hull.y, hull.w, hull.h, 0, 0)
+    gfx.blit(shield.x * 6, shield.y * 6, shield.w * 6, shield.h * 6, w / 2 - shield.w * 3, h / 2 - shield.h * 3)
     local s={
         typ = const.E_SHIP,
         x = x,

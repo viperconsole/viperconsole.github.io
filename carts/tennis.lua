@@ -83,12 +83,12 @@ end
 
 function sspr(sx, sy, sw, sh, dx, dy)
 	gfx.blit(math.floor(sx), math.floor(sy), math.floor(sw), math.floor(sh),
-		X_OFFSET + math.floor(dx), Y_OFFSET + math.floor(dy), 0, 0, false, false, 255, 255, 255)
+		X_OFFSET + math.floor(dx), Y_OFFSET + math.floor(dy))
 end
 
 function sspr2(sx, sy, sw, sh, dx, dy, dw, dh, hflip, vflip)
 	gfx.blit(sx, sy, sw, sh,
-		X_OFFSET + dx, Y_OFFSET + dy, dw, dh, hflip, vflip, 255, 255, 255)
+		X_OFFSET + dx, Y_OFFSET + dy, 255, 255, 255, nil, dw, dh, hflip, vflip)
 end
 
 function rect(x0, y0, x1, y1, pal)

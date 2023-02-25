@@ -77,7 +77,7 @@ function render_sprite(sheet_id, frame, x, y, hflip, vflip, r, g, b)
     local sh = sheet.h
     local sx = sheet.x + fx * sw
     local sy = sheet.y + fy * sh
-    gfx.blit(sx, sy, sw, sh, math.floor(x - sw / 2), y - sh, 0, 0, hflip, vflip, r, g, b)
+    gfx.blit(sx, sy, sw, sh, math.floor(x - sw / 2), y - sh, r, g, b, nil, nil, nil, hflip, vflip)
 end
 
 function render_object(this)
@@ -97,7 +97,7 @@ end
 function render_shadow(character)
     local x = math.floor(character.x + gfx.SCREEN_WIDTH / 2)
     local y = math.floor(character.y + gfx.SCREEN_HEIGHT / 2)
-    gfx.blit(64, 502, 32, 10, x - 18, y - 8, 0, 0, character.flip, false, 128, 128, 128)
+    gfx.blit(64, 502, 32, 10, x - 18, y - 8, 128, 128, 128, nil, nil, nil, character.flip, false)
 end
 
 function render_map(m, mx, my)
