@@ -161,17 +161,17 @@ You can get the number of frames rendered during the last second with :
     * if `chars_width` is not set, we assume every character's width is char_width
     * The function returns a number representing this font. You can use this number to print text.
     * The console is preloaded with three fonts :
-        * `gfx.SYSTEM_FONT_8X8` : the default mono font that contains the complete 128 ascii table characters.
-        * `gfx.SYSTEM_FONT_5X7` : a smaller non-mono font that contains the 93 ascii characters from `!` to `~`.
-        * `gfx.SYSTEM_FONT_4X6` : a very small mono font that contains the 93 ascii characters from `!` to `~`.
+        * `gfx.FONT_8X8` : the default mono font that contains the complete 128 ascii table characters.
+        * `gfx.FONT_5X7` : a smaller non-mono font that contains the 93 ascii characters from `!` to `~`.
+        * `gfx.FONT_4X6` : a very small mono font that contains the 93 ascii characters from `!` to `~`.
 
 * `print(font, text, x,y, [r],[g],[b])`
-    * print the text at position `x,y` using a spefici font
+    * print the text at position `x,y` using a specific font
     * `r,g,b` : multiply the font's character sprites with this color (default white)
 
     Example : print hello at position 0,0 in white
 
-    `gfx.print(gfx.SYSTEM_FONT_8X8, "hello", 0,0)`
+    `gfx.print(gfx.FONT_8X8, "hello", 0,0)`
 
 ### <a name="h2.4"></a>2.4. Sprite API
 
@@ -207,7 +207,7 @@ Source and destination cannot be the same layer.
 ### <a name="h2.5"></a>2.5. Spritesheets
 You can define a spritesheet on any layer using the `gfx.set_spritesheet` function.
 * `set_spritesheet(layer, sprite_w, sprite_h, [off_x], [off_y], [grid_width])`
-    * create a return the id of a spritesheet that can be used to easily blit sprites
+    * return the id of a spritesheet that can be used to easily blit sprites
     * `layer` the layer containing the sprites
     * `sprite_w, sprite_h` : the size of a sprite in pixels
     * `off_x, off_y` : the top-left position of the sprite grid in the layer (default 0,0)
@@ -239,7 +239,7 @@ The viper has 6 channels that each can play stereo sound at 48kHz with float32 s
 
 ### <a name="h3.1"></a>3.1. Instrument API
 You can create any number of instruments that produce sound.
-Instrument can either use additive synthesis by using various oscillators and read samples from .wav files.
+Instrument can either use additive synthesis by using various oscillators or read samples from .wav files.
 
 Oscillator instrument properties:
 
@@ -506,6 +506,7 @@ If you want to support both keyboard and controller at the same time in a single
 * `inp.action2()` returns true if the controller X button or keyboard C key are pressed
 * `inp.action3()` returns true if the controller B button or keyboard V key are pressed
 * `inp.action4()` returns true if the controller Y button or keyboard Z key are pressed
+
 The same functions with the _pressed suffix exist to check if the button was pressed since the last game tick. They all return a boolean.
 * `inp.action1_pressed()`
 * `inp.action2_pressed()`

@@ -310,7 +310,7 @@ end
 
 function gprint(msg, px, py, col)
     local c = math.floor(col)
-    gfx.print(gfx.SYSTEM_FONT_8X8, msg, math.floor(px), math.floor(py), PAL[c].r, PAL[c].g, PAL[c].b)
+    gfx.print(gfx.FONT_8X8, msg, math.floor(px), math.floor(py), PAL[c].r, PAL[c].g, PAL[c].b)
 end
 
 function sfx(n)
@@ -2934,10 +2934,10 @@ function race()
             gfx.blit(377,48,6,8,x+41,y+52,tyre_col[4][1],tyre_col[4][2],tyre_col[4][3])
             gfx.blit(362,55,15,8,x+34-8,y+58)
             gfx.blit(360,0,19,14,x+34-10,y+4)
-            gfx.print(gfx.SYSTEM_FONT_4X6, string.format("%3d%%",tyre_wear[1]),x+2,y+13,255,255,255)
-            gfx.print(gfx.SYSTEM_FONT_4X6, string.format("%3d%%",tyre_wear[2]),gfx.SCREEN_WIDTH -17,y+13,255,255,255)
-            gfx.print(gfx.SYSTEM_FONT_4X6, string.format("%3d%%",tyre_wear[3]),x+2,y+52,255,255,255)
-            gfx.print(gfx.SYSTEM_FONT_4X6, string.format("%3d%%",tyre_wear[4]),gfx.SCREEN_WIDTH -17,y+52,255,255,255)
+            gfx.print(gfx.FONT_4X6, string.format("%3d%%",tyre_wear[1]),x+2,y+13,255,255,255)
+            gfx.print(gfx.FONT_4X6, string.format("%3d%%",tyre_wear[2]),gfx.SCREEN_WIDTH -17,y+13,255,255,255)
+            gfx.print(gfx.FONT_4X6, string.format("%3d%%",tyre_wear[3]),x+2,y+52,255,255,255)
+            gfx.print(gfx.FONT_4X6, string.format("%3d%%",tyre_wear[4]),gfx.SCREEN_WIDTH -17,y+52,255,255,255)
         end
 
         -- ranking board

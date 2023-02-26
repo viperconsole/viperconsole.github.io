@@ -101,7 +101,7 @@ end
 
 function _print(msg, px, py, col)
     local c = math.floor(col + 1)
-    gfx.print(gfx.SYSTEM_FONT_8X8, msg, math.floor(px + X_OFFSET), math.floor(py + Y_OFFSET), PAL[c].r, PAL[c].g, PAL[c].b)
+    gfx.print(gfx.FONT_8X8, msg, math.floor(px + X_OFFSET), math.floor(py + Y_OFFSET), PAL[c].r, PAL[c].g, PAL[c].b)
 end
 
 function printc(s, y, c)
