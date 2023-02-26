@@ -39,7 +39,7 @@ function compute_x(x, len, align)
 end
 
 function gprint(msg, x, y, col)
-    gfx.print(msg, x, y, conf.PALETTE[col].r, conf.PALETTE[col].g, conf.PALETTE[col].b)
+    gfx.print(font, msg, x, y, conf.PALETTE[col].r, conf.PALETTE[col].g, conf.PALETTE[col].b)
 end
 
 function gprint_center(msg, x, y, col)
@@ -432,7 +432,7 @@ function gui.render_button(this)
     local fcolr = conf.PALETTE[7].r - col.r
     local fcolg = conf.PALETTE[7].g - col.g
     local fcolb = conf.PALETTE[7].b - col.b
-    gfx.print(this.msg, tx, this.y + 1, col.r + fcoef * fcolr, col.g + fcoef * fcolg, col.b + fcoef * fcolb)
+    gfx.print(font, this.msg, tx, this.y + 1, col.r + fcoef * fcolr, col.g + fcoef * fcolg, col.b + fcoef * fcolb)
 end
 
 function gui.update_button(this)
@@ -715,7 +715,7 @@ function init()
     gfx.set_active_layer(const.LAYER_SPRITES)
     gfx.load_img("cryon/cryon_spr.png","sprites")
     gfx.set_sprite_layer(const.LAYER_SPRITES)
-    gfx.activate_font(const.LAYER_SPRITES, 0, 0, 96, 36, 6, 6,
+    font=gfx.set_font(const.LAYER_SPRITES, 0, 0, 96, 36, 6, 6,
         " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
         { 3, 1, 3, 5, 5, 5, 4, 1, 2, 2, 3, 3, 1, 3, 1, 3, 5, 1, 5, 5, 5, 5, 5, 5, 5, 5, 1, 1, 3, 3, 3, 5, 5, 5, 5, 5, 5,
             5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 3, 3, 3, 3, 5, 2, 5, 5, 5, 5, 5, 5, 5, 5,

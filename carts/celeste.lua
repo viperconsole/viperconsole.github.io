@@ -353,7 +353,7 @@ end
 
 function cel_print(msg, px, py, col)
 	col = col + 1
-	gfx.print(msg, math.floor(px + X_OFFSET), math.floor(py + Y_OFFSET), PAL[col].r, PAL[col].g, PAL[col].b)
+	gfx.print(gfx.SYSTEM_FONT_8X8, msg, math.floor(px + X_OFFSET), math.floor(py + Y_OFFSET), PAL[col].r, PAL[col].g, PAL[col].b)
 end
 
 function break_fall_floor(obj)
@@ -1295,7 +1295,6 @@ function init()
 	gfx.clear(255, 255, 255)
 	gfx.set_active_layer(SPRITESHEET_LAYER)
 	gfx.load_img("celeste/celeste14.png")
-	gfx.activate_font(SPRITESHEET_LAYER, 0.0, 90.0, 512.0, 32.0, 8.0, 8.0, "")
 	gfx.set_sprite_layer(SPRITESHEET_LAYER)
 	gfx.set_active_layer(2)
 	title_screen()

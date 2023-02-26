@@ -150,7 +150,8 @@ You can get the number of frames rendered during the last second with :
     * fill a disk
 
 ### <a name="h2.3"></a>2.3. Font drawing API
-* `activate_font(id, x,y,w,h, char_width,char_height, [charset], [chars_width])`
+* You define a bitmap font with `set_font` by defining a rectangular zone inside a layer, and the character size :
+* `set_font(id, x,y,w,h, char_width,char_height, [charset], [chars_width])`
     * `id` id of the layer containing the characters sprites
     * `x,y,w,h` define a region of a layer as a bitmap font to use with `gfx.print`
     * `char_width,char_height` if the size of a character in this bitmap (in case of non-monotype font, use the chars_width parameter)
@@ -158,17 +159,19 @@ You can get the number of frames rendered during the last second with :
     * if `charset` is not set, the ascii table order is expected.
     * `chars_width` is an array containing the width of each character.
     * if `chars_width` is not set, we assume every character's width is char_width
+    * The function returns a number representing this font. You can use this number to print text.
     * The console is preloaded with three fonts :
-        * the default 8x8 mono font that contains the complete 128 ascii table characters. You can reset to this font with  `gfx.activate_systemfont_8x8_mono()`
-        * a smaller 5x7 non-mono font that contains the 93 ascii characters from `!` to `~`. You can reset to this font with  `gfx.activate_systemfont_5x7()`
-        * a very small 4x6 mono font that contains the 93 ascii characters from `!` to `~`. You can reset to this font with  `gfx.activate_systemfont_4x6_mono()`
+        * `gfx.SYSTEM_FONT_8X8` : the default mono font that contains the complete 128 ascii table characters.
+        * `gfx.SYSTEM_FONT_5X7` : a smaller non-mono font that contains the 93 ascii characters from `!` to `~`.
+        * `gfx.SYSTEM_FONT_4X6` : a very small mono font that contains the 93 ascii characters from `!` to `~`.
 
-* `print(text, x,y, r,g,b)`
-    * print the text at position `x,y` using currently activated font
+* `print(font, text, x,y, [r],[g],[b])`
+    * print the text at position `x,y` using a spefici font
+    * `r,g,b` : multiply the font's character sprites with this color (default white)
 
     Example : print hello at position 0,0 in white
 
-    `gfx.print("hello", 0,0, 255,255,255)`
+    `gfx.print(gfx.SYSTEM_FONT_8X8, "hello", 0,0)`
 
 ### <a name="h2.4"></a>2.4. Sprite API
 

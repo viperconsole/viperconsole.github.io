@@ -101,7 +101,7 @@ end
 
 function _print(msg, px, py, col)
     local c = math.floor(col + 1)
-    gfx.print(msg, math.floor(px + X_OFFSET), math.floor(py + Y_OFFSET), PAL[c].r, PAL[c].g, PAL[c].b)
+    gfx.print(gfx.SYSTEM_FONT_8X8, msg, math.floor(px + X_OFFSET), math.floor(py + Y_OFFSET), PAL[c].r, PAL[c].g, PAL[c].b)
 end
 
 function printc(s, y, c)
@@ -1351,8 +1351,6 @@ function init()
     gfx.set_active_layer(0)
     gfx.set_sprite_layer(LAYER_SPRITE)
     gfx.set_scanline(gfx.SCANLINE_HARD)
-    gfx.activate_font(LAYER_SPRITE, 0.0, 139.0, 128.0, 48.0, 8.0, 8.0,
-        "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~¤!\"#$%&'()*+,-./0123456789:;<=>?")
     create_blobs()
     create_stars()
     show_titles()

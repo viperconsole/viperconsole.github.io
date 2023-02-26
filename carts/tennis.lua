@@ -128,20 +128,11 @@ function circfill(x, y, r, pal)
 	gfx.disk(x, y, r, col.r, col.g, col.b)
 end
 
-function pico_print(txt, x, y, pal)
+function pico_print(font, txt, x, y, pal)
 	local col = PAL[pal + 1]
 	local x = x + X_OFFSET
 	local y = y + Y_OFFSET
-	gfx.print(txt, x, y, col.r, col.g, col.b)
-end
-
-function set_small_font()
-	gfx.activate_font(LAYER_SPRITESHEET, 0, 177, 57, 4, 3, 4, "1234567890playercu,")
-end
-
-function set_standard_font()
-	gfx.activate_font(LAYER_SPRITESHEET, 0, 129, 126, 40, 6, 8,
-		"@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~¤!\"#$%&'()*+,-./0123456789:;<=>?")
+	gfx.print(font, txt, x, y, col.r, col.g, col.b)
 end
 
 -- 3D MATH
@@ -803,7 +794,7 @@ function draw_message()
 			local score_text = get_game_score_text()
 			local half_width = (#score_text * FONT_WIDTH) / 2
 			rectfill(58 - half_width, 57, 66 + half_width, 65, 7)
-			pico_print(score_text, 63 - half_width, 58, 0)
+			pico_print(std_font,score_text, 63 - half_width, 58, 0)
 		end
 	elseif message == MSG_MATCH_SCORE then
 		draw_big_messages(32)
@@ -1813,24 +1804,22 @@ function draw_shadow(spx, spy, spw, sph, x1, y1)
 end
 
 function draw_score_board(x, y)
-	set_small_font()
 	local t0_name = get_team_name(1)
 	local t1_name = get_team_name(2)
 	local maxlen = math.max(#t0_name, #t1_name)
 	local tx = x + maxlen * 3 + 2
 	local ty = y
 	sspr(57, 177, 4, 4, x - 5, ty + 1 + serving_team * 6)
-	pico_print(t0_name, x, ty + 1, 7)
-	pico_print(t1_name, x, ty + 7, 7)
+	pico_print(small_font,t0_name, x, ty + 1, 7)
+	pico_print(small_font,t1_name, x, ty + 7, 7)
 	for i = 1, #set_scores do
 		rectfill(tx, ty, tx + 5, ty + 11, 7)
 		s = string.format("%s", set_scores[i][1])
-		pico_print(s, tx + 1, ty + 1, 0)
+		pico_print(small_font,s, tx + 1, ty + 1, 0)
 		s2 = string.format("%d", set_scores[i][2])
-		pico_print(s2, tx + 1, ty + 7, 0)
+		pico_print(small_font,s2, tx + 1, ty + 7, 0)
 		tx = tx + 5
 	end
-	set_standard_font()
 
 	sspr(game_score[1] * 13, 104, 15, 6, tx, ty)
 	sspr(game_score[2] * 13, 104, 15, 6, tx, ty + 6)
@@ -1883,15 +1872,15 @@ function draw_game()
 			sspr(0, 12 + v.power * 16, 16, 4, power_x, power_y)
 			rectfill(x, y - 1, right + 2, y + 7, 0)
 			rectfill(x - 1, y, right + 3, y + 6, 0)
-			pico_print(v.name, x + 2, y, color_sets[1][v.colors[1]][2])
+			pico_print(std_font, v.name, x + 2, y, color_sets[1][v.colors[1]][2])
 		end
 
 		if message ~= MSG_NONE then
 			draw_message()
 		end
-		pico_print("X/  : shot", -120, 20, 7)
-		pico_print("C/  : smash", -120, 28, 7)
-		pico_print("Z/  : lob", -120, 36, 7)
+		pico_print(std_font,"X/  : shot", -120, 20, 7)
+		pico_print(std_font,"C/  : smash", -120, 28, 7)
+		pico_print(std_font,"Z/  : lob", -120, 36, 7)
 		sspr(63, 176, 8, 8, -108, 20)
 		sspr(81, 176, 8, 8, -108, 28)
 		sspr(90, 176, 8, 8, -108, 36)
@@ -1925,13 +1914,13 @@ function draw_menu(menu, x, y)
 			rectfill(x - 1, y - 1, x + MENU_WIDTH - 1, y + 9, 12)
 			txt_col = 7
 		end
-		pico_print(item.label, x, y + 1, txt_col)
+		pico_print(std_font,item.label, x, y + 1, txt_col)
 		if item.is_color then
 			draw_color_range(x + #item.label * FONT_WIDTH, y, item.idx[item.cur_item] - 1, item.values)
 		elseif item.value_list then
 			val = string.format("%s", item.values[item.idx[item.cur_item]])
 			len = #val
-			pico_print(val, x + MENU_WIDTH - len * FONT_WIDTH, y + 1, 7)
+			pico_print(std_font,val, x + MENU_WIDTH - len * FONT_WIDTH, y + 1, 7)
 		end
 		y = y + 10
 	end
@@ -1940,16 +1929,16 @@ end
 function draw_player_settings(x, y, player_setting, index)
 	rectfill(x, y + 25, x + 58, y + 34, 0)
 	if player_setting.controller == -1 then
-		pico_print(string.format("CPU%d", index), x + 16, y + 26, 7)
+		pico_print(std_font,string.format("CPU%d", index), x + 16, y + 26, 7)
 		rectfill(x, y + 35, x + 58, y + 61, 5)
-		pico_print("Press", x + 14, y + 38, 6)
-		pico_print("button", x + 11, y + 44, 6)
-		pico_print("to join", x + 8, y + 50, 6)
+		pico_print(std_font,"Press", x + 14, y + 38, 6)
+		pico_print(std_font,"button", x + 11, y + 44, 6)
+		pico_print(std_font,"to join", x + 8, y + 50, 6)
 	else
-		pico_print(string.format("Player%d", index), x + 3, y + 26, 7)
+		pico_print(std_font,string.format("Player%d", index), x + 3, y + 26, 7)
 		if player_setting.ready then
 			rectfill(x, y + 32, x + 58, y + 61, 2)
-			pico_print("Ready", x + 9, y + 44, 7)
+			pico_print(std_font,"Ready", x + 9, y + 44, 7)
 		else
 			draw_menu(player_setting.menu, x == 0 and x - 42 or x + 2, y + 37)
 		end
@@ -1973,9 +1962,9 @@ function draw_game_settings()
 		end
 	end
 	y = 40
-	pico_print("X/", -120, y, 7)
+	pico_print(std_font,"X/", -120, y, 7)
 	sspr(63, 176, 8, 8, -108, y)
-	pico_print("to join", -94, y, 7)
+	pico_print(std_font,"to join", -94, y, 7)
 end
 
 function init()
@@ -1995,7 +1984,9 @@ function init()
 	gfx.set_active_layer(LAYER_SPRITESHEET)
 	gfx.load_img("tennis/spritesheet.png")
 	gfx.set_sprite_layer(LAYER_SPRITESHEET)
-	set_standard_font()
+    small_font=gfx.set_font(LAYER_SPRITESHEET, 0, 177, 57, 4, 3, 4, "1234567890playercu,")
+	std_font=gfx.set_font(LAYER_SPRITESHEET, 0, 129, 126, 40, 6, 8,
+		"@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~¤!\"#$%&'()*+,-./0123456789:;<=>?")
 	gfx.set_active_layer(LAYER_SCREEN)
 	snd.play_pattern(7)
 end
