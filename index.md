@@ -151,14 +151,15 @@ You can get the number of frames rendered during the last second with :
 
 ### <a name="h2.3"></a>2.3. Font drawing API
 * You define a bitmap font with `set_font` by defining a rectangular zone inside a layer, and the character size :
-* `set_font(id, x,y,w,h, char_width,char_height, [charset], [chars_width])`
+* `set_font(id, x,y,w,h, char_width,char_height, [charset], [spacing_h],[spacing_v], [chars_width])`
     * `id` id of the layer containing the characters sprites
     * `x,y,w,h` define a region of a layer as a bitmap font to use with `gfx.print`
     * `char_width,char_height` if the size of a character in this bitmap (in case of non-monotype font, use the chars_width parameter)
     * `charset` is a string representing the characters in the bitmap font.
     * if `charset` is not set, the ascii table order is expected.
+    * `spacing_h,spacing_v` additional horizontal and vertical spacing between characters when drawing text (default 0,0)
     * `chars_width` is an array containing the width of each character.
-    * if `chars_width` is not set, we assume every character's width is char_width
+    * if `chars_width` is not set, this is a mono font and every character's width is `char_width`
     * The function returns a number representing this font. You can use this number to print text.
     * The console is preloaded with three fonts :
         * `gfx.FONT_8X8` : the default mono font that contains the complete 128 ascii table characters.
