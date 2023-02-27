@@ -107,6 +107,18 @@ You can get the number of frames rendered during the last second with :
 
     If resource_name is defined and not empty, this image can be overriden by the player by running the console with res parameters. This makes it easy for users to mod the game graphics by replacing a named resource with another image.
 
+* `set_layer_size(id, w, h)`
+    * resize a layer (w,h in pixels).
+
+* `get_layer_size(id)`
+    * return the layer size in pixels
+
+Example :
+
+```lua
+    local w,h = gfx.get_layer_size(0)
+```
+
 * `set_layer_offset(id, x, y)`
     * set a layer scrolling offset.
     TODO use id -1 to scroll all visible layers (screen shake effect)
