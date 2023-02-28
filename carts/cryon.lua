@@ -712,8 +712,7 @@ end
 -- ################################## MAIN LOOP ##################################
 
 function init()
-    gfx.set_active_layer(const.LAYER_SPRITES)
-    gfx.load_img("cryon/cryon_spr.png","sprites")
+    gfx.load_img(const.LAYER_SPRITES, "cryon/cryon_spr.png","sprites")
     gfx.set_sprite_layer(const.LAYER_SPRITES)
     font=gfx.set_font(const.LAYER_SPRITES, 0, 0, 96, 36, 6, 6,
         " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",

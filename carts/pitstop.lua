@@ -1163,8 +1163,7 @@ function init()
     snd.new_instrument(INST_PHASER)
     snd.new_instrument(INST_ENGINE)
     snd.new_instrument(INST_TRIBUNE)
-    gfx.set_active_layer(1)
-    gfx.load_img("pitstop/pitstop.png","sprites")
+    gfx.load_img(1, "pitstop/pitstop.png","sprites")
     gfx.set_sprite_layer(1)
     gfx.show_layer(LAYER_SMOKE) -- smoke fx
     gfx.set_layer_operation(3, gfx.LAYEROP_ADD)
@@ -1174,7 +1173,6 @@ function init()
     gfx.show_layer(LAYER_SHADOW2) -- shadow
     gfx.set_layer_operation(LAYER_SHADOW2, gfx.LAYEROP_MULTIPLY)
     gfx.show_layer(LAYER_TOP) -- roofs & ui
-    gfx.set_active_layer(0)
     gfx.show_mouse_cursor(false)
     trail_offset = vec( -6, 0)
     intro:init()

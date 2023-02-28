@@ -1346,9 +1346,7 @@ end
 
 function init()
     inp.set_ls_neutral_zone(0.2)
-    gfx.set_active_layer(LAYER_SPRITE)
-    gfx.load_img("tsi/tsi.png")
-    gfx.set_active_layer(0)
+    gfx.load_img(LAYER_SPRITE, "tsi/tsi.png")
     gfx.set_sprite_layer(LAYER_SPRITE)
     gfx.set_scanline(gfx.SCANLINE_HARD)
     create_blobs()

@@ -5,9 +5,9 @@
 * [2. Graphics API (gfx)](#h2)
     * [2.1. Architecture](#h2.1)
     * [2.2. Drawing API](#h2.2)
-    * [2.3. Font drawing API](#h2.3)
+    * [2.3. Font API](#h2.3)
     * [2.4. Sprite API](#h2.4)
-    * [2.5. Tile map](#h2.5)
+    * [2.5. Spritesheets](#h2.5)
 * [3. Sound API (snd)](#h3)
     * [3.1. Instrument API](#h3.1)
     * [3.2. Pattern API](#h3.2)
@@ -93,8 +93,8 @@ You can get the number of frames rendered during the last second with :
     * set current drawing layer.
     * id is an arbitrary integer value. Visible layers are rendered in ascending id order.
 
-* `load_img(filepath, [resource_name])`
-    * load an image in the current active layer.
+* `load_img(layer, filepath, [resource_name])`
+    * load an image in a layer.
     * warning ! the layer is resized to match the image size.
 
     filepath is an URL :
@@ -122,6 +122,20 @@ Example :
 * `set_layer_offset(id, x, y)`
     * set a layer scrolling offset.
     TODO use id -1 to scroll all visible layers (screen shake effect)
+
+* `set_rowscroll(id,[start_row],[end_row],[start_value],[end_value])`
+    * apply a skew effect to the layer, moving each line by a specific horizontal offset.
+    * useful to achieve fake 3D on horizontal planes (street fighters 2)
+    * `id` : id of the layer. if no other parameter is set, the rowscroll is disabled for this layer
+    * `start_row,end_row` : range of row where we want to change the offsets
+    * `start_value,end_value` : offset value is interpolated between these values (or constant if end_value is nil)
+
+Example :
+
+```lua
+gfx.set_rowscroll(0,180,223,0,40)
+```
+Sets a rowscroll offset for rows 180 to 223. The offset ranges from 0 for row 180 to 40 for row 223
 
 * `set_layer_operation(id, layer_op)`
     * set the layer color operation.
@@ -161,7 +175,7 @@ Example :
 * `disk(x,y, radius, r,g,b)`
     * fill a disk
 
-### <a name="h2.3"></a>2.3. Font drawing API
+### <a name="h2.3"></a>2.3. Font API
 * You define a bitmap font with `set_font` by defining a rectangular zone inside a layer, and the character size :
 * `set_font(id, x,y,w,h, char_width,char_height, [charset], [spacing_h],[spacing_v], [chars_width])`
     * `id` id of the layer containing the characters sprites
