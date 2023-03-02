@@ -787,13 +787,13 @@ function create_car(race)
             if not self.pit then
                 self.race.tyre = 0
             end
-            self.pit = -1
+            self.pit = -team_pit
             self.race.pits[team_pit] = true
         elseif v.ltyp // 8 == OBJ_PIT_ENTRY3 and pos > 32 then
             if not self.pit then
                 self.race.tyre = 0
             end
-            self.pit = 1
+            self.pit = team_pit
             self.race.pits[team_pit] = true
         elseif nextv.rtyp // 8 == OBJ_PIT_EXIT1 and pos < -32 then
             if not self.pit then
@@ -896,14 +896,14 @@ function create_car(race)
             if poly then
                 local car_poly = { self.verts[1], self.verts[2], self.verts[3] }
                 local rails
-                if self.pit == -1 then
+                if self.pit < 0  then
                     local p = vecsub(v.right_inner_rail, scalev(v.side, 6))
                     local p2 = vecadd(v.right_inner_rail, scalev(v.front, 33))
                     local width = (v.rtyp // 8 == OBJ_PIT or nextv.rtyp // 8 == OBJ_PIT) and 48 or 20
                     local p3 = vecsub(p, scalev(v.side, width))
                     local p4 = vecsub(p2, scalev(v.side, width))
                     rails = { { p2, p }, { p3, p4 } }
-                elseif self.pit == 1 then
+                elseif self.pit > 0 then
                     local p = vecadd(v.left_inner_rail, scalev(v.side, 6))
                     local p2 = vecadd(v.left_inner_rail, scalev(v.front, 33))
                     local width = (v.ltyp // 8 == OBJ_PIT or nextv.ltyp // 8 == OBJ_PIT) and 48 or 20
@@ -971,7 +971,7 @@ function create_car(race)
         self.pos = vecadd(self.pos, scalev(self.vel, 0.3))
         -- aspiration
         local asp = false
-        if not self.pit and self.is_player then
+        if self.pit == nil and self.is_player then
             for i = 1, #self.race.objects do
                 local car = self.race.objects[i]
                 local seg = wrap(self.current_segment, mapsize)
@@ -994,7 +994,7 @@ function create_car(race)
         local speed=length(self.vel)
         if speed > 0.1 then
             if self.pit then
-                speed=min(speed,70/14)
+                speed=min(speed,70/14) -- max 70km/h in pit
             else
                 local asp = 1-self.asp*ASPIRATION_COEF/100
                 local team_perf = 1 - self.perf * TEAM_PERF_COEF / 100
