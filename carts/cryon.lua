@@ -71,6 +71,32 @@ function timer.step(msg)
     print(msg .. ": " .. string.format("%.2f", elapsed() - timer.t) .. " s")
     timer.t = elapsed()
 end
+-- ################################## 2D vector toolkit ##################################
+function vec(x,y)
+    return {x=(x or 0),y=(y or 0)}
+end
+function vadd(a,b)
+    return {x=a.x+b.x,y=a.y+b.y}
+end
+function vsub(a,b)
+    return {x=a.x-b.x,y=a.y-b.y}
+end
+function vmul(a,b)
+    return {x=a.x*b.x,y=a.y*b.y}
+end
+function vscale(a,s)
+    return {x=a.x * s,y=a.y * s}
+end
+function vlen(a)
+    return sqrt(a.x*a.x + a.y*a.y)
+end
+function vnorm(a)
+    local l=vlen(a)
+    return l == 0 and a or vscale(a, 1/l)
+end
+function vorth(a)
+    return {x=a.y,y=-a.x}
+end
 
 -- ################################## GLOBALS ##################################
 
@@ -84,12 +110,14 @@ const = {
     LIGHT_THRESHOLD1 = 0.5,
     LIGHT_THRESHOLD2 = 0.75,
     LAYER_BACKGROUND = 0,
-    LAYER_STARS = 1,
-    LAYER_ENTITIES = 2,
-    LAYER_TRAILS = 3,
-    LAYER_GUI = 4,
-    LAYER_SHIP_MODELS = 5,
-    LAYER_SPRITES = 6,
+    LAYER_STARS3 = 1,
+    LAYER_STARS2 = 2,
+    LAYER_ENTITIES = 3,
+    LAYER_STARS1 = 4,
+    LAYER_TRAILS = 5,
+    LAYER_GUI = 6,
+    LAYER_SHIP_MODELS = 7,
+    LAYER_SPRITES = 8,
     PI = math.pi,
     PI2 = 2 * math.pi,
     BUTTON_WIDTH = 60,
@@ -111,7 +139,9 @@ const = {
     ALIGN_RIGHT = 1,
     ALIGN_LEFT = 2,
     -- trail conf
-    TRAIL_SEG_LEN = 5
+    TRAIL_SEG_LEN = 5,
+    -- ship physics
+    SHIP_MAX_SPEED = 5
 }
 
 -- ################################## TRAILS ##################################
@@ -538,7 +568,8 @@ conf = {
         y = 0,
         w = 37,
         h = 33,
-        class = 0
+        class = 0,
+        mass = 10
     } },
     SPRITE = {
         x = 0,
@@ -553,16 +584,60 @@ conf = {
         col(31, 14, 28), col(255, 255, 255) },
     COL_WHITE = 18
 }
+-- ################################## CAMERA ##################################
+Camera = vec()
+
 
 -- ################################## SHIP ##################################
 
 Ship = {}
-function Ship:update_player()
+function Ship:update()
+    if self.is_player then
+        self:set_player_control()
+    end
+    self.dir = vec(cos(self.angle),sin(self.angle))
+
+    if self.left > 0.2 then
+        self.spd.x = self.spd.x + self.acc*self.left*0.1
+    elseif self.right > 0.2 then
+        self.spd.x = self.spd.x - self.acc*self.right*0.1
+    end
+    if self.up > 0.2 then
+        self.spd.y = self.spd.y + self.acc * 0.1
+    elseif self.down > 0.2 then
+        self.spd.y = self.spd.y - self.acc * 0.1
+    end
+    local speed=vlen(self.spd)
+    if speed > const.SHIP_MAX_SPEED then
+        self.spd=vscale(vnorm(self.spd),const.SHIP_MAX_SPEED)
+    end
+    self.spd = vscale(self.spd, 0.95)
+    local target_angle = vlen(self.spd) > 1 and atan2(self.spd.y,-self.spd.x) or self.angle
+    local diff = (target_angle - self.angle) % const.PI2
+    local dist = ((2 * diff) % const.PI2) - diff
+    self.angle = self.angle + dist * 0.05
+
+    self.pos = vadd(self.pos, self.spd)
+    if self.is_player then
+        Camera = vadd(Camera, vscale(vsub(self.pos,Camera), 0.3))
+        gfx.set_layer_offset(const.LAYER_STARS1,-self.pos.x,-self.pos.y)
+        gfx.set_layer_offset(const.LAYER_STARS2,-self.pos.x*0.3,-self.pos.y*0.3)
+        gfx.set_layer_offset(const.LAYER_STARS3,-self.pos.x*0.1,-self.pos.y*0.1)
+    end
+end
+
+function Ship:set_player_control()
+    self.up = inp.key(inp.KEY_W) and 1 or inp.up()
+    self.down = inp.key(inp.KEY_S) and 1 or inp.down()
+    self.left = inp.key(inp.KEY_A) and 1 or inp.left()
+    self.right = inp.key(inp.KEY_D) and 1 or inp.right()
 end
 
 function Ship:render()
     local old_layer = gfx.set_sprite_layer(const.LAYER_SHIP_MODELS)
-    gfx.blit(self.sx, self.sy, self.sw, self.sh, self.x, self.y, 255,255,255, self.angle)
+    gfx.blit(self.sx, self.sy, self.sw, self.sh,
+        gfx.SCREEN_WIDTH/2 + self.pos.x - Camera.x, gfx.SCREEN_HEIGHT - 30 + self.pos.y - Camera.y,
+        255,255,255, self.angle - const.PI * 0.5)
     gfx.set_sprite_layer(old_layer)
 end
 
@@ -571,22 +646,22 @@ function Ship:new(hull_num, engine_num, shield_num, x, y)
     local hull = conf.HULLS[hull_num]
     local engine = conf.ENGINES[engine_num]
     local shield = conf.SHIELDS[shield_num]
-    local w = hull.w * 6
-    local h = hull.h * 6
+    local w = hull.w
+    local h = hull.h
     gfx.rectangle(0, 0, w, h, 0, 0, 0)
-    gfx.blit(engine.x * 6, engine.y * 6, engine.w * 6, engine.h * 6, w / 2 - engine.w * 3, h - engine.h * 6)
+    gfx.blit(engine.x, engine.y, engine.w, engine.h, (w - engine.w) / 2, h - engine.h)
     gfx.blit(hull.x, hull.y, hull.w, hull.h, 0, 0)
-    gfx.blit(shield.x * 6, shield.y * 6, shield.w * 6, shield.h * 6, w / 2 - shield.w * 3, h / 2 - shield.h * 3)
+    gfx.blit(shield.x, shield.y, shield.w, shield.h, (w - shield.w) / 2, (h - shield.h) / 2)
     local s={
         typ = const.E_SHIP,
-        x = x,
-        y = y,
-        angle = 0,
+        pos=vec(x,y),
+        angle = const.PI * 0.5,
+        spd = vec(),
         sx = 0,
         sy = 0,
         sw = w,
         sh = h,
-        spd = engine.spd,
+        acc = engine.spd,
         man = engine.man,
         lif = shield.lif,
         rel = shield.rel
@@ -647,7 +722,8 @@ function Screen:update()
 end
 
 function Screen:render()
-    gfx.set_active_layer(const.LAYER_BACKGROUND)
+    gfx.set_active_layer(const.LAYER_ENTITIES)
+    gfx.clear()
     for _, e in pairs(self.entities) do
         if e.render ~= nil then
             e:render()
@@ -673,6 +749,7 @@ function screen_sector.init(id)
     local ship=Ship:generate_random()
     ship.x=gfx.SCREEN_WIDTH/2
     ship.y=gfx.SCREEN_HEIGHT-20
+    ship.is_player=true
     table.insert(g_screen.entities, ship)
 end
 
@@ -702,7 +779,6 @@ function screen_title.init()
             gfx.rectangle(x, y, 1, 1, br + coef * pr, bg + coef * pg, bb + coef * pb)
         end
     end
-    gfx.set_active_layer(const.LAYER_STARS)
     -- starfield
     for i = 0, gfx.SCREEN_WIDTH * gfx.SCREEN_HEIGHT // 10 do
         local x = random()
@@ -711,6 +787,7 @@ function screen_title.init()
             local coef = random()
             coef = coef ^ 5
             local size = random() * 0.8 + 0.1
+            gfx.set_active_layer(coef > 0.7 and const.LAYER_STARS1 or coef > 0.3 and const.LAYER_STARS2 or const.LAYER_STARS3)
             gfx.rectangle(x * gfx.SCREEN_WIDTH, y * gfx.SCREEN_HEIGHT, size, size, br + coef * sr, bg + coef * sg,
                 bb + coef * sb)
         end
@@ -744,21 +821,27 @@ function init()
             1,
             3, 4, 3, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 5, 5, 2, 1, 2, 4 })
     gfx.set_scanline(gfx.SCANLINE_HARD)
-    g_screen = Screen:new()
-    local seed = flr(elapsed() * 10000000)
-    seed=78408
-    print(string.format("sector seed %d", seed))
-    table.insert(g_screen.entities, Sector:new(seed, planet))
-    table.insert(g_screen.entities, Ship:generate_random())
-    screen_title.build_ui(g_screen.gui)
-    gfx.show_layer(const.LAYER_STARS)
-    gfx.set_layer_operation(const.LAYER_STARS, gfx.LAYEROP_ADD)
+    gfx.show_layer(const.LAYER_STARS1)
+    gfx.show_layer(const.LAYER_STARS2)
+    gfx.show_layer(const.LAYER_STARS3)
+    gfx.set_layer_operation(const.LAYER_STARS1, gfx.LAYEROP_ADD)
+    gfx.set_layer_operation(const.LAYER_STARS2, gfx.LAYEROP_ADD)
+    gfx.set_layer_operation(const.LAYER_STARS3, gfx.LAYEROP_ADD)
     gfx.show_layer(const.LAYER_TRAILS)
     gfx.set_layer_operation(const.LAYER_TRAILS, gfx.LAYEROP_ADD)
     gfx.show_layer(const.LAYER_ENTITIES)
     gfx.show_layer(const.LAYER_GUI)
-    screen_title.init()
     gfx.set_mouse_cursor(const.LAYER_SPRITES, 0, 36, 6, 6)
+
+    -- g_screen = Screen:new()
+    -- local seed = flr(elapsed() * 10000000)
+    -- seed=78408
+    -- print(string.format("sector seed %d", seed))
+    -- table.insert(g_screen.entities, Sector:new(seed, planet))
+    -- table.insert(g_screen.entities, Ship:generate_random())
+    -- screen_title.build_ui(g_screen.gui)
+    screen_title.init()
+    screen_sector.init(0)
     gfx.set_active_layer(const.LAYER_BACKGROUND)
 end
 
