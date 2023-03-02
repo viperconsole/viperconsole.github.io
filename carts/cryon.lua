@@ -561,10 +561,9 @@ function Ship:update_player()
 end
 
 function Ship:render()
-    -- gfx.set_sprite_layer(const.LAYER_SHIP_MODELS)
-    -- gfx.blit(self.sx, self.sy, self.sw, self.sh, flr(self.x - self.sw / 2), flr(self.y))
-    -- gfx.set_sprite_layer(const.LAYER_SPRITES)
-    gfx.blit(conf.SPRITE.x, conf.SPRITE.y, conf.SPRITE.w, conf.SPRITE.h, flr(self.x - self.sw / 2), flr(self.y), 255, 255, 255, elapsed() * 0.3)
+    local old_layer = gfx.set_sprite_layer(const.LAYER_SHIP_MODELS)
+    gfx.blit(self.sx, self.sy, self.sw, self.sh, self.x, self.y, 255,255,255, self.angle)
+    gfx.set_sprite_layer(old_layer)
 end
 
 function Ship:new(hull_num, engine_num, shield_num, x, y)
@@ -582,6 +581,7 @@ function Ship:new(hull_num, engine_num, shield_num, x, y)
         typ = const.E_SHIP,
         x = x,
         y = y,
+        angle = 0,
         sx = 0,
         sy = 0,
         sw = w,
@@ -608,6 +608,14 @@ end
 starfield = {}
 function starfield.new()
 end
+-- ################################## EVENTS ##################################
+Event = {}
+function Event:execute(evt)
+    if evt == const.EVT_NEWGAME then
+        screen_sector:init(0)
+    end
+end
+
 
 -- ################################## SCREEN ##################################
 Screen = {}
@@ -632,7 +640,7 @@ function Screen:update()
         if g.update ~= nil then
             local evt = g:update()
             if evt ~= nil then
-                -- TODO
+                Event:execute(evt)
             end
         end
     end
@@ -652,6 +660,20 @@ function Screen:render()
             g:render()
         end
     end
+end
+
+-- ################################## SECTOR GAME SCREEN ##################################
+screen_sector = {}
+function screen_sector.init(id)
+    g_screen = Screen:new()
+    -- gfx.set_active_layer(const.LAYER_BACKGROUND)
+    -- gfx.clear()
+    gfx.set_active_layer(const.LAYER_ENTITIES)
+    gfx.clear()
+    local ship=Ship:generate_random()
+    ship.x=gfx.SCREEN_WIDTH/2
+    ship.y=gfx.SCREEN_HEIGHT-20
+    table.insert(g_screen.entities, ship)
 end
 
 -- ################################## TITLE SCREEN ##################################
