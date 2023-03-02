@@ -71,6 +71,16 @@ function timer.step(msg)
     print(msg .. ": " .. string.format("%.2f", elapsed() - timer.t) .. " s")
     timer.t = elapsed()
 end
+
+function wrap(input, max)
+    while input >= max do
+        input = input - max
+    end
+    while input < 0 do
+        input = input + max
+    end
+    return input
+end
 -- ################################## 2D vector toolkit ##################################
 function vec(x,y)
     return {x=(x or 0),y=(y or 0)}
@@ -90,12 +100,22 @@ end
 function vlen(a)
     return sqrt(a.x*a.x + a.y*a.y)
 end
+function vlen2(a)
+    return a.x*a.x + a.y*a.y
+end
 function vnorm(a)
     local l=vlen(a)
     return l == 0 and a or vscale(a, 1/l)
 end
 function vorth(a)
     return {x=a.y,y=-a.x}
+end
+function vrot(v, angle, o)
+    local x, y = v.x, v.y
+    local ox, oy = o.x, o.y
+    local ca=cos(angle)
+    local sa=sin(angle)
+    return vec(ca * (x - ox) - sa * (y - oy) + ox, sa * (x - ox) + ca * (y - oy) + oy)
 end
 
 -- ################################## GLOBALS ##################################
@@ -107,13 +127,13 @@ g_screen = {}
 -- ################################## CONSTANTS ##################################
 
 const = {
+    SCREEN_DIAG=sqrt(gfx.SCREEN_WIDTH*gfx.SCREEN_WIDTH+gfx.SCREEN_HEIGHT*gfx.SCREEN_HEIGHT),
     LIGHT_THRESHOLD1 = 0.5,
     LIGHT_THRESHOLD2 = 0.75,
     LAYER_BACKGROUND = 0,
-    LAYER_STARS3 = 1,
-    LAYER_STARS2 = 2,
+    LAYER_STARS = 1,
+    LAYER_BACKGROUND_OFF = 2,
     LAYER_ENTITIES = 3,
-    LAYER_STARS1 = 4,
     LAYER_TRAILS = 5,
     LAYER_GUI = 6,
     LAYER_SHIP_MODELS = 7,
@@ -139,9 +159,7 @@ const = {
     ALIGN_RIGHT = 1,
     ALIGN_LEFT = 2,
     -- trail conf
-    TRAIL_SEG_LEN = 5,
-    -- ship physics
-    SHIP_MAX_SPEED = 5
+    TRAIL_SEG_LEN = 5
 }
 
 -- ################################## TRAILS ##################################
@@ -215,6 +233,63 @@ function Trail:render()
         y = p.y
         col_coef = fcoef * ease_in_cubic(i - 1, 0.0, 1.0, #self.trail - 1 + seg_part)
     end
+end
+
+-- ################################## DUST ##################################
+Dust = {}
+
+function Dust:new()
+    local d={
+        parts={}
+    }
+    for i=1,50 do
+        local part=vec(math.random(0,gfx.SCREEN_WIDTH),math.random(0,gfx.SCREEN_WIDTH))
+        table.insert(d.parts,part)
+    end
+    setmetatable(d,self)
+    self.__index=self
+    return d
+end
+
+function Dust:update()
+    for i=1,#self.parts do
+        local p=self.parts[i]
+        if p.s then
+            p.old = {x=p.s.x,y=p.s.y}
+        end
+        if p.x < cam.x - gfx.SCREEN_WIDTH*0.5 then
+            p.x = p.x + gfx.SCREEN_WIDTH
+            p.old=nil
+        elseif p.x > cam.x + gfx.SCREEN_WIDTH*0.5 then
+            p.x = p.x - gfx.SCREEN_WIDTH
+            p.old=nil
+        end
+        if p.y < cam.y - gfx.SCREEN_WIDTH*0.5 then
+            p.y = p.y + gfx.SCREEN_WIDTH
+            p.old=nil
+        elseif p.y > cam.y + gfx.SCREEN_WIDTH*0.5 then
+            p.y = p.y - gfx.SCREEN_WIDTH
+            p.old=nil
+        end
+        p.s = w2s(p)
+        if not p.old then
+            p.old = {x=p.s.x,y=p.s.y}
+        end
+    end
+end
+
+function Dust:render()
+    local old=gfx.set_active_layer(const.LAYER_TRAILS)
+    gfx.clear()
+    for i=1,#self.parts do
+        local p=self.parts[i]
+        local len=vlen2(vsub(p.s,p.old))
+        local rgb=len*255/60
+        if len>1 then
+            gfx.line(p.old.x,p.old.y,p.s.x,p.s.y,rgb,rgb,rgb)
+        end
+    end
+    gfx.set_active_layer(old)
 end
 
 -- ################################## PLANETS ##################################
@@ -513,7 +588,7 @@ conf = {
         w = 1,
         h = 2,
         class = 0,
-        spd = 1,
+        spd = 0.1,
         man = 1,
         cost = 1
     }, {
@@ -522,7 +597,7 @@ conf = {
         w = 1,
         h = 2,
         class = 0,
-        spd = 2,
+        spd = 0.2,
         man = 1,
         cost = 2
     }, {
@@ -531,8 +606,8 @@ conf = {
         w = 2,
         h = 2,
         class = 0,
-        spd = 1,
-        man = 2,
+        spd = 0.15,
+        man = 1.4,
         cost = 2
     } },
     SHIELDS = { {
@@ -585,8 +660,15 @@ conf = {
     COL_WHITE = 18
 }
 -- ################################## CAMERA ##################################
-Camera = vec()
+cam = vec()
+cam_angle = -const.PI/2
+cam_scale = 1
 
+function w2s(p)
+    local p = vscale(vsub(p, cam), cam_scale)
+    p = vadd(vrot(p, -cam_angle - const.PI*0.5, vec(0, 0)),vec(gfx.SCREEN_WIDTH*0.5,gfx.SCREEN_HEIGHT-30))
+    return p
+end
 
 -- ################################## SHIP ##################################
 
@@ -595,34 +677,37 @@ function Ship:update()
     if self.is_player then
         self:set_player_control()
     end
-    self.dir = vec(cos(self.angle),sin(self.angle))
 
     if self.left > 0.2 then
-        self.spd.x = self.spd.x + self.acc*self.left*0.1
+        self.angle = self.angle - self.left*0.02*self.man
     elseif self.right > 0.2 then
-        self.spd.x = self.spd.x - self.acc*self.right*0.1
+        self.angle = self.angle + self.right*0.02*self.man
     end
+    self.dir={x=cos(self.angle),y=sin(self.angle)}
     if self.up > 0.2 then
-        self.spd.y = self.spd.y + self.acc * 0.1
+        self.acc = clamp(self.acc + 0.1,0,self.max_acc)
     elseif self.down > 0.2 then
-        self.spd.y = self.spd.y - self.acc * 0.1
+        self.acc = clamp(self.acc - 0.1,-self.max_acc*0.3,0)
+    else
+        self.acc=0
     end
-    local speed=vlen(self.spd)
-    if speed > const.SHIP_MAX_SPEED then
-        self.spd=vscale(vnorm(self.spd),const.SHIP_MAX_SPEED)
+    self.spd = vadd(self.spd, vscale(self.dir,self.acc))
+    self.spd = vscale(self.spd, 0.98)
+    local speed_amount = abs(self.acc) / self.max_acc
+
+    local target_angle = self.angle
+    local diff = (target_angle - cam_angle) % const.PI2
+    if diff < 0 then
+        diff = diff + const.PI2
     end
-    self.spd = vscale(self.spd, 0.95)
-    local target_angle = vlen(self.spd) > 1 and atan2(self.spd.y,-self.spd.x) or self.angle
-    local diff = (target_angle - self.angle) % const.PI2
     local dist = ((2 * diff) % const.PI2) - diff
-    self.angle = self.angle + dist * 0.05
+    cam_angle = cam_angle + dist * 0.05
+    --print(string.format("pos %3f,%3f s %1.2f,%1.2f sa %1.2f ta %1.2f ca %1.2f", self.pos.x,self.pos.y,self.spd.x,self.spd.y,self.angle,target_angle,cam_angle))
 
     self.pos = vadd(self.pos, self.spd)
     if self.is_player then
-        Camera = vadd(Camera, vscale(vsub(self.pos,Camera), 0.3))
-        gfx.set_layer_offset(const.LAYER_STARS1,-self.pos.x,-self.pos.y)
-        gfx.set_layer_offset(const.LAYER_STARS2,-self.pos.x*0.3,-self.pos.y*0.3)
-        gfx.set_layer_offset(const.LAYER_STARS3,-self.pos.x*0.1,-self.pos.y*0.1)
+        local cam_target = self.pos --vadd(self.pos, vscale(self.dir,gfx.SCREEN_HEIGHT*0.5*speed_amount))
+        cam = vadd(cam, vscale(vsub(cam_target,cam), 0.3))
     end
 end
 
@@ -635,10 +720,19 @@ end
 
 function Ship:render()
     local old_layer = gfx.set_sprite_layer(const.LAYER_SHIP_MODELS)
+    local screen_pos = w2s(self.pos)
     gfx.blit(self.sx, self.sy, self.sw, self.sh,
-        gfx.SCREEN_WIDTH/2 + self.pos.x - Camera.x, gfx.SCREEN_HEIGHT - 30 + self.pos.y - Camera.y,
-        255,255,255, self.angle - const.PI * 0.5)
+        screen_pos.x, screen_pos.y,
+        255,255,255, cam_angle-self.angle)
     gfx.set_sprite_layer(old_layer)
+    if self.is_player then
+        local old_act=gfx.set_active_layer(const.LAYER_BACKGROUND)
+        local old_spr=gfx.set_sprite_layer(const.LAYER_BACKGROUND_OFF)
+        gfx.clear()
+        gfx.blit(0,0,const.SCREEN_DIAG,const.SCREEN_DIAG,gfx.SCREEN_WIDTH/2,gfx.SCREEN_HEIGHT/2,255,255,255,cam_angle)
+        gfx.set_active_layer(old_act)
+        gfx.set_sprite_layer(old_spr)
+    end
 end
 
 function Ship:new(hull_num, engine_num, shield_num, x, y)
@@ -655,13 +749,14 @@ function Ship:new(hull_num, engine_num, shield_num, x, y)
     local s={
         typ = const.E_SHIP,
         pos=vec(x,y),
-        angle = const.PI * 0.5,
+        angle = -const.PI * 0.5,
+        acc=0,
         spd = vec(),
         sx = 0,
         sy = 0,
         sw = w,
         sh = h,
-        acc = engine.spd,
+        max_acc = engine.spd,
         man = engine.man,
         lif = shield.lif,
         rel = shield.rel
@@ -751,13 +846,15 @@ function screen_sector.init(id)
     ship.y=gfx.SCREEN_HEIGHT-20
     ship.is_player=true
     table.insert(g_screen.entities, ship)
+    table.insert(g_screen.entities,Dust:new())
 end
 
 -- ################################## TITLE SCREEN ##################################
 
 screen_title = {}
 function screen_title.init()
-    gfx.set_active_layer(const.LAYER_BACKGROUND)
+    gfx.set_active_layer(const.LAYER_BACKGROUND_OFF)
+    gfx.set_layer_size(const.LAYER_BACKGROUND_OFF,const.SCREEN_DIAG,const.SCREEN_DIAG)
     local br = 31
     local bg = 14
     local bb = 28
@@ -771,12 +868,17 @@ function screen_title.init()
     local wcoef = 2 / gfx.SCREEN_WIDTH
     local hcoef = 2 / gfx.SCREEN_HEIGHT
     -- background nebula
-    for x = 0, gfx.SCREEN_WIDTH do
-        for y = 0, gfx.SCREEN_HEIGHT do
+    local cols={}
+    for x = 0, const.SCREEN_DIAG do
+        table.insert(cols,{})
+        local row=cols[#cols]
+        for y = 0, const.SCREEN_DIAG do
             local dith = (x + y) % 2 == 0 and 2 or 0
             local coef = clamp(fbm2((x + dith) * wcoef, (y + dith) * hcoef), 0, 1)
             coef = flr(coef * 5) / 5
-            gfx.rectangle(x, y, 1, 1, br + coef * pr, bg + coef * pg, bb + coef * pb)
+            local col={r=br + coef * pr,g=bg + coef * pg,b=bb + coef * pb}
+            table.insert(row,col)
+            gfx.rectangle(x, y, 1, 1, col.r, col.g, col.b)
         end
     end
     -- starfield
@@ -787,11 +889,20 @@ function screen_title.init()
             local coef = random()
             coef = coef ^ 5
             local size = random() * 0.8 + 0.1
-            gfx.set_active_layer(coef > 0.7 and const.LAYER_STARS1 or coef > 0.3 and const.LAYER_STARS2 or const.LAYER_STARS3)
-            gfx.rectangle(x * gfx.SCREEN_WIDTH, y * gfx.SCREEN_HEIGHT, size, size, br + coef * sr, bg + coef * sg,
-                bb + coef * sb)
+            local col={r=br + coef * sr,g=bg + coef * sg,b=bb + coef * sb}
+            local px=flr(x * const.SCREEN_DIAG)
+            local py=flr(y * const.SCREEN_DIAG)
+            local bcol=cols[px+1][py+1]
+            col.r = col.r+bcol.r
+            col.g = col.g+bcol.g
+            col.b = col.b+bcol.b
+            gfx.rectangle(px, py, size, size, col.r,col.g,col.b)
         end
     end
+    gfx.set_active_layer(const.LAYER_BACKGROUND)
+    gfx.set_sprite_layer(const.LAYER_BACKGROUND_OFF)
+    gfx.blit(0,0,gfx.SCREEN_WIDTH,gfx.SCREEN_HEIGHT,0,0)
+    gfx.set_sprite_layer(const.LAYER_SPRITES)
 end
 
 function screen_title.build_ui(g)
@@ -820,13 +931,8 @@ function init()
             5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 3, 3, 3, 3, 5, 2, 5, 5, 5, 5, 5, 5, 5, 5,
             1,
             3, 4, 3, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 5, 5, 2, 1, 2, 4 })
-    gfx.set_scanline(gfx.SCANLINE_HARD)
-    gfx.show_layer(const.LAYER_STARS1)
-    gfx.show_layer(const.LAYER_STARS2)
-    gfx.show_layer(const.LAYER_STARS3)
-    gfx.set_layer_operation(const.LAYER_STARS1, gfx.LAYEROP_ADD)
-    gfx.set_layer_operation(const.LAYER_STARS2, gfx.LAYEROP_ADD)
-    gfx.set_layer_operation(const.LAYER_STARS3, gfx.LAYEROP_ADD)
+    gfx.show_layer(const.LAYER_STARS)
+    gfx.set_layer_operation(const.LAYER_STARS, gfx.LAYEROP_ADD)
     gfx.show_layer(const.LAYER_TRAILS)
     gfx.set_layer_operation(const.LAYER_TRAILS, gfx.LAYEROP_ADD)
     gfx.show_layer(const.LAYER_ENTITIES)
