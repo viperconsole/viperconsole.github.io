@@ -38,17 +38,6 @@ function compute_x(x, len, align)
     end
 end
 
-function gprint(msg, x, y, col)
-    gfx.print(font, msg, x, y, const.PALETTE[col].r, const.PALETTE[col].g, const.PALETTE[col].b)
-end
-
-function gprint_center(msg, x, y, col)
-    gprint(msg, flr(x - #msg * 3), y, col)
-end
-
-function gprint_right(msg, x, y, col)
-    gprint(msg, flr(x - #msg * 6), y, col)
-end
 
 function clerp(coef, c1, c2)
     local p1 = const.PALETTE[c1]
@@ -62,14 +51,6 @@ end
 
 function inside(px, py, x, y, w, h)
     return px >= x and py >= y and px < x + w and py < y + h
-end
-
-timer = {
-    t = elapsed()
-}
-function timer.step(msg)
-    print(msg .. ": " .. string.format("%.2f", elapsed() - timer.t) .. " s")
-    timer.t = elapsed()
 end
 
 function wrap(input, max)
@@ -116,6 +97,28 @@ function vrot(v, angle, o)
     local ca=cos(angle)
     local sa=sin(angle)
     return vec(ca * (x - ox) - sa * (y - oy) + ox, sa * (x - ox) + ca * (y - oy) + oy)
+end
+-- ################################## DRAWING UTILITIES ##################################
+
+function gprint(msg, x, y, col)
+    gfx.print(g_font, msg, x, y, const.PALETTE[col].r, const.PALETTE[col].g, const.PALETTE[col].b)
+end
+
+function gprint_center(msg, x, y, col)
+    gprint(msg, flr(x - #msg * 3), y, col)
+end
+
+function gprint_right(msg, x, y, col)
+    gprint(msg, flr(x - #msg * 6), y, col)
+end
+
+function warning(msg)
+    if elapsed()%0.5 < 0.25 then
+        gfx.blit(0,42,7,8,280,214)
+        gfx.print(g_font, msg, 289,217,64,0,0)
+        gfx.print(g_font, msg, 287,215,64,0,0)
+        gfx.print(g_font, msg, 288,216,255,0,0)
+    end
 end
 
 -- ################################## CONSTANTS ##################################
@@ -253,6 +256,7 @@ g_sector = nil
 g_cam = vec()
 g_cam_angle = -const.PI/2
 g_cam_scale = 1
+g_font = nil
 
 -- ################################## TRAILS ##################################
 Trail = {}
@@ -628,7 +632,7 @@ function gui.render_button(this)
     local fcolr = const.PALETTE[7].r - col.r
     local fcolg = const.PALETTE[7].g - col.g
     local fcolb = const.PALETTE[7].b - col.b
-    gfx.print(font, this.msg, tx, this.y + 1, col.r + fcoef * fcolr, col.g + fcoef * fcolg, col.b + fcoef * fcolb)
+    gfx.print(g_font, this.msg, tx, this.y + 1, col.r + fcoef * fcolr, col.g + fcoef * fcolg, col.b + fcoef * fcolb)
 end
 
 function gui.update_button(this)
@@ -792,6 +796,9 @@ function Ship:render()
         255,255,255, g_cam_angle-self.angle)
     gfx.set_sprite_layer(old_layer)
     if self.is_player then
+        if self.static and self.static > 0 then
+            warning("Radiations")
+        end
         local old_act=gfx.set_active_layer(const.LAYER_BACKGROUND)
         local old_spr=gfx.set_sprite_layer(const.LAYER_BACKGROUND_OFF)
         gfx.clear()
@@ -1006,7 +1013,7 @@ function init()
     gfx.load_img(const.LAYER_SPRITES, "cryon/cryon_spr.png","sprites")
     gfx.load_img(const.LAYER_SPRITES_STATIC, "cryon/static.png","static")
     gfx.set_sprite_layer(const.LAYER_SPRITES)
-    font=gfx.set_font(const.LAYER_SPRITES, 0, 0, 96, 36, 6, 6,
+    g_font=gfx.set_font(const.LAYER_SPRITES, 0, 0, 96, 36, 6, 6,
         " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
         0, 0,
         { 3, 1, 3, 5, 5, 5, 4, 1, 2, 2, 3, 3, 1, 3, 1, 3, 5, 1, 5, 5, 5, 5, 5, 5, 5, 5, 1, 1, 3, 3, 3, 5, 5, 5, 5, 5, 5,
