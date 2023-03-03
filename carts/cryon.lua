@@ -273,19 +273,18 @@ function Dust:update()
         end
         p.s = w2s(p)
         if not p.old then
-            p.old = {x=p.s.x,y=p.s.y}
+            p.old = p.s
         end
     end
 end
 
 function Dust:render()
     local old=gfx.set_active_layer(const.LAYER_TRAILS)
-    gfx.clear()
     for i=1,#self.parts do
         local p=self.parts[i]
         local len=vlen2(vsub(p.s,p.old))
         local rgb=len*255/60
-        if len>1 then
+        if rgb>1 then
             gfx.line(p.old.x,p.old.y,p.s.x,p.s.y,rgb,rgb,rgb)
         end
     end
@@ -669,7 +668,12 @@ function w2s(p)
     p = vadd(vrot(p, -cam_angle - const.PI*0.5, vec(0, 0)),vec(gfx.SCREEN_WIDTH*0.5,gfx.SCREEN_HEIGHT-30))
     return p
 end
-
+Radar={}
+function Radar:render()
+    local old=gfx.set_active_layer(const.LAYER_TRAILS)
+    gfx.blit(280,182,92,42,280,182)
+    gfx.set_active_layer(old)
+end
 -- ################################## SHIP ##################################
 
 Ship = {}
@@ -693,21 +697,26 @@ function Ship:update()
     end
     self.spd = vadd(self.spd, vscale(self.dir,self.acc))
     self.spd = vscale(self.spd, 0.98)
-    local speed_amount = abs(self.acc) / self.max_acc
-
-    local target_angle = self.angle
-    local diff = (target_angle - cam_angle) % const.PI2
-    if diff < 0 then
-        diff = diff + const.PI2
-    end
-    local dist = ((2 * diff) % const.PI2) - diff
-    cam_angle = cam_angle + dist * 0.05
-    --print(string.format("pos %3f,%3f s %1.2f,%1.2f sa %1.2f ta %1.2f ca %1.2f", self.pos.x,self.pos.y,self.spd.x,self.spd.y,self.angle,target_angle,cam_angle))
-
     self.pos = vadd(self.pos, self.spd)
+
+    -- camera tracking
     if self.is_player then
-        local cam_target = self.pos --vadd(self.pos, vscale(self.dir,gfx.SCREEN_HEIGHT*0.5*speed_amount))
+        local target_angle = self.angle
+        local diff = (target_angle - cam_angle) % const.PI2
+        if diff < 0 then
+            diff = diff + const.PI2
+        end
+        local dist = ((2 * diff) % const.PI2) - diff
+        cam_angle = cam_angle + dist * 0.05
+        --print(string.format("pos %3f,%3f s %1.2f,%1.2f sa %1.2f ta %1.2f ca %1.2f", self.pos.x,self.pos.y,self.spd.x,self.spd.y,self.angle,target_angle,cam_angle))
+
+        local cam_target = self.pos
         cam = vadd(cam, vscale(vsub(cam_target,cam), 0.3))
+        -- cam shaking
+        local amount=ease_in_cubic(abs(self.acc),0,0.5,self.max_acc)
+        local rx=math.random() * amount
+        local ry=math.random() * amount
+        cam = vadd(cam, vec(rx,ry))
     end
 end
 
@@ -817,6 +826,8 @@ function Screen:update()
 end
 
 function Screen:render()
+    gfx.set_active_layer(const.LAYER_TRAILS)
+    gfx.clear()
     gfx.set_active_layer(const.LAYER_ENTITIES)
     gfx.clear()
     for _, e in pairs(self.entities) do
@@ -845,6 +856,7 @@ function screen_sector.init(id)
     ship.x=gfx.SCREEN_WIDTH/2
     ship.y=gfx.SCREEN_HEIGHT-20
     ship.is_player=true
+    table.insert(g_screen.entities, Radar)
     table.insert(g_screen.entities, ship)
     table.insert(g_screen.entities,Dust:new())
 end
@@ -958,6 +970,6 @@ end
 
 function render()
     g_screen:render()
-    gprint_right("" .. string.format("%d", gfx.fps()) .. " fps", gfx.SCREEN_WIDTH - 1, gfx.SCREEN_HEIGHT - 15,
+    gprint_right("" .. string.format("%d", gfx.fps()) .. " fps", gfx.SCREEN_WIDTH - 1, 1,
         conf.COL_WHITE)
 end
