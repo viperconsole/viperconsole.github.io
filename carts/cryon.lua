@@ -132,8 +132,10 @@ const = {
     LAYER_ENTITIES = 3,
     LAYER_TRAILS = 5,
     LAYER_GUI = 6,
-    LAYER_SHIP_MODELS = 7,
-    LAYER_SPRITES = 8,
+    LAYER_STATIC=7,
+    LAYER_SHIP_MODELS = 8,
+    LAYER_SPRITES = 9,
+    LAYER_SPRITES_STATIC = 10,
     PI = math.pi,
     PI2 = 2 * math.pi,
     BUTTON_WIDTH = 60,
@@ -770,6 +772,8 @@ function Ship:update()
         local rx=math.random() * amount
         local ry=math.random() * amount
         g_cam = vadd(g_cam, vec(rx,ry))
+        local dist=vlen(self.pos) - g_sector.radius
+        self.static = dist > 0 and min(1,dist/3000) or 0
     end
 end
 
@@ -792,6 +796,12 @@ function Ship:render()
         local old_spr=gfx.set_sprite_layer(const.LAYER_BACKGROUND_OFF)
         gfx.clear()
         gfx.blit(0,0,const.SCREEN_DIAG,const.SCREEN_DIAG,gfx.SCREEN_WIDTH/2,gfx.SCREEN_HEIGHT/2,255,255,255,g_cam_angle)
+        if self.static and self.static > 0 then
+            gfx.set_sprite_layer(const.LAYER_SPRITES_STATIC)
+            gfx.set_active_layer(const.LAYER_STATIC)
+            gfx.set_layer_offset(const.LAYER_STATIC, math.random(0,gfx.SCREEN_WIDTH),math.random(0,gfx.SCREEN_HEIGHT))
+            gfx.blit(0,0,gfx.SCREEN_WIDTH,gfx.SCREEN_HEIGHT,0,0,255*self.static,255*self.static,255*self.static)
+        end
         gfx.set_active_layer(old_act)
         gfx.set_sprite_layer(old_spr)
     end
@@ -994,6 +1004,7 @@ end
 
 function init()
     gfx.load_img(const.LAYER_SPRITES, "cryon/cryon_spr.png","sprites")
+    gfx.load_img(const.LAYER_SPRITES_STATIC, "cryon/static.png","static")
     gfx.set_sprite_layer(const.LAYER_SPRITES)
     font=gfx.set_font(const.LAYER_SPRITES, 0, 0, 96, 36, 6, 6,
         " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
@@ -1009,7 +1020,8 @@ function init()
     gfx.show_layer(const.LAYER_ENTITIES)
     gfx.show_layer(const.LAYER_GUI)
     gfx.set_mouse_cursor(const.LAYER_SPRITES, 0, 36, 6, 6)
-
+    gfx.show_layer(const.LAYER_STATIC)
+    gfx.set_layer_operation(const.LAYER_STATIC, gfx.LAYEROP_ADD)
     -- g_screen = Screen:new()
     -- local seed = flr(elapsed() * 10000000)
     -- seed=78408
