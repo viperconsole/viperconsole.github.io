@@ -169,11 +169,11 @@ Sets a rowscroll offset for rows 180 to 223. The offset ranges from 0 for row 18
 * `rectangle(x,y, w,h, r,g,b)`
     * fill a rectangle
 
-* `circle(x,y, radius, r,g,b)`
-    * draw a circle
+* `circle(x,y, radius_x, [radius_y], r,g,b)`
+    * draw a circle/ellipse
 
-* `disk(x,y, radius, r,g,b)`
-    * fill a disk
+* `disk(x,y, radius_x, [radius_y], r,g,b)`
+    * fill a circle/ellipse
 
 ### <a name="h2.3"></a>2.3. Font API
 * You define a bitmap font with `set_font` by defining a rectangular zone inside a layer, and the character size :

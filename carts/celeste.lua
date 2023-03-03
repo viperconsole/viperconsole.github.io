@@ -153,7 +153,7 @@ end
 
 function circ_fill(x, y, r, col)
 	local col = col + 1
-	gfx.disk(x + X_OFFSET, y + Y_OFFSET, r, PAL[col].r, PAL[col].g, PAL[col].b)
+	gfx.disk(x + X_OFFSET, y + Y_OFFSET, r, nil, PAL[col].r, PAL[col].g, PAL[col].b)
 end
 
 function create_hair(objz)

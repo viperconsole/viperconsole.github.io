@@ -92,7 +92,7 @@ function rectfill(x1, y1, x2, y2, col)
 end
 
 function circfill(x, y, r, col)
-    gfx.disk(x + X_OFFSET, y + Y_OFFSET, r, PAL[col + 1].r, PAL[col + 1].g, PAL[col + 1].b)
+    gfx.disk(x + X_OFFSET, y + Y_OFFSET, r, nil, PAL[col + 1].r, PAL[col + 1].g, PAL[col + 1].b)
 end
 
 function line(x1, y1, x2, y2, col)

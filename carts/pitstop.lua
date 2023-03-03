@@ -223,7 +223,7 @@ end
 function minimap_disk(p, c)
     p = world2minimap(p)
     c = flr(c)
-    gfx.disk(p.x+0.5, p.y, 2, PAL[c].r, PAL[c].g, PAL[c].b)
+    gfx.disk(p.x+0.5, p.y, 2, nil, PAL[c].r, PAL[c].g, PAL[c].b)
 end
 
 function cam2screen(p)
@@ -270,7 +270,7 @@ end
 function circfill(x, y, r, pal)
     local col = PAL[flr(pal)]
     local p = cam2screen(vec(x, y))
-    gfx.disk(p.x, p.y, r * 224 / 128, col.r, col.g, col.b)
+    gfx.disk(p.x, p.y, r * 224 / 128, nil, col.r, col.g, col.b)
 end
 
 function rectfill(x0, y0, x1, y1, pal)
@@ -557,7 +557,7 @@ function create_smoke(segment, pos, speed, color)
         local p = cam2screen(vec(self.x, self.y))
         local rgb = self.ttl / SMOKE_LIFE
         local col = PAL[self.col]
-        gfx.disk(p.x, p.y, self.r * (2 - rgb), col.r * rgb, col.g * rgb, col.b * rgb)
+        gfx.disk(p.x, p.y, self.r * (2 - rgb), nil, col.r * rgb, col.g * rgb, col.b * rgb)
     end
 
     table.insert(smokes, p)

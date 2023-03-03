@@ -125,7 +125,7 @@ function circfill(x, y, r, pal)
 	local col = PAL[pal + 1]
 	local x = x + X_OFFSET
 	local y = y + Y_OFFSET
-	gfx.disk(x, y, r, col.r, col.g, col.b)
+	gfx.disk(x, y, r, nil, col.r, col.g, col.b)
 end
 
 function pico_print(font, txt, x, y, pal)
