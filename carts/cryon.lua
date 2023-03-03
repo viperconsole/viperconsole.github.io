@@ -39,7 +39,7 @@ function compute_x(x, len, align)
 end
 
 function gprint(msg, x, y, col)
-    gfx.print(font, msg, x, y, conf.PALETTE[col].r, conf.PALETTE[col].g, conf.PALETTE[col].b)
+    gfx.print(font, msg, x, y, const.PALETTE[col].r, const.PALETTE[col].g, const.PALETTE[col].b)
 end
 
 function gprint_center(msg, x, y, col)
@@ -51,8 +51,8 @@ function gprint_right(msg, x, y, col)
 end
 
 function clerp(coef, c1, c2)
-    local p1 = conf.PALETTE[c1]
-    local p2 = conf.PALETTE[c2]
+    local p1 = const.PALETTE[c1]
+    local p2 = const.PALETTE[c2]
     return {
         r = p1.r + coef * (p2.r - p1.r),
         g = p1.g + coef * (p2.g - p1.g),
@@ -118,16 +118,12 @@ function vrot(v, angle, o)
     return vec(ca * (x - ox) - sa * (y - oy) + ox, sa * (x - ox) + ca * (y - oy) + oy)
 end
 
--- ################################## GLOBALS ##################################
-
-g_mouse_x = 0
-g_mouse_y = 0
-g_screen = {}
-
 -- ################################## CONSTANTS ##################################
 
 const = {
     SCREEN_DIAG=sqrt(gfx.SCREEN_WIDTH*gfx.SCREEN_WIDTH+gfx.SCREEN_HEIGHT*gfx.SCREEN_HEIGHT),
+    RADAR_X=326,
+    RADAR_Y=216,
     LIGHT_THRESHOLD1 = 0.5,
     LIGHT_THRESHOLD2 = 0.75,
     LAYER_BACKGROUND = 0,
@@ -159,8 +155,102 @@ const = {
     ALIGN_RIGHT = 1,
     ALIGN_LEFT = 2,
     -- trail conf
-    TRAIL_SEG_LEN = 5
+    TRAIL_SEG_LEN = 5,
+    -- NA16 color palette by Nauris
+    PALETTE = { col(0, 0, 0), col(140, 143, 174), col(88, 69, 99), col(62, 33, 55), col(154, 99, 72), col(215, 155, 125),
+        col(245, 237, 186), col(192, 199, 65), col(100, 125, 52), col(228, 148, 58), col(157, 48, 59),
+        col(210, 100, 113), col(112, 55, 127), col(126, 196, 193), col(52, 133, 157), col(23, 67, 75),
+        col(31, 14, 28), col(255, 255, 255) },
+    COL_WHITE = 18
 }
+
+
+-- ################################## CONFIGURATION  ##################################
+conf = {
+    ENGINES = { {
+        x = 0,
+        y = 19,
+        w = 1,
+        h = 2,
+        class = 0,
+        spd = 0.1,
+        man = 1,
+        cost = 1
+    }, {
+        x = 1,
+        y = 19,
+        w = 1,
+        h = 2,
+        class = 0,
+        spd = 0.2,
+        man = 1,
+        cost = 2
+    }, {
+        x = 2,
+        y = 19,
+        w = 2,
+        h = 2,
+        class = 0,
+        spd = 0.15,
+        man = 1.4,
+        cost = 2
+    } },
+    SHIELDS = { {
+        x = 0,
+        y = 18,
+        w = 1,
+        h = 1,
+        class = 0,
+        lif = 1,
+        rel = 1,
+        cost = 1
+    }, {
+        x = 1,
+        y = 18,
+        w = 1,
+        h = 1,
+        class = 0,
+        lif = 1,
+        rel = 2,
+        cost = 2
+    }, {
+        x = 2,
+        y = 18,
+        w = 2,
+        h = 1,
+        class = 0,
+        lif = 2,
+        rel = 1,
+        cost = 2
+    } },
+    HULLS = { {
+        x = 96,
+        y = 0,
+        w = 37,
+        h = 33,
+        class = 0,
+        mass = 10
+    } },
+    RADARS = {
+        {r=2000,d=5},
+        {r=3000,d=8},
+    },
+    -- galaxy
+    SECTORS={
+        {pos=vec(0,0),radius=5000}
+    }
+}
+
+-- ################################## GLOBALS ##################################
+
+g_mouse_x = 0
+g_mouse_y = 0
+g_screen = {}
+g_player = nil
+g_sector = nil
+g_cam = vec()
+g_cam_angle = -const.PI/2
+g_cam_scale = 1
 
 -- ################################## TRAILS ##################################
 Trail = {}
@@ -222,7 +312,7 @@ end
 function Trail:render()
     local x = self.x
     local y = self.y
-    local col = conf.PALETTE[self.color]
+    local col = const.PALETTE[self.color]
     local seg_part = self.seg_length / const.TRAIL_SEG_LEN
     local fcoef = ease_in_cubic(self.fade_in, 0, 1, 1)
     local col_coef = fcoef
@@ -257,21 +347,21 @@ function Dust:update()
         if p.s then
             p.old = {x=p.s.x,y=p.s.y}
         end
-        if p.x < cam.x - gfx.SCREEN_WIDTH*0.5 then
+        if p.x < g_cam.x - gfx.SCREEN_WIDTH*0.5 then
             p.x = p.x + gfx.SCREEN_WIDTH
             p.old=nil
-        elseif p.x > cam.x + gfx.SCREEN_WIDTH*0.5 then
+        elseif p.x > g_cam.x + gfx.SCREEN_WIDTH*0.5 then
             p.x = p.x - gfx.SCREEN_WIDTH
             p.old=nil
         end
-        if p.y < cam.y - gfx.SCREEN_WIDTH*0.5 then
+        if p.y < g_cam.y - gfx.SCREEN_WIDTH*0.5 then
             p.y = p.y + gfx.SCREEN_WIDTH
             p.old=nil
-        elseif p.y > cam.y + gfx.SCREEN_WIDTH*0.5 then
+        elseif p.y > g_cam.y + gfx.SCREEN_WIDTH*0.5 then
             p.y = p.y - gfx.SCREEN_WIDTH
             p.old=nil
         end
-        p.s = w2s(p)
+        p.s = world2screen(p)
         if not p.old then
             p.old = p.s
         end
@@ -309,7 +399,7 @@ function Planet:update()
                     local tex = clamp((fbm2(pix.xsphere * 0.3 + self.rot, pix.ysphere * 0.3 + 20) + 1) * 0.5, 0, 1)
                     local color = tex ^ 0.8 * 6
                     color = clamp(color, 1, 6)
-                    local c = conf.PALETTE[cols[flr(color)]]
+                    local c = const.PALETTE[cols[flr(color)]]
                     local r = max(1, c.r * pix.light)
                     local g = max(1, c.g * pix.light)
                     local b = max(1, c.b * pix.light)
@@ -532,10 +622,10 @@ function gui.render_button(this)
     local fcoef = ease_out_cubic(this.focus, 0, 1, 1)
     local col_coef = 180 + fcoef * 75
     gui.render_button_bkgnd(bx, this.y, const.BUTTON_WIDTH, fcoef * 10, col_coef)
-    local col = conf.PALETTE[6]
-    local fcolr = conf.PALETTE[7].r - col.r
-    local fcolg = conf.PALETTE[7].g - col.g
-    local fcolb = conf.PALETTE[7].b - col.b
+    local col = const.PALETTE[6]
+    local fcolr = const.PALETTE[7].r - col.r
+    local fcolg = const.PALETTE[7].g - col.g
+    local fcolb = const.PALETTE[7].b - col.b
     gfx.print(font, this.msg, tx, this.y + 1, col.r + fcoef * fcolr, col.g + fcoef * fcolg, col.b + fcoef * fcolb)
 end
 
@@ -579,99 +669,62 @@ function gui.gen_button(msg, x, y, align, evt)
     }
 end
 
--- ################################## CONFIGURATION  ##################################
-conf = {
-    ENGINES = { {
-        x = 0,
-        y = 19,
-        w = 1,
-        h = 2,
-        class = 0,
-        spd = 0.1,
-        man = 1,
-        cost = 1
-    }, {
-        x = 1,
-        y = 19,
-        w = 1,
-        h = 2,
-        class = 0,
-        spd = 0.2,
-        man = 1,
-        cost = 2
-    }, {
-        x = 2,
-        y = 19,
-        w = 2,
-        h = 2,
-        class = 0,
-        spd = 0.15,
-        man = 1.4,
-        cost = 2
-    } },
-    SHIELDS = { {
-        x = 0,
-        y = 18,
-        w = 1,
-        h = 1,
-        class = 0,
-        lif = 1,
-        rel = 1,
-        cost = 1
-    }, {
-        x = 1,
-        y = 18,
-        w = 1,
-        h = 1,
-        class = 0,
-        lif = 1,
-        rel = 2,
-        cost = 2
-    }, {
-        x = 2,
-        y = 18,
-        w = 2,
-        h = 1,
-        class = 0,
-        lif = 2,
-        rel = 1,
-        cost = 2
-    } },
-    HULLS = { {
-        x = 96,
-        y = 0,
-        w = 37,
-        h = 33,
-        class = 0,
-        mass = 10
-    } },
-    SPRITE = {
-        x = 0,
-        y = 55,
-        w = 57,
-        h = 30
-    },
-    -- NA16 color palette by Nauris
-    PALETTE = { col(0, 0, 0), col(140, 143, 174), col(88, 69, 99), col(62, 33, 55), col(154, 99, 72), col(215, 155, 125),
-        col(245, 237, 186), col(192, 199, 65), col(100, 125, 52), col(228, 148, 58), col(157, 48, 59),
-        col(210, 100, 113), col(112, 55, 127), col(126, 196, 193), col(52, 133, 157), col(23, 67, 75),
-        col(31, 14, 28), col(255, 255, 255) },
-    COL_WHITE = 18
-}
 -- ################################## CAMERA ##################################
-cam = vec()
-cam_angle = -const.PI/2
-cam_scale = 1
-
-function w2s(p)
-    local p = vscale(vsub(p, cam), cam_scale)
-    p = vadd(vrot(p, -cam_angle - const.PI*0.5, vec(0, 0)),vec(gfx.SCREEN_WIDTH*0.5,gfx.SCREEN_HEIGHT-30))
+function world2screen(p)
+    local p = vscale(vsub(p, g_cam), g_cam_scale)
+    p = vadd(vrot(p, -g_cam_angle - const.PI*0.5, vec(0, 0)),vec(gfx.SCREEN_WIDTH*0.5,gfx.SCREEN_HEIGHT-30))
+    return p
+end
+function world2radar(p)
+    local p = vsub(p, g_player.pos)
+    local scalex=46/g_player.rad_radius
+    local scaley=34/g_player.rad_radius
+    p = vrot(p, -g_player.angle - const.PI*0.5, vec(0, 0))
+    p = vmul(p,vec(scalex,scaley))
+    p = vadd(p,vec(const.RADAR_X,const.RADAR_Y))
+    return p
+end
+function cam2world(p)
+    local p = vrot(p, g_cam_angle + const.PI*0.5, vec(0,0))
+    p = vadd(p, g_cam)
     return p
 end
 Radar={}
+function Radar:update()
+    local delay=g_player.rad_delay
+    local t = elapsed() % delay
+    self.blip_r = t < 1.0 and t or nil
+end
 function Radar:render()
     local old=gfx.set_active_layer(const.LAYER_TRAILS)
-    gfx.blit(280,182,92,42,280,182)
+    gfx.blit(280,182,92,42,const.RADAR_X-46,const.RADAR_Y-34)
+    if vlen(g_player.pos) > g_sector.radius - g_player.rad_radius then
+        local old_cam = g_cam
+        -- g_cam={x=old_cam.x,y=old_cam.y}
+        -- g_cam.x = flr(g_cam.x/100)*100
+        -- g_cam.y = flr(g_cam.y/100)*100
+        for r=1,10 do
+            local radius = g_player.rad_radius * r / 10
+            for a=1,30 do
+                local angle=a*const.PI2/30
+                local dir=vec(cos(angle),sin(angle))
+                local p=vscale(dir,radius)
+                local wp = cam2world(p)
+                wp.x = flr(wp.x/100)*100
+                wp.y = flr(wp.y/100)*100
+                if vlen(wp) > g_sector.radius then
+                    local sp=world2radar(wp)
+                    gfx.disk(sp.x,sp.y,5,nil,20,30,50)
+                end
+            end
+        end
+        g_cam=old_cam
+    end
+    if self.blip_r then
+        local inv=(1.2-self.blip_r)/1.2
+        gfx.circle(const.RADAR_X, const.RADAR_Y, 46*self.blip_r, 34*self.blip_r, 206 * inv, 218 * inv, 255 * inv)
+    end
+
     gfx.set_active_layer(old)
 end
 -- ################################## SHIP ##################################
@@ -683,9 +736,9 @@ function Ship:update()
     end
 
     if self.left > 0.2 then
-        self.angle = self.angle - self.left*0.02*self.man
+        self.angle = self.angle - self.left*0.02*self.maniability
     elseif self.right > 0.2 then
-        self.angle = self.angle + self.right*0.02*self.man
+        self.angle = self.angle + self.right*0.02*self.maniability
     end
     self.dir={x=cos(self.angle),y=sin(self.angle)}
     if self.up > 0.2 then
@@ -702,21 +755,21 @@ function Ship:update()
     -- camera tracking
     if self.is_player then
         local target_angle = self.angle
-        local diff = (target_angle - cam_angle) % const.PI2
+        local diff = (target_angle - g_cam_angle) % const.PI2
         if diff < 0 then
             diff = diff + const.PI2
         end
         local dist = ((2 * diff) % const.PI2) - diff
-        cam_angle = cam_angle + dist * 0.05
-        --print(string.format("pos %3f,%3f s %1.2f,%1.2f sa %1.2f ta %1.2f ca %1.2f", self.pos.x,self.pos.y,self.spd.x,self.spd.y,self.angle,target_angle,cam_angle))
+        g_cam_angle = g_cam_angle + dist * 0.05
+        --print(string.format("pos %3f,%3f s %1.2f,%1.2f sa %1.2f ta %1.2f ca %1.2f", self.pos.x,self.pos.y,self.spd.x,self.spd.y,self.angle,target_angle,g_cam_angle))
 
         local cam_target = self.pos
-        cam = vadd(cam, vscale(vsub(cam_target,cam), 0.3))
-        -- cam shaking
+        g_cam = vadd(g_cam, vscale(vsub(cam_target,g_cam), 0.3))
+        -- g_cam shaking
         local amount=ease_in_cubic(abs(self.acc),0,0.5,self.max_acc)
         local rx=math.random() * amount
         local ry=math.random() * amount
-        cam = vadd(cam, vec(rx,ry))
+        g_cam = vadd(g_cam, vec(rx,ry))
     end
 end
 
@@ -729,26 +782,27 @@ end
 
 function Ship:render()
     local old_layer = gfx.set_sprite_layer(const.LAYER_SHIP_MODELS)
-    local screen_pos = w2s(self.pos)
+    local screen_pos = world2screen(self.pos)
     gfx.blit(self.sx, self.sy, self.sw, self.sh,
         screen_pos.x, screen_pos.y,
-        255,255,255, cam_angle-self.angle)
+        255,255,255, g_cam_angle-self.angle)
     gfx.set_sprite_layer(old_layer)
     if self.is_player then
         local old_act=gfx.set_active_layer(const.LAYER_BACKGROUND)
         local old_spr=gfx.set_sprite_layer(const.LAYER_BACKGROUND_OFF)
         gfx.clear()
-        gfx.blit(0,0,const.SCREEN_DIAG,const.SCREEN_DIAG,gfx.SCREEN_WIDTH/2,gfx.SCREEN_HEIGHT/2,255,255,255,cam_angle)
+        gfx.blit(0,0,const.SCREEN_DIAG,const.SCREEN_DIAG,gfx.SCREEN_WIDTH/2,gfx.SCREEN_HEIGHT/2,255,255,255,g_cam_angle)
         gfx.set_active_layer(old_act)
         gfx.set_sprite_layer(old_spr)
     end
 end
 
-function Ship:new(hull_num, engine_num, shield_num, x, y)
+function Ship:new(hull_num, engine_num, shield_num, radar_num, x, y)
     gfx.set_active_layer(const.LAYER_SHIP_MODELS)
     local hull = conf.HULLS[hull_num]
     local engine = conf.ENGINES[engine_num]
     local shield = conf.SHIELDS[shield_num]
+    local radar = conf.RADARS[radar_num]
     local w = hull.w
     local h = hull.h
     gfx.rectangle(0, 0, w, h, 0, 0, 0)
@@ -766,9 +820,11 @@ function Ship:new(hull_num, engine_num, shield_num, x, y)
         sw = w,
         sh = h,
         max_acc = engine.spd,
-        man = engine.man,
-        lif = shield.lif,
-        rel = shield.rel
+        maniability = engine.man,
+        shield_life = shield.lif,
+        shield_reload = shield.rel,
+        rad_radius = radar.r,
+        rad_delay = radar.d
     }
     setmetatable(s,self)
     self.__index = self
@@ -779,7 +835,8 @@ function Ship:generate_random()
     local h = random(1, #conf.HULLS)
     local e = random(1, #conf.ENGINES)
     local s = random(1, #conf.SHIELDS)
-    return Ship:new(h, e, s, gfx.SCREEN_WIDTH / 3, gfx.SCREEN_HEIGHT * 0.8)
+    local r = random(1, #conf.RADARS)
+    return Ship:new(h, e, s, r, gfx.SCREEN_WIDTH / 3, gfx.SCREEN_HEIGHT * 0.8)
 end
 
 -- ################################## STARFIELD ##################################
@@ -856,9 +913,11 @@ function screen_sector.init(id)
     ship.x=gfx.SCREEN_WIDTH/2
     ship.y=gfx.SCREEN_HEIGHT-20
     ship.is_player=true
+    g_player=ship
     table.insert(g_screen.entities, Radar)
     table.insert(g_screen.entities, ship)
     table.insert(g_screen.entities,Dust:new())
+    g_sector = conf.SECTORS[id]
 end
 
 -- ################################## TITLE SCREEN ##################################
@@ -870,13 +929,13 @@ function screen_title.init()
     local br = 31
     local bg = 14
     local bb = 28
-    local sr = conf.PALETTE[7].r - br
-    local sg = conf.PALETTE[7].g - bg
-    local sb = conf.PALETTE[7].b - bb
+    local sr = const.PALETTE[7].r - br
+    local sg = const.PALETTE[7].g - bg
+    local sb = const.PALETTE[7].b - bb
     gfx.clear(br, bg, bb)
-    local pr = conf.PALETTE[11].r - br
-    local pg = conf.PALETTE[11].g - bg
-    local pb = conf.PALETTE[11].b - bb
+    local pr = const.PALETTE[11].r - br
+    local pg = const.PALETTE[11].g - bg
+    local pb = const.PALETTE[11].b - bb
     local wcoef = 2 / gfx.SCREEN_WIDTH
     local hcoef = 2 / gfx.SCREEN_HEIGHT
     -- background nebula
@@ -959,7 +1018,7 @@ function init()
     -- table.insert(g_screen.entities, Ship:generate_random())
     -- screen_title.build_ui(g_screen.gui)
     screen_title.init()
-    screen_sector.init(0)
+    screen_sector.init(1)
     gfx.set_active_layer(const.LAYER_BACKGROUND)
 end
 
@@ -971,5 +1030,5 @@ end
 function render()
     g_screen:render()
     gprint_right("" .. string.format("%d", gfx.fps()) .. " fps", gfx.SCREEN_WIDTH - 1, 1,
-        conf.COL_WHITE)
+        const.COL_WHITE)
 end
