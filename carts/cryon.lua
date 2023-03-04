@@ -185,73 +185,55 @@ const = {
 -- ################################## CONFIGURATION  ##################################
 conf = {
     ENGINES = { {
-        x = 0,
-        y = 19,
-        w = 1,
-        h = 2,
+        x = 0,y = 62,w = 7,h = 4,
         class = 0,
         spd = 0.1,
         man = 1,
         cost = 1
     }, {
-        x = 1,
-        y = 19,
-        w = 1,
-        h = 2,
+        x = 7,y = 62,w = 7,h = 5,
         class = 0,
         spd = 0.2,
         man = 1,
         cost = 2
     }, {
-        x = 2,
-        y = 19,
-        w = 2,
-        h = 2,
+        x = 14,y = 62,w = 4,h = 4,
         class = 0,
         spd = 0.15,
         man = 1.4,
         cost = 2
     } },
     SHIELDS = { {
-        x = 0,
-        y = 18,
-        w = 1,
-        h = 1,
+        x = 0,y = 57,w = 3,h = 3,
         class = 0,
         lif = 5,
         rel = 0.005,
         cost = 1
     }, {
-        x = 1,
-        y = 18,
-        w = 1,
-        h = 1,
+        x = 3,y = 57,w = 3,h = 4,
         class = 0,
         lif = 5,
         rel = 0.01,
         cost = 2
     }, {
-        x = 2,
-        y = 18,
-        w = 2,
-        h = 1,
+        x = 6,y = 57,w = 3,h = 3,
         class = 0,
         lif = 8,
         rel = 0.007,
         cost = 2
     } },
     HULLS = { {
-        x = 96,
-        y = 0,
-        w = 37,
-        h = 33,
+        x = 96,y = 0,w = 37,h = 33,
+        shield_pos={x=18.5,y=16.5},
+        engine_pos={x=18.5,y=30},
+        radar_pos={x=23,y=19},
         class = 0,
         mass = 10,
         armor = 10
     } },
     RADARS = {
-        {r=2000,d=5},
-        {r=3000,d=8},
+        {r=2000,d=5,x=0,y=69,w=4,h=2},
+        {r=3000,d=8,x=4,y=69,w=4,h=2},
     },
     -- galaxy
     SECTORS={
@@ -712,7 +694,8 @@ Radar={}
 function Radar:update()
     local delay=g_player.rad_delay
     local t = elapsed() % delay
-    self.blip_r = t < 1.0 and t or nil
+    local blip_length=g_player.rad_radius/2000
+    self.blip_r = t < blip_length and t/blip_length or nil
 end
 function Radar:render()
     local old=gfx.set_active_layer(const.LAYER_TRAILS)
@@ -904,9 +887,10 @@ function Ship:new(hull_num, engine_num, shield_num, radar_num, x, y)
     local w = hull.w
     local h = hull.h
     gfx.rectangle(0, 0, w, h, 0, 0, 0)
-    gfx.blit(engine.x, engine.y, engine.w, engine.h, (w - engine.w) / 2, h - engine.h)
+    gfx.blit(engine.x, engine.y, engine.w, engine.h, hull.engine_pos.x - engine.w/2, hull.engine_pos.y)
     gfx.blit(hull.x, hull.y, hull.w, hull.h, 0, 0)
-    gfx.blit(shield.x, shield.y, shield.w, shield.h, (w - shield.w) / 2, (h - shield.h) / 2)
+    gfx.blit(shield.x, shield.y, shield.w, shield.h, hull.shield_pos.x - shield.w/2, hull.shield_pos.y - shield.h/2)
+    gfx.blit(radar.x, radar.y, radar.w, radar.h, hull.radar_pos.x, hull.radar_pos.y)
     local s={
         typ = const.E_SHIP,
         pos=vec(x,y),
