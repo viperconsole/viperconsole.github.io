@@ -230,14 +230,23 @@ conf = {
         class = 0,
         mass = 10,
         armor = 10
+    },
+    {
+        x = 133,y = 0,w = 29,h = 49,
+        shield_pos={x=15.5,y=24.5},
+        engine_pos={x=15.5,y=45},
+        radar_pos={x=15.5,y=17},
+        class = 1,
+        mass = 20,
+        armor = 30
     } },
     RADARS = {
-        {r=2000,d=5,x=0,y=69,w=4,h=2},
-        {r=3000,d=8,x=4,y=69,w=4,h=2},
+        {r=6000,d=2,x=0,y=69,w=4,h=2},
+        {r=9000,d=3,x=4,y=69,w=4,h=2},
     },
     -- galaxy
     SECTORS={
-        {pos=vec(0,0),radius=5000}
+        {pos=vec(0,0),radius=30000}
     }
 }
 
@@ -691,11 +700,72 @@ function cam2world(p)
     return p
 end
 Radar={}
+function Radar:new()
+    local r= {
+        blips={}
+    }
+    setmetatable(r,self)
+    self.__index = self
+    return r
+end
 function Radar:update()
     local delay=g_player.rad_delay
     local t = elapsed() % delay
-    local blip_length=g_player.rad_radius/2000
+    local blip_length=g_player.rad_radius/9000
     self.blip_r = t < blip_length and t/blip_length or nil
+    local lose_range = g_player.rad_radius * g_player.rad_radius
+    local real_time_range = lose_range/9
+    -- at close range, blip position updated in real time
+    for i=1,#self.blips do
+        local b=self.blips[i]
+        local dist=vlen2(vsub(b.src.pos,g_player.pos))
+        if dist < real_time_range then
+            b.pos.x=b.src.pos.x
+            b.pos.y=b.src.pos.y
+        end
+    end
+    if self.blip_r then
+        -- acquire new target
+        local actual_blip_radius = self.blip_r * g_player.rad_radius
+        local acquire_range=actual_blip_radius * actual_blip_radius
+        for i=1,#g_screen.entities do
+            local e=g_screen.entities[i]
+            if not e.is_player and e.typ == const.E_SHIP then
+                local dist=vlen2(vsub(e.pos,g_player.pos))
+                if dist < acquire_range then
+                    if not e.acquired then
+                        -- acquire new target
+                        e.acquired = true
+                        e.detected = true
+                        table.insert(self.blips, e.blip)
+                    end
+                    -- update target position
+                    e.blip.pos.x=e.pos.x
+                    e.blip.pos.y=e.pos.y
+                elseif e.detected and dist > acquire_range then
+                    e.detected=false
+                end
+            end
+        end
+    end
+    -- remove out of range blips
+    for i=1,#g_screen.entities do
+        local e=g_screen.entities[i]
+        if not e.is_player and e.typ == const.E_SHIP then
+            local dist=vlen2(vsub(e.pos,g_player.pos))
+            if e.detected and dist > lose_range then
+                e.detected=false
+                --lost target
+                for i=#self.blips,1,-1 do
+                    if self.blips[i].src == e then
+                        table.remove(self.blips,i)
+                        e.acquired=false
+                        i=0
+                    end
+                end
+            end
+        end
+    end
 end
 function Radar:render()
     local old=gfx.set_active_layer(const.LAYER_TRAILS)
@@ -726,6 +796,11 @@ function Radar:render()
         local inv=(1.2-self.blip_r)/1.2
         gfx.circle(const.RADAR_X, const.RADAR_Y, 46*self.blip_r, 34*self.blip_r, 206 * inv, 218 * inv, 255 * inv)
     end
+    for i=1,#self.blips do
+        local b=self.blips[i]
+        local sp=world2radar(b.pos)
+        gfx.disk(sp.x,sp.y,2,nil,120,130,170)
+    end
 
     gfx.set_active_layer(old)
 end
@@ -735,6 +810,7 @@ Ship = {}
 function Ship:damage(amount)
     if self.shield > 0 then
         self.shield = self.shield - amount
+        self.shield_alpha = min(1.5,self.shield_alpha + amount)
         if self.shield < 0 then
             self.armor = self.armor + self.shield
             self.shield = 0
@@ -747,6 +823,8 @@ end
 function Ship:update()
     if self.is_player then
         self:set_player_control()
+    else
+        self:set_ai_control()
     end
 
     if self.left > 0.2 then
@@ -756,19 +834,22 @@ function Ship:update()
     end
     self.dir={x=cos(self.angle),y=sin(self.angle)}
     if self.up > 0.2 then
-        self.acc = clamp(self.acc + 0.1,0,self.max_acc)
+        self.acc = self.up * clamp(self.acc + 0.1,0,self.max_acc)
     elseif self.down > 0.2 then
-        self.acc = clamp(self.acc - 0.1,-self.max_acc*0.3,0)
+        self.acc = self.down * clamp(self.acc - 0.1,-self.max_acc*0.3,0)
     else
         self.acc=0
     end
-    self.spd = vadd(self.spd, vscale(self.dir,self.acc))
+    self.spd = vadd(self.spd, vscale(self.dir,self.acc*10/self.mass))
     self.spd = vscale(self.spd, 0.98)
     self.pos = vadd(self.pos, self.spd)
 
     -- shield
     local old_shield=self.shield
     self.shield = min(self.shield + self.shield_reload, self.shield_max)
+    if self.shield_alpha > 0 then
+        self.shield_alpha = max(0,self.shield_alpha-0.03)
+    end
 
     -- camera tracking
     if self.is_player then
@@ -834,6 +915,13 @@ function Ship:set_player_control()
     self.right = inp.key(inp.KEY_D) and 1 or inp.right()
 end
 
+function Ship:set_ai_control()
+    self.up = 1
+    self.down = 0
+    self.left = 0
+    self.right = 0.25
+end
+
 function Ship:render()
     local old_layer = gfx.set_sprite_layer(const.LAYER_SHIP_MODELS)
     local screen_pos = world2screen(self.pos)
@@ -841,8 +929,12 @@ function Ship:render()
         screen_pos.x, screen_pos.y,
         255,255,255, g_cam_angle-self.angle)
     local shield=self.shield/self.shield_max
+    local old_active=gfx.set_active_layer(const.LAYER_TRAILS)
+    if self.shield_alpha > 0 then
+        local rgb=self.shield_alpha*self.shield*255
+        gfx.blit_col(self.sx,self.sy,self.sw,self.sh,screen_pos.x,screen_pos.y, rgb*0.6,rgb*0.7,rgb, g_cam_angle-self.angle, self.sw+6*shield, self.sh+6*shield)
+    end
     if self.is_player then
-        local old_active=gfx.set_active_layer(const.LAYER_TRAILS)
         gfx.blit_col(self.sx,self.sy,self.sw,self.sh,5+self.sw/2+3,gfx.SCREEN_HEIGHT-8-self.sh/2, 120,120,255, 0, self.sw/2+6*shield, self.sh/2+6*shield)
         gfx.blit_col(self.sx,self.sy,self.sw,self.sh,5+self.sw/2+3,gfx.SCREEN_HEIGHT-8-self.sh/2, 220,220,255, 0, self.sw/2, self.sh/2)
         -- messages and warnings
@@ -873,8 +965,8 @@ function Ship:render()
             gfx.set_layer_offset(const.LAYER_STATIC, math.random(0,gfx.SCREEN_WIDTH),math.random(0,gfx.SCREEN_HEIGHT))
             gfx.blit(0,0,gfx.SCREEN_WIDTH,gfx.SCREEN_HEIGHT,0,0,255*self.static,255*self.static,255*self.static)
         end
-        gfx.set_active_layer(old_active)
     end
+    gfx.set_active_layer(old_active)
     gfx.set_sprite_layer(old_layer)
 end
 
@@ -886,19 +978,23 @@ function Ship:new(hull_num, engine_num, shield_num, radar_num, x, y)
     local radar = conf.RADARS[radar_num]
     local w = hull.w
     local h = hull.h
-    gfx.rectangle(0, 0, w, h, 0, 0, 0)
-    gfx.blit(engine.x, engine.y, engine.w, engine.h, hull.engine_pos.x - engine.w/2, hull.engine_pos.y)
-    gfx.blit(hull.x, hull.y, hull.w, hull.h, 0, 0)
-    gfx.blit(shield.x, shield.y, shield.w, shield.h, hull.shield_pos.x - shield.w/2, hull.shield_pos.y - shield.h/2)
-    gfx.blit(radar.x, radar.y, radar.w, radar.h, hull.radar_pos.x, hull.radar_pos.y)
+    local sx,sy=0,0
+    for i=1,hull_num-1 do
+        sx = sx + conf.HULLS[i].w
+    end
+    gfx.rectangle(sx, sy, w, h, 0, 0, 0)
+    gfx.blit(engine.x, engine.y, engine.w, engine.h, sx + hull.engine_pos.x - engine.w/2, sy + hull.engine_pos.y)
+    gfx.blit(hull.x, hull.y, hull.w, hull.h, sx, sy)
+    gfx.blit(shield.x, shield.y, shield.w, shield.h, sx + hull.shield_pos.x - shield.w/2, sy + hull.shield_pos.y - shield.h/2)
+    gfx.blit(radar.x, radar.y, radar.w, radar.h, sx + hull.radar_pos.x, sy + hull.radar_pos.y)
     local s={
         typ = const.E_SHIP,
         pos=vec(x,y),
         angle = -const.PI * 0.5,
         acc=0,
         spd = vec(),
-        sx = 0,
-        sy = 0,
+        sx = sx,
+        sy = sy,
         sw = w,
         sh = h,
         blueprint= {
@@ -907,27 +1003,37 @@ function Ship:new(hull_num, engine_num, shield_num, radar_num, x, y)
             shield=shield_num,
             radar=radar_num
         },
+        detected=false,
         max_acc = engine.spd,
         maniability = engine.man,
+        mass=hull.mass,
+        shield_alpha=0,
         shield = shield.lif,
         shield_max = shield.lif,
         shield_reload = shield.rel,
+        blip = {pos=vec(),src=nil},
         armor = hull.armor,
         armor_max = hull.armor,
         rad_radius = radar.r,
         rad_delay = radar.d
     }
+    s.blip.src=s
     setmetatable(s,self)
     self.__index = self
     return s
 end
 
-function Ship:generate_random()
-    local h = random(1, #conf.HULLS)
+function Ship:generate_random(h,angle)
+    local h = h or random(1, #conf.HULLS)
     local e = random(1, #conf.ENGINES)
     local s = random(1, #conf.SHIELDS)
     local r = random(1, #conf.RADARS)
-    return Ship:new(h, e, s, r, gfx.SCREEN_WIDTH / 3, gfx.SCREEN_HEIGHT * 0.8)
+    local x,y = 0,0
+    if angle then
+        x = g_sector.radius * 0.9 * cos(angle)
+        y = g_sector.radius * 0.9 * sin(angle)
+    end
+    return Ship:new(h, e, s, r, x, y)
 end
 
 -- ################################## STARFIELD ##################################
@@ -1000,14 +1106,16 @@ function screen_sector.init(id)
     -- gfx.clear()
     gfx.set_active_layer(const.LAYER_ENTITIES)
     gfx.clear()
-    local ship=Ship:generate_random()
+    local ship=Ship:generate_random(1)
     ship.x=gfx.SCREEN_WIDTH/2
     ship.y=gfx.SCREEN_HEIGHT-20
     ship.is_player=true
     ship.static_patterns={}
     ship.static=0
     g_player=ship
-    table.insert(g_screen.entities, Radar)
+    local ship2=Ship:generate_random(2) --,math.random()*const.PI2)
+    table.insert(g_screen.entities, Radar:new())
+    table.insert(g_screen.entities, ship2)
     table.insert(g_screen.entities, ship)
     table.insert(g_screen.entities,Dust:new())
     g_sector = conf.SECTORS[id]
