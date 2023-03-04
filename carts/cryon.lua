@@ -112,12 +112,12 @@ function gprint_right(msg, x, y, col)
     gprint(msg, flr(x - #msg * 6), y, col)
 end
 
-function warning(msg)
+function warning(msg, x, y)
     if elapsed()%0.5 < 0.25 then
-        gfx.blit(0,42,7,8,280,214)
-        gfx.print(g_font, msg, 289,217,64,0,0)
-        gfx.print(g_font, msg, 287,215,64,0,0)
-        gfx.print(g_font, msg, 288,216,255,0,0)
+        gfx.blit(0,42,7,8,x,y)
+        gfx.print(g_font, msg, x+9,y+3,64,0,0)
+        gfx.print(g_font, msg, x+7,y+1,64,0,0)
+        gfx.print(g_font, msg, x+8,y+2,255,0,0)
     end
 end
 
@@ -166,7 +166,8 @@ const = {
         col(245, 237, 186), col(192, 199, 65), col(100, 125, 52), col(228, 148, 58), col(157, 48, 59),
         col(210, 100, 113), col(112, 55, 127), col(126, 196, 193), col(52, 133, 157), col(23, 67, 75),
         col(31, 14, 28), col(255, 255, 255) },
-    COL_WHITE = 18
+    COL_WHITE = 18,
+    RADIATION_DMG=0.3
 }
 
 
@@ -206,8 +207,8 @@ conf = {
         w = 1,
         h = 1,
         class = 0,
-        lif = 1,
-        rel = 1,
+        lif = 5,
+        rel = 0.005,
         cost = 1
     }, {
         x = 1,
@@ -215,8 +216,8 @@ conf = {
         w = 1,
         h = 1,
         class = 0,
-        lif = 1,
-        rel = 2,
+        lif = 5,
+        rel = 0.01,
         cost = 2
     }, {
         x = 2,
@@ -224,8 +225,8 @@ conf = {
         w = 2,
         h = 1,
         class = 0,
-        lif = 2,
-        rel = 1,
+        lif = 8,
+        rel = 0.007,
         cost = 2
     } },
     HULLS = { {
@@ -234,7 +235,8 @@ conf = {
         w = 37,
         h = 33,
         class = 0,
-        mass = 10
+        mass = 10,
+        armor = 10
     } },
     RADARS = {
         {r=2000,d=5},
@@ -736,6 +738,18 @@ end
 -- ################################## SHIP ##################################
 
 Ship = {}
+function Ship:damage(amount)
+    if self.shield > 0 then
+        self.shield = self.shield - amount
+        if self.shield < 0 then
+            self.armor = self.armor + self.shield
+            self.shield = 0
+            if self.armor <= 0 then
+                -- TODO boom
+            end
+        end
+    end
+end
 function Ship:update()
     if self.is_player then
         self:set_player_control()
@@ -758,6 +772,9 @@ function Ship:update()
     self.spd = vscale(self.spd, 0.98)
     self.pos = vadd(self.pos, self.spd)
 
+    -- shield
+    self.shield = min(self.shield + self.shield_reload, self.shield_max)
+
     -- camera tracking
     if self.is_player then
         local target_angle = self.angle
@@ -778,6 +795,9 @@ function Ship:update()
         g_cam = vadd(g_cam, vec(rx,ry))
         local dist=vlen(self.pos) - g_sector.radius
         self.static = dist > 0 and min(1,dist/3000) or 0
+        if self.static > 0 then
+            self:damage(self.static * self.static * const.RADIATION_DMG)
+        end
     end
 end
 
@@ -794,10 +814,20 @@ function Ship:render()
     gfx.blit(self.sx, self.sy, self.sw, self.sh,
         screen_pos.x, screen_pos.y,
         255,255,255, g_cam_angle-self.angle)
+    local shield=self.shield/self.shield_max
+    if self.is_player then
+        gfx.blit_col(self.sx,self.sy,self.sw,self.sh,5+self.sw/2+3,gfx.SCREEN_HEIGHT-8-self.sh/2, 120,120,255, 0, self.sw/2+6*shield, self.sh/2+6*shield)
+        gfx.blit_col(self.sx,self.sy,self.sw,self.sh,5+self.sw/2+3,gfx.SCREEN_HEIGHT-8-self.sh/2, 220,220,255, 0, self.sw/2, self.sh/2)
+    end
     gfx.set_sprite_layer(old_layer)
     if self.is_player then
         if self.static and self.static > 0 then
-            warning("Radiations")
+            warning("Radiations",280,214)
+        end
+        if shield == 0 then
+            warning("No shield",2, gfx.SCREEN_HEIGHT-self.sh/2-12)
+        elseif shield < 0.2 then
+            warning("Shield low",2, gfx.SCREEN_HEIGHT-self.sh/2-12)
         end
         local old_act=gfx.set_active_layer(const.LAYER_BACKGROUND)
         local old_spr=gfx.set_sprite_layer(const.LAYER_BACKGROUND_OFF)
@@ -836,10 +866,19 @@ function Ship:new(hull_num, engine_num, shield_num, radar_num, x, y)
         sy = 0,
         sw = w,
         sh = h,
+        blueprint= {
+            hull=hull_num,
+            engine=engine_num,
+            shield=shield_num,
+            radar=radar_num
+        },
         max_acc = engine.spd,
         maniability = engine.man,
-        shield_life = shield.lif,
+        shield = shield.lif,
+        shield_max = shield.lif,
         shield_reload = shield.rel,
+        armor = hull.armor,
+        armor_max = hull.armor,
         rad_radius = radar.r,
         rad_delay = radar.d
     }
