@@ -121,6 +121,15 @@ function warning(msg, x, y)
     end
 end
 
+function message(msg, x, y)
+    if elapsed()%0.5 < 0.25 then
+        gfx.blit(0,50,7,7,x,y)
+        gfx.print(g_font, msg, x+9,y+2,0,0,64)
+        gfx.print(g_font, msg, x+7,y,0,0,64)
+        gfx.print(g_font, msg, x+8,y+1,220,220,255)
+    end
+end
+
 -- ################################## CONSTANTS ##################################
 
 const = {
@@ -773,6 +782,7 @@ function Ship:update()
     self.pos = vadd(self.pos, self.spd)
 
     -- shield
+    local old_shield=self.shield
     self.shield = min(self.shield + self.shield_reload, self.shield_max)
 
     -- camera tracking
@@ -797,6 +807,17 @@ function Ship:update()
         self.static = dist > 0 and min(1,dist/3000) or 0
         if self.static > 0 then
             self:damage(self.static * self.static * const.RADIATION_DMG)
+        end
+        if self.msg_timer and self.msg_timer > 0 then
+            self.msg_timer = max(0,self.msg_timer - 1/60)
+            if self.msg_timer == 0 then
+                self.msg_timer=nil
+                self.msg=nil
+            end
+        end
+        if self.shield > old_shield and self.shield == self.shield_max and self.msg==nil then
+            self.msg="Shield reloaded"
+            self.msg_timer=5
         end
     end
 end
@@ -825,9 +846,11 @@ function Ship:render()
             warning("Radiations",280,214)
         end
         if shield == 0 then
-            warning("No shield",2, gfx.SCREEN_HEIGHT-self.sh/2-12)
+            warning("No shield",2, gfx.SCREEN_HEIGHT-8)
         elseif shield < 0.2 then
-            warning("Shield low",2, gfx.SCREEN_HEIGHT-self.sh/2-12)
+            warning("Shield low",2, gfx.SCREEN_HEIGHT-8)
+        elseif self.msg then
+            message(self.msg,2, gfx.SCREEN_HEIGHT-8)
         end
         local old_act=gfx.set_active_layer(const.LAYER_BACKGROUND)
         local old_spr=gfx.set_sprite_layer(const.LAYER_BACKGROUND_OFF)
