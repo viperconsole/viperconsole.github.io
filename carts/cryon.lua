@@ -176,7 +176,9 @@ const = {
         col(210, 100, 113), col(112, 55, 127), col(126, 196, 193), col(52, 133, 157), col(23, 67, 75),
         col(31, 14, 28), col(255, 255, 255) },
     COL_WHITE = 18,
-    RADIATION_DMG=0.3
+    RADIATION_DMG=0.3,
+    STATIC_PATTERN_SPEED=0.4,
+    STATIC_PATTERN_PROB=0.15
 }
 
 
@@ -804,9 +806,29 @@ function Ship:update()
         local ry=math.random() * amount
         g_cam = vadd(g_cam, vec(rx,ry))
         local dist=vlen(self.pos) - g_sector.radius
+        local had_static = self.static > 0
         self.static = dist > 0 and min(1,dist/3000) or 0
         if self.static > 0 then
             self:damage(self.static * self.static * const.RADIATION_DMG)
+            if #self.static_patterns <10 and math.random() < const.STATIC_PATTERN_PROB then
+                local amount = math.random()*2-1
+                amount=10*amount^3
+                if abs(amount)<1 then
+                    amount = amount > 0 and 1 or -1
+                end
+                local width=round(5*math.random()^3)
+                table.insert(self.static_patterns,{ystart=170,yend=170+width,amount = amount})
+            end
+            for i=#self.static_patterns,1,-1 do
+                local pat=self.static_patterns[i]
+                pat.ystart = pat.ystart + const.STATIC_PATTERN_SPEED
+                pat.yend = pat.yend + const.STATIC_PATTERN_SPEED
+                if pat.ystart >= gfx.SCREEN_HEIGHT then
+                    table.remove(self.static_patterns,i)
+                end
+            end
+        elseif had_static then
+            gfx.set_rowscroll(const.LAYER_TRAILS)
         end
         if self.msg_timer and self.msg_timer > 0 then
             self.msg_timer = max(0,self.msg_timer - 1/60)
@@ -837,12 +859,11 @@ function Ship:render()
         255,255,255, g_cam_angle-self.angle)
     local shield=self.shield/self.shield_max
     if self.is_player then
+        local old_active=gfx.set_active_layer(const.LAYER_TRAILS)
         gfx.blit_col(self.sx,self.sy,self.sw,self.sh,5+self.sw/2+3,gfx.SCREEN_HEIGHT-8-self.sh/2, 120,120,255, 0, self.sw/2+6*shield, self.sh/2+6*shield)
         gfx.blit_col(self.sx,self.sy,self.sw,self.sh,5+self.sw/2+3,gfx.SCREEN_HEIGHT-8-self.sh/2, 220,220,255, 0, self.sw/2, self.sh/2)
-    end
-    gfx.set_sprite_layer(old_layer)
-    if self.is_player then
-        if self.static and self.static > 0 then
+        -- messages and warnings
+        if self.static > 0 then
             warning("Radiations",280,214)
         end
         if shield == 0 then
@@ -852,19 +873,26 @@ function Ship:render()
         elseif self.msg then
             message(self.msg,2, gfx.SCREEN_HEIGHT-8)
         end
-        local old_act=gfx.set_active_layer(const.LAYER_BACKGROUND)
-        local old_spr=gfx.set_sprite_layer(const.LAYER_BACKGROUND_OFF)
+        -- sector background
+        gfx.set_active_layer(const.LAYER_BACKGROUND)
+        gfx.set_sprite_layer(const.LAYER_BACKGROUND_OFF)
         gfx.clear()
         gfx.blit(0,0,const.SCREEN_DIAG,const.SCREEN_DIAG,gfx.SCREEN_WIDTH/2,gfx.SCREEN_HEIGHT/2,255,255,255,g_cam_angle)
-        if self.static and self.static > 0 then
+        if self.static > 0 then
+            -- static fx
+            gfx.set_rowscroll(const.LAYER_TRAILS,170,223,0)
+            for i=1,#self.static_patterns do
+                local pat=self.static_patterns[i]
+                gfx.set_rowscroll(const.LAYER_TRAILS,pat.ystart,min(223,pat.yend),self.static*pat.amount)
+            end
             gfx.set_sprite_layer(const.LAYER_SPRITES_STATIC)
             gfx.set_active_layer(const.LAYER_STATIC)
             gfx.set_layer_offset(const.LAYER_STATIC, math.random(0,gfx.SCREEN_WIDTH),math.random(0,gfx.SCREEN_HEIGHT))
             gfx.blit(0,0,gfx.SCREEN_WIDTH,gfx.SCREEN_HEIGHT,0,0,255*self.static,255*self.static,255*self.static)
         end
-        gfx.set_active_layer(old_act)
-        gfx.set_sprite_layer(old_spr)
+        gfx.set_active_layer(old_active)
     end
+    gfx.set_sprite_layer(old_layer)
 end
 
 function Ship:new(hull_num, engine_num, shield_num, radar_num, x, y)
@@ -992,6 +1020,8 @@ function screen_sector.init(id)
     ship.x=gfx.SCREEN_WIDTH/2
     ship.y=gfx.SCREEN_HEIGHT-20
     ship.is_player=true
+    ship.static_patterns={}
+    ship.static=0
     g_player=ship
     table.insert(g_screen.entities, Radar)
     table.insert(g_screen.entities, ship)
