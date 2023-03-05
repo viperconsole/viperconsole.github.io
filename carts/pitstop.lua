@@ -775,10 +775,10 @@ function create_car(race)
             local freq = base_freq + max_freq * rpm
             local volume = 0.5 + 0.5*self.accel/self.maxacc
             if false and self.freq then
-                snd.set_note_freq(1,freq)
-                snd.set_note_volume(1,volume)
+                snd.set_channel_freq(1,freq)
+                snd.set_channel_volume(1,volume)
             else
-                snd.play_note(freq, volume, 8, 1)
+                snd.play_note(8, freq, volume, volume, 1)
             end
             self.freq=freq
             sc1 = 35
@@ -838,7 +838,7 @@ function create_car(race)
                         best_seg_times[current_segment] = time
                     end
                     self.seg_times[current_segment] = time
-                    snd.set_note_volume(2, get_data_from_vecmap(current_segment + 1).tribune)
+                    snd.set_channel_volume(2, get_data_from_vecmap(current_segment + 1).tribune)
                     if current_segment > 0 and current_segment % mapsize == 0
                         and (self.race.race_mode == MODE_TIME_ATTACK or current_segment <= mapsize * self.race.lap_count) then
                         -- new lap
@@ -2038,7 +2038,7 @@ function race()
         }
         table.insert(self.ranks, p)
         p.perf = TEAMS[p.driver.team].perf
-        snd.play_note(440, v.tribune, 9, 2)
+        snd.play_note(9, 440, v.tribune, v.tribune, 2)
 
         if self.race_mode == MODE_RACE then
             for i = 1, #DRIVERS do
@@ -2286,9 +2286,9 @@ function race()
                 return
             end
         elseif inp_menu_pressed() then
-            snd.stop_note(1)
+            snd.stop_channel(1)
             self.player.freq=nil
-            snd.stop_note(2)
+            snd.stop_channel(2)
             set_game_mode(paused_menu(self))
             return
         end
@@ -2443,9 +2443,9 @@ function race()
 
         if not self.completed and self.race_mode == MODE_RACE and player.race_finished then
             -- completed
-            snd.stop_note(1)
+            snd.stop_channel(1)
             self.player.freq=nil
-            snd.stop_note(2)
+            snd.stop_channel(2)
             self.completed = true
             self.completed_countdown = 5
         end
@@ -3170,14 +3170,14 @@ function paused_menu(game)
                 set_game_mode(game)
             elseif selected == 2 then
                 set_game_mode(game)
-                snd.stop_note(1)
+                snd.stop_channel(1)
                 game.player.freq=nil
-                snd.stop_note(2)
+                snd.stop_channel(2)
                 game:restart()
             elseif selected == 3 then
-                snd.stop_note(1)
+                snd.stop_channel(1)
                 game.player.freq=nil
-                snd.stop_note(2)
+                snd.stop_channel(2)
                 camera_angle = 0.25
                 set_game_mode(intro)
             end
