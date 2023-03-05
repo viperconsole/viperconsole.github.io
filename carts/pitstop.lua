@@ -1023,7 +1023,9 @@ function create_car(race)
             car.race_finished = true
             car.race.is_finished = true
         end
-        snd.set_channel_volume(3,self.screech)
+        if self.is_player then
+            snd.set_channel_volume(3,self.screech)
+        end
     end
 
     function car:draw_minimap(cam_car)
@@ -2885,14 +2887,11 @@ function race()
             -- engine
             gfx.rectangle(x+32,y+30,2,2, 0,228,54)
 
-            -- fuel : TODO
-            -- if player.fuel < 0 then
-            --     if frame % 4 < 2 then
-            --         gfx.blit(66, 249, 21 * (1 - player.fuel / 100), 4, gfx.SCREEN_WIDTH - 61, gfx.SCREEN_HEIGHT - 11)
-            --     end
-            -- else
-            --     gfx.blit(66, spritey, 21 * (player.fuel / 100), 4, gfx.SCREEN_WIDTH - 61, gfx.SCREEN_HEIGHT - 11)
-            -- end
+            -- fuel
+            local fuel = (self.player.mass - CAR_BASE_MASS) / (FUEL_MASS_PER_KM * self.lap_count)
+            if fuel > 0.1 or frame % 4 < 2 then
+                gfx.blit(66, 241, 21 * fuel, 4, gfx.SCREEN_WIDTH - 61, gfx.SCREEN_HEIGHT - 8)
+            end
             if self.race_mode == MODE_RACE and self.panel_timer >= 0 then
                 -- stand panel
                 local x = gfx.SCREEN_WIDTH - 90
