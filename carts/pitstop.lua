@@ -838,7 +838,8 @@ function create_car(race)
                         best_seg_times[current_segment] = time
                     end
                     self.seg_times[current_segment] = time
-                    snd.set_channel_volume(2, get_data_from_vecmap(current_segment + 1).tribune)
+                    local v=get_data_from_vecmap(current_segment + 1)
+                    snd.set_channel_volume(2, v.ltribune, v.rtribune)
                     if current_segment > 0 and current_segment % mapsize == 0
                         and (self.race.race_mode == MODE_TIME_ATTACK or current_segment <= mapsize * self.race.lap_count) then
                         -- new lap
@@ -1817,10 +1818,13 @@ function race()
                 v.right_track = vecsub(v, scalev(v.side, v.w))
                 local ltribune = ltyp//8 ==OBJ_TRIBUNE or ltyp//8==OBJ_TRIBUNE2
                 local rtribune = rtyp//8==OBJ_TRIBUNE or rtyp//8==OBJ_TRIBUNE2
-                local tribune = ltribune or rtribune
-                v.tribune =  tribune and 0.2 or 0.0 --tribune sound level TODO
-                if (ltribune and ltyp&7 ~= 0) or (rtribune and rtyp&7~=0) then
-                    v.tribune = v.tribune* 0.5
+                v.ltribune =  ltribune and 0.2 or 0.0 --tribune sound level TODO
+                v.rtribune =  rtribune and 0.2 or 0.0 --tribune sound level TODO
+                if ltribune and ltyp&7 ~= 0 then
+                    v.ltribune = v.ltribune* 0.5
+                end
+                if rtribune and rtyp&7~=0 then
+                    v.rtribune = v.rtribune* 0.5
                 end
                 table.insert(vecmap, v)
                 lastdir = dir
@@ -1850,29 +1854,42 @@ function race()
             v.left_kerb = vecsub(v.left_track, scalev(v.side, lkerbw))
             v.right_kerb = vecadd(v.right_track, scalev(v.side, rkerbw))
         end
-        local trib=0
+        local ltrib,rtrib=0,0
         for i=1,#vecmap+7 do
             local j = i > #vecmap and i-#vecmap or i
             local v=vecmap[j]
             -- smooth tribune sound volume
-            if v.tribune > 0 then
-                trib=v.tribune
+            if v.ltribune > 0 then
+                ltrib=v.ltribune
             else
-                trib = max(0,trib - 0.03)
-                v.forward_tribune=trib
+                ltrib = max(0,ltrib - 0.03)
+                v.forward_ltribune=ltrib
+            end
+            if v.rtribune > 0 then
+                rtrib=v.rtribune
+            else
+                rtrib = max(0,rtrib - 0.03)
+                v.forward_rtribune=rtrib
             end
         end
         trib=0
         for i=#vecmap+7,1,-1 do
             local j = i > #vecmap and i-#vecmap or i
             local v=vecmap[j]
-            if max(v.tribune,v.forward_tribune or 0) > 0 then
-                trib=max(trib,max(v.tribune,v.forward_tribune or 0))
+            if max(v.ltribune,v.forward_ltribune or 0) > 0 then
+                ltrib=max(trib,max(v.ltribune,v.forward_ltribune or 0))
             else
-                trib = max(0,trib - 0.03)
+                ltrib = max(0,ltrib - 0.03)
             end
-            v.tribune = trib
-            v.forward_tribune=nil
+            v.ltribune = ltrib
+            v.forward_ltribune=nil
+            if max(v.rtribune,v.forward_rtribune or 0) > 0 then
+                rtrib=max(rtrib,max(v.rtribune,v.forward_rtribune or 0))
+            else
+                rtrib = max(0,rtrib - 0.03)
+            end
+            v.rtribune = rtrib
+            v.forward_rtribune=nil
         end
         -- distance to turn signs
         local dist = 0
@@ -2038,7 +2055,7 @@ function race()
         }
         table.insert(self.ranks, p)
         p.perf = TEAMS[p.driver.team].perf
-        snd.play_note(9, 440, v.tribune, v.tribune, 2)
+        snd.play_note(9, 440, v.ltribune, v.rtribune, 2)
 
         if self.race_mode == MODE_RACE then
             for i = 1, #DRIVERS do
