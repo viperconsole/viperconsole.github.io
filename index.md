@@ -347,6 +347,8 @@ Sample instrument properties :
 
 * `set_instrument(id, new_description)` : update the parameters of instrument id from a new description
 * `play_note(frequency, volume, instrument_id, [channel])` : start playing a note on a channel (between 0 and 5). If channel is not defined, any free channel will be used.
+* `set_note_volume(channel, volume)` : change the volume of a channel without interrupting the oscillator/sample
+* `set_note_freq(channel, freq)` : change the frequency of a channel without interrupting the oscillator/sample
 * `stop_note(channel)` : mute the channel
 * `reserve_channel(channel)` : mark a channel so that it's not used except if explicitely adressed in play_note, play_pattern or play_music
 * `release_channel(channel)` : release a channel so that it can be used by play_note, play_pattern or play_music when the channel are not specified

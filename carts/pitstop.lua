@@ -767,11 +767,18 @@ function create_car(race)
             -- engine noise
             local sgear = (self.speed*14/328)^0.75 * 8
             self.gear = flr(clamp(sgear,1,7))
-            local base_freq=self.gear == 1 and 5 or 30
-            local max_freq = self.controls.accel and 60-base_freq or 40-base_freq
-            local freq = min(60,base_freq + (sgear-self.gear)* max_freq)
+            local rpm = sgear-self.gear -- between 0 and 1
+            local base_freq=self.gear == 1 and 290 or 340
+            local max_freq = self.controls.accel and 550-base_freq or 520-base_freq
+            local freq = base_freq + max_freq * rpm
+            local volume = (0.5 + 0.5*self.accel/self.maxacc) * 0.5
+            if false and self.freq then
+                snd.set_note_freq(1,freq)
+                snd.set_note_volume(1,volume)
+            else
+                snd.play_note(freq, volume, 8, 1)
+            end
             self.freq=freq
-            snd.play_note(freq, (0.5 + 0.5*self.accel/self.maxacc) * 0.5, 8, 1)
             sc1 = 35
         end
 
@@ -829,6 +836,7 @@ function create_car(race)
                         best_seg_times[current_segment] = time
                     end
                     self.seg_times[current_segment] = time
+                    snd.set_note_volume(2, get_data_from_vecmap(current_segment + 1).tribune)
                     if current_segment > 0 and current_segment % mapsize == 0
                         and (self.race.race_mode == MODE_TIME_ATTACK or current_segment <= mapsize * self.race.lap_count) then
                         -- new lap
@@ -896,14 +904,14 @@ function create_car(race)
             if poly then
                 local car_poly = { self.verts[1], self.verts[2], self.verts[3] }
                 local rails
-                if self.pit < 0  then
+                if self.pit and self.pit < 0  then
                     local p = vecsub(v.right_inner_rail, scalev(v.side, 6))
                     local p2 = vecadd(v.right_inner_rail, scalev(v.front, 33))
                     local width = (v.rtyp // 8 == OBJ_PIT or nextv.rtyp // 8 == OBJ_PIT) and 48 or 20
                     local p3 = vecsub(p, scalev(v.side, width))
                     local p4 = vecsub(p2, scalev(v.side, width))
                     rails = { { p2, p }, { p3, p4 } }
-                elseif self.pit > 0 then
+                elseif self.pit and self.pit > 0 then
                     local p = vecadd(v.left_inner_rail, scalev(v.side, 6))
                     local p2 = vecadd(v.left_inner_rail, scalev(v.front, 33))
                     local width = (v.ltyp // 8 == OBJ_PIT or nextv.ltyp // 8 == OBJ_PIT) and 48 or 20
@@ -1706,6 +1714,7 @@ function race()
         vecmap = {}
         local dir, mx, my = 0, 0, 0
         local lastdir = 0
+
         math.randomseed(0xdeadbeef)
         -- generate map
         for i, ms in pairs(mapsections) do
@@ -1756,7 +1765,6 @@ function race()
                 end
                 curve = bestcurve
             end
-
             while length > 0 do
                 dir = dir + (curve - 128) / 100
                 local railcoef = 1
@@ -1805,7 +1813,13 @@ function race()
                 -- track borders (including kerbs)
                 v.left_track = vecadd(v, scalev(v.side, v.w))
                 v.right_track = vecsub(v, scalev(v.side, v.w))
-                v.tribune = 2 --tribune sound level
+                local ltribune = ltyp//8 ==OBJ_TRIBUNE or ltyp//8==OBJ_TRIBUNE2
+                local rtribune = rtyp//8==OBJ_TRIBUNE or rtyp//8==OBJ_TRIBUNE2
+                local tribune = ltribune or rtribune
+                v.tribune =  tribune and 0.2 or 0.0 --tribune sound level TODO
+                if (ltribune and ltyp&7 ~= 0) or (rtribune and rtyp&7~=0) then
+                    v.tribune = v.tribune* 0.5
+                end
                 table.insert(vecmap, v)
                 lastdir = dir
                 lskiprail_first = lskiprail_first - 1 * railcoef
@@ -1833,6 +1847,30 @@ function race()
             local lkerbw = v.has_lkerb and 8 or 0
             v.left_kerb = vecsub(v.left_track, scalev(v.side, lkerbw))
             v.right_kerb = vecadd(v.right_track, scalev(v.side, rkerbw))
+        end
+        local trib=0
+        for i=1,#vecmap+7 do
+            local j = i > #vecmap and i-#vecmap or i
+            local v=vecmap[j]
+            -- smooth tribune sound volume
+            if v.tribune > 0 then
+                trib=v.tribune
+            else
+                trib = max(0,trib - 0.03)
+                v.forward_tribune=trib
+            end
+        end
+        trib=0
+        for i=#vecmap+7,1,-1 do
+            local j = i > #vecmap and i-#vecmap or i
+            local v=vecmap[j]
+            if max(v.tribune,v.forward_tribune or 0) > 0 then
+                trib=max(trib,max(v.tribune,v.forward_tribune or 0))
+            else
+                trib = max(0,trib - 0.03)
+            end
+            v.tribune = trib
+            v.forward_tribune=nil
         end
         -- distance to turn signs
         local dist = 0
@@ -1986,7 +2024,6 @@ function race()
         p.angle = v.dir
         p.rank = 1
         p.gear = 0
-        p.freq = 0
         p.maxacc = p.maxacc
         p.mass = p.mass + FUEL_MASS_PER_KM * self.lap_count
         camera_angle = v.dir
@@ -1999,7 +2036,7 @@ function race()
         }
         table.insert(self.ranks, p)
         p.perf = TEAMS[p.driver.team].perf
-        --snd.play_note(17000, v.tribune, 9, 2)
+        snd.play_note(440, v.tribune, 9, 2)
 
         if self.race_mode == MODE_RACE then
             for i = 1, #DRIVERS do
@@ -2248,6 +2285,7 @@ function race()
             end
         elseif inp_menu_pressed() then
             snd.stop_note(1)
+            self.player.freq=nil
             snd.stop_note(2)
             set_game_mode(paused_menu(self))
             return
@@ -2401,6 +2439,7 @@ function race()
         if not self.completed and self.race_mode == MODE_RACE and player.race_finished then
             -- completed
             snd.stop_note(1)
+            self.player.freq=nil
             snd.stop_note(2)
             self.completed = true
             self.completed_countdown = 5
@@ -2825,7 +2864,9 @@ function race()
             printc(player.gear == 0 and "N" or ""..player.gear, gfx.SCREEN_WIDTH-32,gfx.SCREEN_HEIGHT-31,28)
             -- engine speed
             gfx.blit(66, 224, 25 * min(1, player.speed / 15), 8, gfx.SCREEN_WIDTH - 28, gfx.SCREEN_HEIGHT - 23)
-            gfx.blit(66, 232, 19 * clamp(player.freq / 50,0,1), 9, gfx.SCREEN_WIDTH - 60, gfx.SCREEN_HEIGHT - 22)
+            if player.freq then
+                gfx.blit(66, 232, 19 * clamp(player.freq / 50,0,1), 9, gfx.SCREEN_WIDTH - 60, gfx.SCREEN_HEIGHT - 22)
+            end
             -- car status
             -- front wing
             gfx.line(x+31,y+25,x+35,y+25, 0,228,54)
@@ -3118,10 +3159,12 @@ function paused_menu(game)
             elseif selected == 2 then
                 set_game_mode(game)
                 snd.stop_note(1)
+                game.player.freq=nil
                 snd.stop_note(2)
                 game:restart()
             elseif selected == 3 then
                 snd.stop_note(1)
+                game.player.freq=nil
                 snd.stop_note(2)
                 camera_angle = 0.25
                 set_game_mode(intro)
@@ -3657,5 +3700,6 @@ INST_PULSE = "INST OVERTONE 1.0 SQUARE 0.5 PULSE 0.5 TRIANGLE 1.0 METALIZER 1.0 
 INST_ORGAN = "INST OVERTONE 0.5 TRIANGLE 0.75 NAM organ"
 INST_NOISE = "INST NOISE 1.0 NOISE_COLOR 0.2 NAM noise"
 INST_PHASER = "INST OVERTONE 0.5 METALIZER 1.0 TRIANGLE 0.7 NAM phaser"
-INST_ENGINE = "INST OVERTONE 1.0 METALIZER 1.0 TRIANGLE 1.0 NAM engine"
-INST_TRIBUNE = "SAMPLE ID 01 FILE pitstop/tribune.wav FREQ 17000 LOOP_START 0 LOOP_END 102013"
+--INST_ENGINE = "INST OVERTONE 1.0 METALIZER 1.0 TRIANGLE 1.0 NAM engine"
+INST_ENGINE = "SAMPLE ID 01 FILE pitstop/high_rpm16.wav FREQ 554 LOOP_START 0"
+INST_TRIBUNE = "SAMPLE ID 02 FILE pitstop/tribune.wav FREQ 440 LOOP_START 0"
