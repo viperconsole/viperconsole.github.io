@@ -497,7 +497,8 @@ particles = {}
 smokes = {}
 mapsize = 250
 function create_spark(segment, pos, speed, grass)
-    for _, p in pairs(particles) do
+    for i=1,#particles do
+        local p=particles[i]
         if not p.enabled then
             p.x = pos.x
             p.y = pos.y
@@ -528,7 +529,8 @@ function create_spark(segment, pos, speed, grass)
 end
 
 function create_smoke(segment, pos, speed, color)
-    for _, s in pairs(smokes) do
+    for i=1,#smokes do
+        local s=smokes[i]
         if not s.enabled then
             s.x = pos.x
             s.y = pos.y
@@ -771,7 +773,7 @@ function create_car(race)
             local base_freq=self.gear == 1 and 290 or 340
             local max_freq = self.controls.accel and 550-base_freq or 520-base_freq
             local freq = base_freq + max_freq * rpm
-            local volume = (0.5 + 0.5*self.accel/self.maxacc) * 0.5
+            local volume = 0.5 + 0.5*self.accel/self.maxacc
             if false and self.freq then
                 snd.set_note_freq(1,freq)
                 snd.set_note_volume(1,volume)
@@ -980,8 +982,8 @@ function create_car(race)
         -- aspiration
         local asp = false
         if self.pit == nil and self.is_player then
-            for i = 1, #self.race.objects do
-                local car = self.race.objects[i]
+            for i = 1, #self.race.cars do
+                local car = self.race.cars[i]
                 local seg = wrap(self.current_segment, mapsize)
                 local car_seg = wrap(car.current_segment, mapsize)
                 if car ~= self and car_seg - seg <= 3 and car_seg - seg > 0 then
@@ -1156,7 +1158,7 @@ function init()
         car_verts[i].x = car_verts[i].x*0.8
         car_verts[i] = scalev(car_verts[i],0.8)
     end
-    for _, sfx in pairs(SFX) do
+    for _, sfx in ipairs(SFX) do
         snd.new_pattern(sfx)
     end
     snd.reserve_channel(1) -- reserved for engine sound
@@ -1717,7 +1719,7 @@ function race()
 
         math.randomseed(0xdeadbeef)
         -- generate map
-        for i, ms in pairs(mapsections) do
+        for i, ms in ipairs(mapsections) do
             local last_section = i == #mapsections
             -- read length,curve,width from tiledata
             local length = ms[1]
@@ -1828,7 +1830,7 @@ function race()
         end
         mapsize = #vecmap
         -- compute kerbs
-        for seg, v in pairs(vecmap) do
+        for seg, v in ipairs(vecmap) do
             local v2 = get_data_from_vecmap(seg)
             local curve = abs(v2.dir - v.dir) * 100
             local maybe_kerb = seg ~= 1 and seg ~= #vecmap and curve > 2
@@ -2001,7 +2003,7 @@ function race()
 
         -- spawn cars
 
-        self.objects = {}
+        self.cars = {}
         self.ranks = {}
         self.pits = {}
         best_seg_times = {}
@@ -2009,13 +2011,13 @@ function race()
         best_lap_driver = nil
         if self.race_mode == MODE_TIME_ATTACK and self.play_replay then
             local replay_car = create_car(self)
-            table.insert(self.objects, replay_car)
+            table.insert(self.cars, replay_car)
             replay_car.color = 1
             self.replay_car = replay_car
         end
 
         local p = create_car(self)
-        table.insert(self.objects, p)
+        table.insert(self.cars, p)
         self.player = p
         cam_car=p
         p.is_player = true
@@ -2063,7 +2065,7 @@ function race()
                     oldupdate(self, completed, time)
                 end
 
-                table.insert(self.objects, ai_car)
+                table.insert(self.cars, ai_car)
                 table.insert(self.ranks, ai_car)
             end
         end
@@ -2391,21 +2393,24 @@ function race()
         end
 
         if self.race_mode == MODE_TIME_ATTACK or self.time > 0 then
-            for _, obj in pairs(self.objects) do
-                obj:update(self.completed, self.time)
+            for i=1,#self.cars do
+                self.cars[i]:update(self.completed, self.time)
             end
         end
         if self.race_mode == MODE_TIME_ATTACK and player.current_segment % mapsize == 0 and self.time > 20 then
             self.time = 0
         end
         -- car to car collision
-        for _, obj in pairs(self.objects) do
-            for _, obj2 in pairs(self.objects) do
+        for i=1,#self.cars do
+            local obj=self.cars[i]
+            for j=1,#self.cars do
+                local obj2=self.cars[j]
                 if obj ~= obj2 and obj ~= self.replay_car and obj2 ~= self.replay_car then
                     if abs(car_lap_seg(obj.current_segment, obj2) - obj2.current_segment) <= 1 then
                         local p1 = { obj.verts[1], obj.verts[2], obj.verts[3] }
                         local p2 = { obj2.verts[1], obj2.verts[2], obj2.verts[3] }
-                        for _, point in pairs(p1) do
+                        for i=1,#p1 do
+                            local point=p1[i]
                             if point_in_polygon(p2, point) then
                                 local rv, p, point = check_collision(p1,
                                     { { p2[2], p2[1] }, { p2[3], p2[2] }, { p2[1], p2[3] } })
@@ -2446,7 +2451,8 @@ function race()
         end
 
         -- particles
-        for _, p in pairs(particles) do
+        for i=1,#particles do
+            local p=particles[i]
             if p.enabled then
                 if abs(car_lap_seg(p.seg, cam_car) - cam_car.current_segment) > 10 then
                     p.enabled = false
@@ -2462,7 +2468,8 @@ function race()
                 end
             end
         end
-        for _, p in pairs(smokes) do
+        for i=1,#smokes do
+            local p=smokes[i]
             if p.enabled then
                 if abs(car_lap_seg(p.seg, cam_car) - cam_car.current_segment) > 10 then
                     p.enabled = false
@@ -2503,7 +2510,8 @@ function race()
             local leader = self.ranks[1]
             local leader_seg = leader.race_finished and #leader.lap_times * mapsize or leader.current_segment
             self.live_cars = 16
-            for _, car in pairs(self.objects) do
+            for i=1,#self.cars do
+                local car=self.cars[i]
                 if car.race_finished then
                     self.live_cars = self.live_cars - 1
                 else
@@ -2518,7 +2526,8 @@ function race()
             self.panel_timer = 200
             local placing = 1
             local nplaces = 1
-            for _, obj in pairs(self.objects) do
+            for i=1,#self.cars do
+                local obj=self.cars[i]
                 if obj ~= player then
                     nplaces = nplaces + 1
                     if obj.current_segment > player.current_segment then
@@ -2801,16 +2810,18 @@ function race()
             local p = panels[i]
             gblit(91, p.y, 24, 10, p.p, 33, p.dir)
         end
-        -- draw objects
+        -- draw cars
         gfx.set_active_layer(LAYER_CARS)
-        for _, obj in pairs(self.objects) do
+        for i=1,#self.cars do
+            local obj=self.cars[i]
             local oseg = car_lap_seg(obj.current_segment, cam_car)
             if abs(oseg - cam_car.current_segment) < 10 then
                 obj:draw()
             end
         end
 
-        for _, p in pairs(particles) do
+        for i=1,#particles do
+            local p=particles[i]
             if p.enabled then
                 p:draw()
             end
@@ -2818,7 +2829,8 @@ function race()
         gfx.set_active_layer(LAYER_SMOKE)
         gfx.clear()
         if not self.completed then
-            for _, p in pairs(smokes) do
+            for i=1,#smokes do
+                local p=smokes[i]
                 if p.enabled then
                     p:draw()
                 end
@@ -2843,8 +2855,8 @@ function race()
                 end
                 lastv = v
             end
-            for _, car in pairs(self.objects) do
-                car:draw_minimap(cam_car)
+            for i=1,#self.cars do
+                self.cars[i]:draw_minimap(cam_car)
             end
         end
 
@@ -2988,7 +3000,7 @@ function race()
                 gfx.line(0, y + 9, 120, y + 9, PAL[6].r, PAL[6].g, PAL[6].b)
                 y = y + 11;
                 local leader_time = format_time(time > 0 and time or 0)
-                for rank, car in pairs(self.ranks) do
+                for rank, car in ipairs(self.ranks) do
                     gprint(string.format("%2d", rank), 4, y, car.is_player and 7 or 6)
                     gprint(car.driver.short_name, 32, y, car.is_player and 7 or 6)
                     gprint(string.format("%7s", rank == 1 and leader_time or car.time),
@@ -3022,7 +3034,7 @@ function race()
             gfx.rectangle(30, 10, gfx.SCREEN_WIDTH - 52, (#DRIVERS + 4) * 10, PAL[17].r, PAL[17].g, PAL[17].b)
             gprint("Classification          Time   Best", 61, 20, 6)
             gfx.line(30, 30, gfx.SCREEN_WIDTH - 22, 30, PAL[6].r, PAL[6].g, PAL[6].b)
-            for rank, car in pairs(self.ranks) do
+            for rank, car in ipairs(self.ranks) do
                 local y = 26 + rank * 10
                 gprint(string.format("%2d %s %15s  %7s", rank, TEAMS[car.driver.team].short_name, car.driver.name,
                     rank == 1 and format_time(car.delta_time) or car.time),
@@ -3535,8 +3547,10 @@ end
 
 function check_collision(points, lines)
     if lines then
-        for _, point in pairs(points) do
-            for _, line in pairs(lines) do
+        for i=1,#points do
+            local point=points[i]
+            for j=1,#lines do
+                local line=lines[j]
                 if side_of_line(line[1], line[2], point.x, point.y) < 0 then
                     local rvec = get_normal(line[1], line[2])
                     local penetration = distance_from_line(point, line[1], line[2])
