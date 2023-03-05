@@ -309,10 +309,6 @@ function gprint(msg, px, py, col)
     gfx.print(gfx.FONT_8X8, msg, math.floor(px), math.floor(py), PAL[c].r, PAL[c].g, PAL[c].b)
 end
 
-function sfx(n)
-    snd.play_pattern(n)
-end
-
 local SFX_BOOST_COOLDOWN <const> = 33
 local SFX_BOOSTER <const> = 41
 
@@ -723,8 +719,8 @@ function create_car(race)
             local base_freq=self.gear == 1 and 290 or 340
             local max_freq = self.controls.accel and 550-base_freq or 520-base_freq
             local freq = base_freq + max_freq * rpm
-            local volume = 0.5 + 0.5*self.accel/self.maxacc
-            if false and self.freq then
+            local volume = 0.5 + 0.5*self.accel/self.maxacc * 0.5
+            if self.freq then
                 snd.set_channel_freq(1,freq)
                 snd.set_channel_volume(1,volume)
             else
@@ -884,9 +880,9 @@ function create_car(race)
                     self.collision = self.collision + pen
                     if self.is_player then
                         if pen > 2 then
-                            sfx(3)
+                            snd.play_pattern(3)
                         else
-                            sfx(4)
+                            snd.play_pattern(4)
                         end
                     end
                 end
@@ -965,7 +961,7 @@ function create_car(race)
             if (v.has_lkerb and sidepos <= 36 and sidepos >= 24)
                 or (v.has_rkerb and sidepos >= -36 and sidepos <= -24) then
                 -- on kerbs
-                sfx(2)
+                snd.play_pattern(2)
             end
         end
         if ground_type == 1 then
@@ -999,6 +995,7 @@ function create_car(race)
 
         if self.is_player then
             cbufpush(self.trails, rotate_point(vecadd(self.pos, trail_offset), angle, self.pos))
+            self.screech = max(0,self.screech-0.05)
         end
 
         -- update self attrs
@@ -1013,6 +1010,9 @@ function create_car(race)
                 if (self.ccut_timer < 0 and speed > 1 and caccel / speed > 0.07) or (controls.brake and speed < 9 and speed > 2) then
                     local col = ground_type == 1 and 3 or (ground_type == 2 and 4 or 22)
                     create_smoke(current_segment, spawn_pos, self.vel, col)
+                    if self.is_player then
+                        self.screech = min(0.6,self.screech + 0.1)
+                    end
                 end
             end
             if speed > 25 and ground_type == 0 and rnd(10) < 4 then
@@ -1023,6 +1023,7 @@ function create_car(race)
             car.race_finished = true
             car.race.is_finished = true
         end
+        snd.set_channel_volume(3,self.screech)
     end
 
     function car:draw_minimap(cam_car)
@@ -1990,6 +1991,7 @@ function race()
         p.angle = v.dir
         p.rank = 1
         p.gear = 0
+        p.screech = 0
         p.maxacc = p.maxacc
         p.mass = p.mass + FUEL_MASS_PER_KM * self.lap_count
         camera_angle = v.dir
@@ -2002,7 +2004,8 @@ function race()
         }
         table.insert(self.ranks, p)
         p.perf = TEAMS[p.driver.team].perf
-        snd.play_note(9, 440, v.ltribune, v.rtribune, 2)
+        snd.play_note(9, 440, v.ltribune, v.rtribune, 2) -- tribune sound
+        snd.play_note(10,440,0,0,3) -- muted tyre screech sound
 
         if self.race_mode == MODE_RACE then
             for i = 1, #DRIVERS do
@@ -2253,6 +2256,7 @@ function race()
             snd.stop_channel(1)
             self.player.freq=nil
             snd.stop_channel(2)
+            snd.stop_channel(3)
             set_game_mode(paused_menu(self))
             return
         end
@@ -2334,7 +2338,7 @@ function race()
             if self.time < 1.0 then
                 local after = flr(self.time)
                 if after ~= before then
-                    sfx(after == 0 and 1 or 0)
+                    snd.play_pattern(after == 0 and 1 or 0)
                 end
             end
         end
@@ -2384,9 +2388,9 @@ function race()
                                     obj2.collision = obj2.collision + flr(p)
                                     if obj.is_player or obj2.is_player then
                                         if p > 2 then
-                                            sfx(3)
+                                            snd.play_pattern(3)
                                         else
-                                            sfx(4)
+                                            snd.play_pattern(4)
                                         end
                                     end
                                 end
@@ -2402,6 +2406,7 @@ function race()
             snd.stop_channel(1)
             self.player.freq=nil
             snd.stop_channel(2)
+            snd.stop_channel(3)
             self.completed = true
             self.completed_countdown = 5
         end
@@ -3128,11 +3133,13 @@ function paused_menu(game)
                 snd.stop_channel(1)
                 game.player.freq=nil
                 snd.stop_channel(2)
+                snd.stop_channel(3)
                 game:restart()
             elseif selected == 3 then
                 snd.stop_channel(1)
                 game.player.freq=nil
                 snd.stop_channel(2)
+                snd.stop_channel(3)
                 camera_angle = 0.25
                 set_game_mode(intro)
             end
