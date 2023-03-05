@@ -622,7 +622,7 @@ end
 function create_car(race)
     c = CARS[intro.car]
     local tyre_type = 1
-    local tyre_heat=TYRE_HEAT[tyre_type]
+    local tyre_heat=race.mode == MODE_RACE and TYRE_HEAT[tyre_type] or 0
     local car = {
         race = race,
         vel = vec(),
@@ -634,6 +634,7 @@ function create_car(race)
         speed = 0,
         accel = 0,
         asp = 0,
+        pitstop_timer=0,
         accsqr = c.accsqr,
         steer = c.steer,
         maxacc = c.maxacc,
@@ -652,7 +653,7 @@ function create_car(race)
         ccut_timer = -1,
         mass=CAR_BASE_MASS,
         tyre_type=tyre_type, -- 1 = soft 2=medium 3=hard 4=inter 5=wet
-        tyre_wear={-tyre_heat,-tyre_heat,-tyre_heat,-tyre_heat}, -- <0 = cold
+        tyre_wear={tyre_heat,tyre_heat,tyre_heat,tyre_heat}, -- <0 = cold
         global_wear = 0
     }
     car.controls = {}
@@ -680,11 +681,13 @@ function create_car(race)
         --     print(string.format("acc %.1f speed %.1f aspeed %.2f",accel,speed,angle_speed))
         -- end
         local steer=self.steer - wear_coef * TYRE_WEAR_STEER_IMPACT
-        if controls.left then
-            angle = angle + angle_speed * steer * 0.3
-        end
-        if controls.right then
-            angle = angle - angle_speed * steer * 0.3
+        if not self.pit or self.pitstop_timer == 0 then
+            if controls.left then
+                angle = angle + angle_speed * steer * 0.3
+            end
+            if controls.right then
+                angle = angle - angle_speed * steer * 0.3
+            end
         end
         if self.ccut_timer >= 0 then
             self.ccut_timer = self.ccut_timer - 1
@@ -716,9 +719,10 @@ function create_car(race)
             local sgear = (self.speed*14/328)^0.75 * 8
             self.gear = flr(clamp(sgear,1,7))
             local rpm = sgear-self.gear -- between 0 and 1
+            self.rpm=clamp(rpm,0,1)
             local base_freq=self.gear == 1 and 290 or 340
             local max_freq = self.controls.accel and 550-base_freq or 520-base_freq
-            local freq = base_freq + max_freq * rpm
+            local freq = min(base_freq + max_freq * rpm, 580)
             local volume = 0.5 + 0.5*self.accel/self.maxacc * 0.5
             if self.freq then
                 snd.set_channel_freq(1,freq)
@@ -754,12 +758,14 @@ function create_car(race)
                 self.race.tyre = 0
             end
             self.pit = nil
+            self.pit_done = nil
             self.race.pits[team_pit] = false
         elseif nextv.ltyp // 8 == OBJ_PIT_EXIT1 and pos > 32 then
             if not self.pit then
                 self.race.tyre = 0
             end
             self.pit = nil
+            self.pit_done = nil
             self.race.pits[team_pit] = false
         end
         local segpoly = get_segment(current_segment, true)
@@ -791,6 +797,12 @@ function create_car(race)
                         local lap_time = time
                         if self.race.race_mode == MODE_RACE then
                             lap_time = lap_time - self.delta_time
+                        elseif self.race.race_mode == MODE_TIME_ATTACK then
+                            self.mass = CAR_BASE_MASS + FUEL_MASS_PER_KM
+                            self.tyre_wear[1]=0
+                            self.tyre_wear[2]=0
+                            self.tyre_wear[3]=0
+                            self.tyre_wear[4]=0
                         end
                         table.insert(self.lap_times, lap_time)
                         self.delta_time = self.delta_time + lap_time
@@ -916,46 +928,49 @@ function create_car(race)
         local ground_type = sidepos > 32 and (v.ltyp & 7) or (sidepos < -32 and (v.rtyp & 7) or 0)
 
         local car_dir = vec(cos(angle), sin(angle))
-        self.vel = vecadd(vel, scalev(car_dir, accel * CAR_BASE_MASS / self.mass))
-        if ground_type == 0 or ground_type == 3 then
-            -- less slide on asphalt
-            local no_slide = scalev(car_dir,length(self.vel))
-            self.vel = lerpv(self.vel,no_slide,0.12)
-        end
-        self.pos = vecadd(self.pos, scalev(self.vel, 0.3))
-        -- aspiration
-        local asp = false
-        if self.pit == nil and self.is_player then
-            for i = 1, #self.race.cars do
-                local car = self.race.cars[i]
-                local seg = wrap(self.current_segment, mapsize)
-                local car_seg = wrap(car.current_segment, mapsize)
-                if car ~= self and car_seg - seg <= 3 and car_seg - seg > 0 then
-                    local perp = perpendicular(car_dir)
-                    local dist = dot(vecsub(car.pos, self.pos), perp)
-                    if abs(dist) <= 10 then
-                        asp = true
-                        break
+        if self.pitstop_timer == 0 then
+            self.vel = vecadd(vel, scalev(car_dir, accel * CAR_BASE_MASS / self.mass))
+            if ground_type == 0 or ground_type == 3 then
+                -- less slide on asphalt
+                local no_slide = scalev(car_dir,length(self.vel))
+                self.vel = lerpv(self.vel,no_slide,0.12)
+            end
+            self.pos = vecadd(self.pos, scalev(self.vel, 0.3))
+            -- aspiration
+            local asp = false
+            if self.pit == nil and self.is_player then
+                for i = 1, #self.race.cars do
+                    local car = self.race.cars[i]
+                    local seg = wrap(self.current_segment, mapsize)
+                    local car_seg = wrap(car.current_segment, mapsize)
+                    if car ~= self and car_seg - seg <= 3 and car_seg - seg > 0 then
+                        local perp = perpendicular(car_dir)
+                        local dist = dot(vecsub(car.pos, self.pos), perp)
+                        if abs(dist) <= 10 then
+                            asp = true
+                            break
+                        end
                     end
                 end
+                if asp then
+                    self.asp = min(3.5,self.asp + 0.1)
+                else
+                    self.asp = max(0,self.asp - 0.04)
+                end
             end
-            if asp then
-                self.asp = min(3.5,self.asp + 0.1)
-            else
-                self.asp = max(0,self.asp - 0.04)
+            local speed=length(self.vel)
+            if speed > 0.1 then
+                if self.pit then
+                    speed=min(speed,70/14) -- max 70km/h in pit
+                else
+                    local asp = 1-self.asp*ASPIRATION_COEF/100
+                    local team_perf = 1 - self.perf * TEAM_PERF_COEF / 100
+                    speed = speed - AIR_RESISTANCE * asp * team_perf * (speed*speed) * 0.01
+                end
+                self.vel = scalev(normalize(self.vel),speed)
             end
         end
-        local speed=length(self.vel)
-        if speed > 0.1 then
-            if self.pit then
-                speed=min(speed,70/14) -- max 70km/h in pit
-            else
-                local asp = 1-self.asp*ASPIRATION_COEF/100
-                local team_perf = 1 - self.perf * TEAM_PERF_COEF / 100
-                speed = speed - AIR_RESISTANCE * asp * team_perf * (speed*speed) * 0.01
-            end
-            self.vel = scalev(normalize(self.vel),speed)
-        end
+
         local ground_type_inner = sidepos > 36 and (v.ltyp & 7) or (sidepos < -36 and (v.rtyp & 7) or 0)
         if self.is_player and speed > 1 and frame % flr(60 / speed) == 0 then
             if (v.has_lkerb and sidepos <= 36 and sidepos >= 24)
@@ -1010,8 +1025,8 @@ function create_car(race)
                 if (self.ccut_timer < 0 and speed > 1 and caccel / speed > 0.07) or (controls.brake and speed < 9 and speed > 2) then
                     local col = ground_type == 1 and 3 or (ground_type == 2 and 4 or 22)
                     create_smoke(current_segment, spawn_pos, self.vel, col)
-                    if self.is_player then
-                        self.screech = min(0.6,self.screech + 0.1)
+                    if self.is_player and (ground_type==0 or ground_type==4) then
+                        self.screech = min(0.6,self.screech + 0.075)
                     end
                 end
             end
@@ -1025,6 +1040,39 @@ function create_car(race)
         end
         if self.is_player then
             snd.set_channel_volume(3,self.screech)
+        end
+        if self.pit then
+            -- pit stop
+            local pit_seg=2*(self.driver.team-1) + self.race.first_pit
+            if pit_seg > mapsize then
+                pit_seg = pit_seg - mapsize
+            end
+            local cur_seg= wrap(self.current_segment,mapsize)
+            if (not self.pit_done) and cur_seg == pit_seg and self.pitstop_timer == 0 then
+                local v=get_data_from_vecmap(pit_seg+1)
+                local vpit=vecsub(vecsub(v, scalev(v.side, 80)),scalev(v.front,10))
+                local dist=vecsub(self.pos,vpit)
+                local dy=dot(dist,v.front)
+                local dx=dot(dist,v.side)
+                if abs(dx) <= 4 and abs(dy) <= 2 then
+                    self.pitstop_timer = 2.2 + (math.random()^2) * 5
+                    snd.play_note(11,440,1)
+                end
+            end
+            if self.pitstop_timer > 0 then
+                self.pitstop_timer = max(0,self.pitstop_timer-1.0/30)
+                if self.pitstop_timer == 0 then
+                    -- put some fresh tyres
+                    snd.play_note(11,440,1)
+                    self.pit_done=true
+                    self.tyre_type = self.race.tyre+1
+                    local heat = -TYRE_HEAT[self.tyre_type+1]
+                    self.tyre_wear[1] = heat
+                    self.tyre_wear[2] = heat
+                    self.tyre_wear[3] = heat
+                    self.tyre_wear[4] = heat
+                end
+            end
         end
     end
 
@@ -1125,6 +1173,7 @@ function init()
     snd.new_instrument(INST_ENGINE)
     snd.new_instrument(INST_TRIBUNE)
     snd.new_instrument(INST_TYRE)
+    snd.new_instrument(INST_PIT)
     gfx.load_img(1, "pitstop/pitstop.png","sprites")
     gfx.set_sprite_layer(1)
     gfx.show_layer(LAYER_SMOKE) -- smoke fx
@@ -1993,6 +2042,7 @@ function race()
         p.angle = v.dir
         p.rank = 1
         p.gear = 0
+        p.rpm = 0
         p.screech = 0
         p.maxacc = p.maxacc
         p.mass = p.mass + FUEL_MASS_PER_KM * self.lap_count
@@ -2279,10 +2329,12 @@ function race()
                 controls.brake = inp_brake()
             end
             if player.pit then
-                if inp.up_pressed() then
-                    self.tyre = (self.tyre + 1) % 5
-                elseif inp.down_pressed() then
-                    self.tyre = (self.tyre + 4) % 5
+                if not player.pit_done and player.pitstop_timer == 0 then
+                    if inp.up_pressed() then
+                        self.tyre = (self.tyre + 1) % 5
+                    elseif inp.down_pressed() then
+                        self.tyre = (self.tyre + 4) % 5
+                    end
                 end
             elseif self.race_mode ~= MODE_EDITOR then
                 if inp.up_pressed() then
@@ -2837,10 +2889,10 @@ function race()
             printc("" .. flr(player.speed * 14), 370, 210, 28)
             -- gear
             printc(player.gear == 0 and "N" or ""..player.gear, gfx.SCREEN_WIDTH-32,gfx.SCREEN_HEIGHT-31,28)
-            -- engine speed
-            gfx.blit(66, 224, 25 * min(1, player.speed / 15), 8, gfx.SCREEN_WIDTH - 28, gfx.SCREEN_HEIGHT - 23)
+            -- rpm
+            gfx.blit(66, 224, 25 * min(1, player.speed / 22), 8, gfx.SCREEN_WIDTH - 28, gfx.SCREEN_HEIGHT - 23)
             if player.freq then
-                gfx.blit(66, 232, 19 * clamp(player.freq / 50,0,1), 9, gfx.SCREEN_WIDTH - 60, gfx.SCREEN_HEIGHT - 22)
+                gfx.blit(66, 232, 19 * player.rpm, 9, gfx.SCREEN_WIDTH - 60, gfx.SCREEN_HEIGHT - 22)
             end
             -- car status
             -- front wing
@@ -2888,7 +2940,7 @@ function race()
             gfx.rectangle(x+32,y+30,2,2, 0,228,54)
 
             -- fuel
-            local fuel = (self.player.mass - CAR_BASE_MASS) / (FUEL_MASS_PER_KM * self.lap_count)
+            local fuel = clamp((self.player.mass - CAR_BASE_MASS) / (FUEL_MASS_PER_KM * self.lap_count),0,1)
             if fuel > 0.1 or frame % 4 < 2 then
                 gfx.blit(66, 241, 21 * fuel, 4, gfx.SCREEN_WIDTH - 61, gfx.SCREEN_HEIGHT - 8)
             end
@@ -2924,15 +2976,19 @@ function race()
         end
         -- pit stop panel
         if player.pit then
-            local x = gfx.SCREEN_WIDTH - 110
-            gfx.rectangle(x, 50, 108, 75, 50, 50, 50)
-            printc("Choose tyre", x + 55, 52, 7)
-            gfx.blit(66, 8, 24, 12, x + 55 - 12, 62)
-            local tx = self.tyre < 2 and 0 or self.tyre < 4 and 1 or 2
-            gfx.blit(224, 192, 32, 32, x + 42, 76)
-            gfx.blit(256 + tx * 27, 192, 27, 32, x + 38, 76)
-            rect(x + 37, 75, 36, 34, 9)
-            printc(TYRE_TYPE[self.tyre + 1], x + 55, 114, TYRE_COL[self.tyre + 1])
+            if not player.pit_done and player.pitstop_timer==0 then
+                local x = gfx.SCREEN_WIDTH - 110
+                gfx.rectangle(x, 50, 108, 75, 50, 50, 50)
+                printc("Choose tyre", x + 55, 52, 7)
+                gfx.blit(66, 8, 24, 12, x + 55 - 12, 62)
+                local tx = self.tyre < 2 and 0 or self.tyre < 4 and 1 or 2
+                gfx.blit(224, 192, 32, 32, x + 42, 76)
+                gfx.blit(256 + tx * 27, 192, 27, 32, x + 38, 76)
+                rect(x + 37, 75, 36, 34, 9)
+                printc(TYRE_TYPE[self.tyre + 1], x + 55, 114, TYRE_COL[self.tyre + 1])
+            else
+                -- TODO pitstop timer
+            end
         elseif not self.completed and panel == PANEL_CAR_STATUS then
             local x = gfx.SCREEN_WIDTH - 66
             local y = 105
@@ -3627,3 +3683,4 @@ INST_PHASER = "INST OVERTONE 0.5 METALIZER 1.0 TRIANGLE 0.7 NAM phaser"
 INST_ENGINE = "SAMPLE ID 01 FILE pitstop/high_rpm16.wav FREQ 554 LOOP_START 0"
 INST_TRIBUNE = "SAMPLE ID 02 FILE pitstop/tribune.wav FREQ 440 LOOP_START 0"
 INST_TYRE = "SAMPLE ID 03 FILE pitstop/screech.wav FREQ 440 LOOP_START 0"
+INST_PIT = "SAMPLE ID 04 FILE pitstop/pit.wav FREQ 440"
