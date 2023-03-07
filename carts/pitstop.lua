@@ -184,6 +184,11 @@ to_pico_angle = function(a)
     local picoa = ra < 0 and -ra / 2 or 1 - ra / 2
     return picoa
 end
+lerp_pico_angle = function(a,b,c)
+    local diff = wrap(b - a, 1)
+    local dist = wrap(2 * diff, 1) - diff
+    return a + dist * c
+end
 rnd = function(n)
     return math.random() * n
 end
@@ -1066,10 +1071,11 @@ function create_car(race)
                     self.race.pits[self.driver.team].rr=vec(coef,0)
                     self.race.pits[self.driver.team].rl=vec(coef,0)
                     -- fix car orientation
-                    self.angle = self.angle + (-1-self.angle)*0.1
+                    self.angle = lerp_pico_angle(self.angle, -1, 0.1)
                 elseif dy >= -5 and dy <= 0 then
                     -- fix car orientation
-                    self.angle = self.angle + (-1-self.angle)*0.3
+                    self.angle = lerp_pico_angle(self.angle, -1, 0.3)
+
                     -- final approach : crew track x position
                     local coef=-2*(dy+5)/5
                     self.race.pits[self.driver.team].front=vec(-dx,0)
@@ -1121,7 +1127,7 @@ function create_car(race)
                 end
                 if self.pitstop_timer > -1.0 then
                     -- help the player exit the pit
-                    self.angle = self.angle + (-0.92-self.angle) * 0.2 * (-self.pitstop_timer)^3
+                    self.angle = lerp_pico_angle(self.angle, -0.92, 0.2 * (-self.pitstop_timer)^3)
                 end
             end
         end
@@ -2142,10 +2148,10 @@ function race()
             end
         else
             -- quick pitstop test
-            p.pit=-4
-            self.tyre=1
-            p.pos = vec(-160,57)
-            self.pits[p.driver.team] = {}
+            -- p.pit=-4
+            -- self.tyre=1
+            -- p.pos = vec(-160,57)
+            -- self.pits[p.driver.team] = {}
         end
     end
 
@@ -2263,11 +2269,11 @@ function race()
         linevec(lp, lp3, 7)
         linevec(lp, lp2, 7)
         linevec(lp2, lp4, 7)
+        gfx.set_active_layer(LAYER_TOP)
         local team=(wrap(seg,mapsize)-self.first_pit)//2+1
         if self.pits[team] and not flipflop then
             self:draw_pit_crew(ri_rail,side,front,team,dir)
         end
-        gfx.set_active_layer(LAYER_TOP)
         perp = scalev(side, -32)
         p = vecadd(p2, perp)
         p3 = vecadd(p4, perp)
@@ -2455,9 +2461,7 @@ function race()
             local before = flr(self.time)
             self.time = self.time + DT
             if self.time < 0 then
-                camera_scale = ease_in_out_cubic(4 + self.time, 0.6, 0.5, 4.0)
-            else
-                camera_scale = 1
+                camera_scale = ease_in_out_cubic(4 + self.time, 0.5, 0.5, 4.0)
             end
             if self.time < 1.0 then
                 local after = flr(self.time)
@@ -2571,9 +2575,7 @@ function race()
             end
         end
         -- lerp_angle
-        local diff = wrap(cam_car.angle - camera_angle, 1)
-        local dist = wrap(2 * diff, 1) - diff
-        camera_angle = camera_angle + dist * 0.05
+        camera_angle = lerp_pico_angle(camera_angle, cam_car.angle, 0.05)
 
         -- car times
         if frame % 100 == 0 then
@@ -2634,7 +2636,7 @@ function race()
         end
         if self.time >= 0 then
             local target = 1.5 - 0.8 * (self.player.speed / 23)
-            camera_scale = camera_scale + (target - camera_scale) * 0.2
+            camera_scale = camera_scale + (target - camera_scale) * 0.02
         end
         if inp.key_pressed(inp.KEY_PAGEUP) then
             if tracked==nil then
