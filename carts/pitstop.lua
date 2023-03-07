@@ -789,8 +789,10 @@ function create_car(race)
                         best_seg_times[current_segment] = time
                     end
                     self.seg_times[current_segment] = time
-                    local v=get_data_from_vecmap(current_segment + 1)
-                    snd.set_channel_volume(2, v.ltribune, v.rtribune)
+                    if self.is_player then
+                        local v=get_data_from_vecmap(current_segment + 1)
+                        snd.set_channel_volume(2, v.ltribune, v.rtribune)
+                    end
                     if current_segment > 0 and current_segment % mapsize == 0
                         and (self.race.race_mode == MODE_TIME_ATTACK or current_segment <= mapsize * self.race.lap_count) then
                         -- new lap
@@ -1056,14 +1058,14 @@ function create_car(race)
                 local dx=dot(dist,v.side)
                 if abs(dx) <= 4 and abs(dy) <= 2 then
                     self.pitstop_timer = 2.2 + (math.random()^2) * 5
-                    snd.play_note(11,440,1)
+                    snd.play_note(11,440,1) --wheel gun
                 end
             end
             if self.pitstop_timer > 0 then
                 self.pitstop_timer = max(0,self.pitstop_timer-1.0/30)
                 if self.pitstop_timer == 0 then
                     -- put some fresh tyres
-                    snd.play_note(11,440,1)
+                    snd.play_note(11,440,1) --wheel gun
                     self.pit_done=true
                     self.tyre_type = self.race.tyre+1
                     local heat = -TYRE_HEAT[self.tyre_type+1]
