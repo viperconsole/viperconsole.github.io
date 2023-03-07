@@ -681,7 +681,7 @@ function create_car(race)
         --     print(string.format("acc %.1f speed %.1f aspeed %.2f",accel,speed,angle_speed))
         -- end
         local steer=self.steer - wear_coef * TYRE_WEAR_STEER_IMPACT
-        if not self.pit or self.pitstop_timer == 0 then
+        if not self.pit or self.pitstop_timer <= 0 then
             if controls.left then
                 angle = angle + angle_speed * steer * 0.3
             end
@@ -746,27 +746,29 @@ function create_car(race)
                 self.race.tyre = 0
             end
             self.pit = -team_pit
-            self.race.pits[team_pit] = true
+            self.race.pits[team_pit] = {}
         elseif v.ltyp // 8 == OBJ_PIT_ENTRY3 and pos > 32 then
             if not self.pit then
                 self.race.tyre = 0
             end
             self.pit = team_pit
-            self.race.pits[team_pit] = true
+            self.race.pits[team_pit] = {}
         elseif nextv.rtyp // 8 == OBJ_PIT_EXIT1 and pos < -32 then
             if not self.pit then
                 self.race.tyre = 0
             end
             self.pit = nil
             self.pit_done = nil
-            self.race.pits[team_pit] = false
+            self.pitstop_timer = 0
+            self.race.pits[team_pit] = nil
         elseif nextv.ltyp // 8 == OBJ_PIT_EXIT1 and pos > 32 then
             if not self.pit then
                 self.race.tyre = 0
             end
             self.pit = nil
             self.pit_done = nil
-            self.race.pits[team_pit] = false
+            self.pitstop_timer = 0
+            self.race.pits[team_pit] = nil
         end
         local segpoly = get_segment(current_segment, true)
         local poly
@@ -930,47 +932,45 @@ function create_car(race)
         local ground_type = sidepos > 32 and (v.ltyp & 7) or (sidepos < -32 and (v.rtyp & 7) or 0)
 
         local car_dir = vec(cos(angle), sin(angle))
-        if self.pitstop_timer == 0 then
-            self.vel = vecadd(vel, scalev(car_dir, accel * CAR_BASE_MASS / self.mass))
-            if ground_type == 0 or ground_type == 3 then
-                -- less slide on asphalt
-                local no_slide = scalev(car_dir,length(self.vel))
-                self.vel = lerpv(self.vel,no_slide,0.12)
-            end
-            self.pos = vecadd(self.pos, scalev(self.vel, 0.3))
-            -- aspiration
-            local asp = false
-            if self.pit == nil and self.is_player then
-                for i = 1, #self.race.cars do
-                    local car = self.race.cars[i]
-                    local seg = wrap(self.current_segment, mapsize)
-                    local car_seg = wrap(car.current_segment, mapsize)
-                    if car ~= self and car_seg - seg <= 3 and car_seg - seg > 0 then
-                        local perp = perpendicular(car_dir)
-                        local dist = dot(vecsub(car.pos, self.pos), perp)
-                        if abs(dist) <= 10 then
-                            asp = true
-                            break
-                        end
+        self.vel = vecadd(vel, scalev(car_dir, accel * CAR_BASE_MASS / self.mass))
+        if ground_type == 0 or ground_type == 3 then
+            -- less slide on asphalt
+            local no_slide = scalev(car_dir,length(self.vel))
+            self.vel = lerpv(self.vel,no_slide,0.12)
+        end
+        self.pos = vecadd(self.pos, scalev(self.vel, 0.3))
+        -- aspiration
+        local asp = false
+        if self.pit == nil and self.is_player then
+            for i = 1, #self.race.cars do
+                local car = self.race.cars[i]
+                local seg = wrap(self.current_segment, mapsize)
+                local car_seg = wrap(car.current_segment, mapsize)
+                if car ~= self and car_seg - seg <= 3 and car_seg - seg > 0 then
+                    local perp = perpendicular(car_dir)
+                    local dist = dot(vecsub(car.pos, self.pos), perp)
+                    if abs(dist) <= 10 then
+                        asp = true
+                        break
                     end
                 end
-                if asp then
-                    self.asp = min(3.5,self.asp + 0.1)
-                else
-                    self.asp = max(0,self.asp - 0.04)
-                end
             end
-            local speed=length(self.vel)
-            if speed > 0.1 then
-                if self.pit then
-                    speed=min(speed,70/14) -- max 70km/h in pit
-                else
-                    local asp = 1-self.asp*ASPIRATION_COEF/100
-                    local team_perf = 1 - self.perf * TEAM_PERF_COEF / 100
-                    speed = speed - AIR_RESISTANCE * asp * team_perf * (speed*speed) * 0.01
-                end
-                self.vel = scalev(normalize(self.vel),speed)
+            if asp then
+                self.asp = min(3.5,self.asp + 0.1)
+            else
+                self.asp = max(0,self.asp - 0.04)
             end
+        end
+        local speed=length(self.vel)
+        if speed > 0.1 then
+            if self.pit then
+                speed=min(speed,70/14) -- max 70km/h in pit
+            else
+                local asp = 1-self.asp*ASPIRATION_COEF/100
+                local team_perf = 1 - self.perf * TEAM_PERF_COEF / 100
+                speed = speed - AIR_RESISTANCE * asp * team_perf * (speed*speed) * 0.01
+            end
+            self.vel = scalev(normalize(self.vel),speed)
         end
 
         local ground_type_inner = sidepos > 36 and (v.ltyp & 7) or (sidepos < -36 and (v.rtyp & 7) or 0)
@@ -1049,23 +1049,56 @@ function create_car(race)
             if pit_seg > mapsize then
                 pit_seg = pit_seg - mapsize
             end
-            local cur_seg= wrap(self.current_segment,mapsize)
+            local cur_seg= wrap(self.current_segment,mapsize)+1
+            --print(string.format("pos %.0f %.0f firstpit %d pitseg %d curseg %d",self.pos.x,self.pos.y,self.race.first_pit,pit_seg,cur_seg))
             if (not self.pit_done) and cur_seg == pit_seg and self.pitstop_timer == 0 then
-                local v=get_data_from_vecmap(pit_seg+1)
+                local v=get_data_from_vecmap(pit_seg)
                 local vpit=vecsub(vecsub(v, scalev(v.side, 80)),scalev(v.front,10))
                 local dist=vecsub(self.pos,vpit)
                 local dy=dot(dist,v.front)
                 local dx=dot(dist,v.side)
+                if dy >= -10 and dy < -5 then
+                    -- car approach
+                    local coef=-(dy+10)/5*dx
+                    self.race.pits[self.driver.team].front=vec(coef,0)
+                    self.race.pits[self.driver.team].fr=vec(coef,0)
+                    self.race.pits[self.driver.team].fl=vec(coef,0)
+                    self.race.pits[self.driver.team].rr=vec(coef,0)
+                    self.race.pits[self.driver.team].rl=vec(coef,0)
+                    -- fix car orientation
+                    self.angle = self.angle + (-1-self.angle)*0.1
+                elseif dy >= -5 and dy <= 0 then
+                    -- fix car orientation
+                    self.angle = self.angle + (-1-self.angle)*0.3
+                    -- final approach : crew track x position
+                    local coef=-2*(dy+5)/5
+                    self.race.pits[self.driver.team].front=vec(-dx,0)
+                    self.race.pits[self.driver.team].fr=vec(coef-dx,0)
+                    self.race.pits[self.driver.team].fl=vec(-dx-coef,0)
+                    self.race.pits[self.driver.team].rr=vec(coef-dx,0)
+                    self.race.pits[self.driver.team].rl=vec(-dx-coef,0)
+                end
                 if abs(dx) <= 4 and abs(dy) <= 2 then
                     self.pitstop_timer = 2.2 + (math.random()^2) * 5
+                    self.pitstop_delay = self.pitstop_timer
                     snd.play_note(11,440,1) --wheel gun
                 end
             end
             if self.pitstop_timer > 0 then
-                self.pitstop_timer = max(0,self.pitstop_timer-1.0/30)
-                if self.pitstop_timer == 0 then
+                self.vel=vec()
+                self.accel = 0
+                self.pitstop_timer = self.pitstop_timer-1.0/30
+                if self.pitstop_timer <= 0.5 then
+                    if self.pitstop_timer+1/30 > 0.5 then
+                        snd.play_note(11,440,1) --second wheel gun
+                    end
+                    -- anticipate frontman's depart
+                    local frontman = self.race.pits[self.driver.team].front
+                    frontman.x = frontman.x +0.2
+                    frontman.y = self.pitstop_timer-0.5
+                end
+                if self.pitstop_timer <= 0 then
                     -- put some fresh tyres
-                    snd.play_note(11,440,1) --wheel gun
                     self.pit_done=true
                     self.tyre_type = self.race.tyre+1
                     local heat = -TYRE_HEAT[self.tyre_type+1]
@@ -1073,6 +1106,22 @@ function create_car(race)
                     self.tyre_wear[2] = heat
                     self.tyre_wear[3] = heat
                     self.tyre_wear[4] = heat
+                end
+            elseif self.pit_done then
+                self.pitstop_timer = self.pitstop_timer-1.0/30
+                -- move the front man away
+                local frontman = self.race.pits[self.driver.team].front
+                frontman.x=min(10,frontman.x + 0.3)
+                frontman.y = max(-3,frontman.y - 0.1)
+                if self.pitstop_timer > -0.7 then
+                    self.race.pits[self.driver.team].fr.x=self.race.pits[self.driver.team].fr.x+0.15
+                    self.race.pits[self.driver.team].rr.x=self.race.pits[self.driver.team].rr.x+0.1
+                    self.race.pits[self.driver.team].fl.x=self.race.pits[self.driver.team].fl.x-0.15
+                    self.race.pits[self.driver.team].rl.x=self.race.pits[self.driver.team].rl.x-0.1
+                end
+                if self.pitstop_timer > -1.0 then
+                    -- help the player exit the pit
+                    self.angle = self.angle + (-0.92-self.angle) * 0.2 * (-self.pitstop_timer)^3
                 end
             end
         end
@@ -2058,8 +2107,10 @@ function race()
         }
         table.insert(self.ranks, p)
         p.perf = TEAMS[p.driver.team].perf
-        snd.play_note(9, 440, v.ltribune, v.rtribune, 2) -- tribune sound
-        snd.play_note(10,440,0,0,3) -- muted tyre screech sound
+        if self.race_mode ~= MODE_EDITOR then
+            snd.play_note(9, 440, v.ltribune, v.rtribune, 2) -- tribune sound
+            snd.play_note(10,440,0,0,3) -- muted tyre screech sound
+        end
 
         if self.race_mode == MODE_RACE then
             for i = 1, #DRIVERS do
@@ -2089,6 +2140,12 @@ function race()
                 table.insert(self.cars, ai_car)
                 table.insert(self.ranks, ai_car)
             end
+        else
+            -- quick pitstop test
+            p.pit=-4
+            self.tyre=1
+            p.pos = vec(-160,57)
+            self.pits[p.driver.team] = {}
         end
     end
 
@@ -2206,15 +2263,15 @@ function race()
         linevec(lp, lp3, 7)
         linevec(lp, lp2, 7)
         linevec(lp2, lp4, 7)
+        local team=(wrap(seg,mapsize)-self.first_pit)//2+1
+        if self.pits[team] and not flipflop then
+            self:draw_pit_crew(ri_rail,side,front,team,dir)
+        end
         gfx.set_active_layer(LAYER_TOP)
         perp = scalev(side, -32)
         p = vecadd(p2, perp)
         p3 = vecadd(p4, perp)
         quadfill(p, p3, p2, p4, 13)
-        local team=(wrap(seg,mapsize)-self.first_pit)//2+1
-        if self.pits[team] and not flipflop then
-            self:draw_pit_crew(ri_rail,side,front,team,dir)
-        end
         gfx.set_active_layer(LAYER_SHADOW2)
         p = vecsub(p, SHADOW_DELTA)
         p2 = vecsub(p2, SHADOW_DELTA)
@@ -2271,13 +2328,24 @@ function race()
         self:draw_rail(p, p2)
     end
 
+    function race:draw_pit_guy(p,c1,c2,dir,side, front,sx,sy,sw,sh,delta)
+        local dx = (sx-323) / camera_scale + (delta and delta.x or 0)
+        local dy = (sy-224) / camera_scale + (delta and delta.y or 0)
+        p = vecsub(vecsub(p,scalev(side,dx)),scalev(front,dy))
+        gblit(sx,sy,sw,sh,p,c1,dir)
+        gblit(sx+22,sy,sw,sh,p,33,dir)
+        gblit(sx,sy+26,sw,sh,p,c2,dir)
+    end
     function race:draw_pit_crew(ri_rail, side, front, team, dir)
         local c1=TEAMS[team].color
         local c2=TEAMS[team].color2
-        local p=vecsub(vecsub(ri_rail, scalev(side, 44)),scalev(front,10))
-        gblit(323,224,22,26,p,c1,dir)
-        gblit(345,224,22,26,p,33,dir)
-        gblit(323,250,22,26,p,c2,dir)
+        local pit_info=self.pits[team]
+        local p=vecsub(vecsub(ri_rail, scalev(side, 38)),scalev(front,5))
+        self:draw_pit_guy(p,c1,c2,dir,side,front,331,224,5,7,pit_info.front) -- front man
+        self:draw_pit_guy(p,c1,c2,dir,side,front,323,229,5,9,pit_info.fl) -- front left wheel squad
+        self:draw_pit_guy(p,c1,c2,dir,side,front,340,229,5,9,pit_info.fr) -- front right wheel squad
+        self:draw_pit_guy(p,c1,c2,dir,side,front,323,241,5,9,pit_info.rl) -- rear left wheel squad
+        self:draw_pit_guy(p,c1,c2,dir,side,front,340,241,5,9,pit_info.rr) -- rear right wheel squad
     end
 
     function race:draw_rail(p1, p2)
@@ -2989,7 +3057,12 @@ function race()
                 rect(x + 37, 75, 36, 34, 9)
                 printc(TYRE_TYPE[self.tyre + 1], x + 55, 114, TYRE_COL[self.tyre + 1])
             else
-                -- TODO pitstop timer
+                -- pitstop timer
+                local x = gfx.SCREEN_WIDTH - 110
+                gfx.rectangle(x, 50, 108, 50, 50, 50, 50)
+                printc("Pit stop", x+55,60,7)
+                printc(player.pitstop_timer>0.5 and "BRAKE" or "1ST GEAR", x+55,70,player.pitstop_timer>0.5 and 8 or 9)
+                printc(format_time(player.pitstop_timer>0 and player.pitstop_delay - player.pitstop_timer or player.pitstop_delay),x+55,83,8)
             end
         elseif not self.completed and panel == PANEL_CAR_STATUS then
             local x = gfx.SCREEN_WIDTH - 66
