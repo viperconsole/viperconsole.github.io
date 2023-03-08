@@ -567,7 +567,7 @@ function ai_controls(car)
     local ai = {
         decisions = rnd(5) + 3,
         target_seg = 1,
-        riskiness = rnd(23) + 1
+        riskiness = rnd()
     }
     ai.car = car
     function ai:update()
@@ -583,6 +583,19 @@ function ai_controls(car)
         local e = 6
         local s = 6
         local t = car.current_segment + e
+        if wrap(t,mapsize) == car.race.first_pit and not car.race.pits[car.driver.team] then
+            -- do we need to change tyres ?
+            local max_wear=0
+            for i=1,4 do
+                max_wear=max(max_wear,car.tyre_wear[i]/TYRE_LIFE[car.tyre_type])
+            end
+            print("car "..car.driver.name.." max wear "..max_wear)
+            if max_wear > 0.95 + math.random()*0.1*self.riskiness then
+                local team_pit=TEAMS[car.driver.team].pit
+                car.pit = team_pit
+                print ("PIT!!")
+            end
+        end
         if t < (mapsize * car.race.lap_count) + 10 then
             local diff=0
             for t=car.current_segment+s,car.current_segment+e do
@@ -626,7 +639,7 @@ end
 
 function create_car(race)
     c = CARS[intro.car]
-    local tyre_type = 1
+    local tyre_type = math.random(1,2)
     local tyre_heat=race.mode == MODE_RACE and TYRE_HEAT[tyre_type] or 0
     local car = {
         race = race,
@@ -726,7 +739,7 @@ function create_car(race)
             local rpm = sgear-self.gear -- between 0 and 1
             self.rpm=clamp(rpm,0,1)
             local base_freq=self.gear == 1 and 290 or 340
-            local max_freq = self.controls.accel and 550-base_freq or 520-base_freq
+            local max_freq = self.controls.accel and 550-base_freq or 480-base_freq
             local freq = min(base_freq + max_freq * rpm, 580)
             local volume = 0.5 + 0.5*self.accel/self.maxacc * 0.5
             if self.freq then
@@ -1049,19 +1062,26 @@ function create_car(race)
             snd.set_channel_volume(3,self.screech)
         end
         if self.pit then
+            if self.is_player then
+                if self.pitstop_timer== 0 then
+                    camera_scale=lerp_pico_angle(camera_scale,0.5,0.05)
+                end
+            end
             -- pit stop
             local pit_seg=2*(self.driver.team-1) + self.race.first_pit
             if pit_seg > mapsize then
                 pit_seg = pit_seg - mapsize
             end
-            local cur_seg= wrap(self.current_segment,mapsize)+1
-            --print(string.format("pos %.0f %.0f firstpit %d pitseg %d curseg %d",self.pos.x,self.pos.y,self.race.first_pit,pit_seg,cur_seg))
-            if (not self.pit_done) and cur_seg == pit_seg and self.pitstop_timer == 0 then
+            local cur_seg= self.current_segment -(self.current_segment//mapsize)*mapsize
+            print(string.format("pos %.0f %.0f firstpit %d pitseg %d curseg %d",self.pos.x,self.pos.y,self.race.first_pit,pit_seg,cur_seg))
+            if (not self.pit_done) --and cur_seg == pit_seg
+                and self.pitstop_timer == 0 then
                 local v=get_data_from_vecmap(pit_seg)
                 local vpit=vecsub(vecsub(v, scalev(v.side, 80)),scalev(v.front,10))
                 local dist=vecsub(self.pos,vpit)
                 local dy=dot(dist,v.front)
                 local dx=dot(dist,v.side)
+                print(dx.." "..dy)
                 if dy >= -10 and dy < -5 then
                     -- car approach
                     local coef=-(dy+10)/5*dx
@@ -1085,7 +1105,7 @@ function create_car(race)
                     self.race.pits[self.driver.team].rl=vec(-dx-coef,0)
                 end
                 if abs(dx) <= 4 and abs(dy) <= 2 then
-                    self.pitstop_timer = 2.2 + (math.random()^2) * 5
+                    self.pitstop_timer = 3 + (math.random()^2) * 5
                     self.pitstop_delay = self.pitstop_timer
                     snd.play_note(11,440,1) --wheel gun
                 end
@@ -2254,7 +2274,9 @@ function race()
         local perp = scalev(side, -4)
         p = vecadd(p2, perp)
         p3 = vecadd(p4, perp)
-        quadfill(p2, p4, p, p3, flipflop and 7 or 28)
+        seg=wrap(seg,mapsize)
+        local pit_seg=2*(self.player.driver.team-1) + self.first_pit
+        quadfill(p2, p4, p, p3, seg==pit_seg and 8 or flipflop and 7 or 28)
         perp = scalev(perp, 4)
         p2 = vecadd(p, perp)
         p4 = vecadd(p3, perp)
@@ -2270,7 +2292,7 @@ function race()
         linevec(lp, lp2, 7)
         linevec(lp2, lp4, 7)
         gfx.set_active_layer(LAYER_TOP)
-        local team=(wrap(seg,mapsize)-self.first_pit)//2+1
+        local team=(seg-self.first_pit)//2+1
         if self.pits[team] and not flipflop then
             self:draw_pit_crew(ri_rail,side,front,team,dir)
         end
@@ -2335,8 +2357,8 @@ function race()
     end
 
     function race:draw_pit_guy(p,c1,c2,dir,side, front,sx,sy,sw,sh,delta)
-        local dx = (sx-323) / camera_scale + (delta and delta.x or 0)
-        local dy = (sy-224) / camera_scale + (delta and delta.y or 0)
+        local dx = ((sx-323)*0.75 + (delta and delta.x or 0))
+        local dy = ((sy-224)*0.75 + (delta and delta.y or 0))
         p = vecsub(vecsub(p,scalev(side,dx)),scalev(front,dy))
         gblit(sx,sy,sw,sh,p,c1,dir)
         gblit(sx+22,sy,sw,sh,p,33,dir)
@@ -3063,7 +3085,9 @@ function race()
                 local x = gfx.SCREEN_WIDTH - 110
                 gfx.rectangle(x, 50, 108, 50, 50, 50, 50)
                 printc("Pit stop", x+55,60,7)
-                printc(player.pitstop_timer>0.5 and "BRAKE" or "1ST GEAR", x+55,70,player.pitstop_timer>0.5 and 8 or 9)
+                if player.pitstop_timer >-0.5 then
+                    printc(player.pitstop_timer>0.5 and "BRAKE" or "1ST GEAR", x+55,70,player.pitstop_timer>0.5 and 8 or 9)
+                end
                 printc(format_time(player.pitstop_timer>0 and player.pitstop_delay - player.pitstop_timer or player.pitstop_delay),x+55,83,8)
             end
         elseif not self.completed and panel == PANEL_CAR_STATUS then
@@ -3093,13 +3117,14 @@ function race()
                 y = y + 11;
                 local leader_time = format_time(time > 0 and time or 0)
                 for rank, car in ipairs(self.ranks) do
-                    gprint(string.format("%2d", rank), 4, y, car.is_player and 7 or 6)
-                    gprint(car.driver.short_name, 32, y, car.is_player and 7 or 6)
+                    gprint(string.format("%2d", rank), 1, y, car.is_player and 7 or 6)
+                    rectfill(17, y, 23, y + 8, car.color)
+                    gprint(car.driver.short_name, 26, y, car.is_player and 7 or 6)
+                    gprint(string.sub(TYRE_TYPE[car.tyre_type],1,1),50,y,TYRE_COL[car.tyre_type])
                     gprint(string.format("%7s", rank == 1 and leader_time or car.time),
-                        60, y, car.is_player and 7 or 6)
-                    rectfill(21, y, 27, y + 8, car.color)
+                        56, y, car.is_player and 7 or 6)
                     if car.race_finished then
-                        gfx.blit(149, 0, 6, 8, 57, y)
+                        gfx.blit(149, 0, 6, 8, 113, y)
                     end
                     y = y + 9
                 end
