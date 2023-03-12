@@ -124,11 +124,19 @@ Example :
     TODO use id -1 to scroll all visible layers (screen shake effect)
 
 * `set_rowscroll(id,[start_row],[end_row],[start_value],[end_value])`
-    * apply a skew effect to the layer, moving each line by a specific horizontal offset.
-    * useful to achieve fake 3D on horizontal planes (street fighters 2)
+    * apply an horizontal skew effect to the layer, moving each row by a specific offset.
     * `id` : id of the layer. if no other parameter is set, the rowscroll is disabled for this layer
     * `start_row,end_row` : range of row where we want to change the offsets
     * `start_value,end_value` : offset value is interpolated between these values (or constant if end_value is nil)
+
+* `set_colscroll(id,[start_col],[end_col],[start_value],[end_value])`
+    * apply a vertical skew effect to the layer, moving each column by a specific offset.
+    * `id` : id of the layer. if no other parameter is set, the colscroll is disabled for this layer
+    * `start_col,end_col` : range of columns where we want to change the offsets
+    * `start_value,end_value` : offset value is interpolated between these values (or constant if end_value is nil)
+
+* `clear_scroll(id)`
+    * disable all rows/columns scroll for this layer
 
 Example :
 
