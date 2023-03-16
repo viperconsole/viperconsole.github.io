@@ -79,7 +79,7 @@ local bounce_acc=0
 local ico_verts = {}
 local ico_tris = {}
 local camera_distance = 4
-local light_dir = v3d_norm({1,-1,-2})
+local light_dir = v3d_norm({0.5,-1,-1.5})
 local pos1={0,0,0}
 local pos2={0,0,0}
 local squeeze=1
@@ -93,7 +93,7 @@ function init()
     gfx.set_layer_operation(LAYER_FADE2WHITE,gfx.LAYEROP_ADD)
     gfx.set_layer_operation(LAYER_FADE2BLACK,gfx.LAYEROP_MULTIPLY)
     for layer=LAYER_ICO1,LAYER_ICO4 do
-        gfx.set_layer_operation(layer, gfx.LAYEROP_AVERAGE)
+        gfx.set_layer_operation(layer, gfx.LAYEROP_ADD)
         gfx.show_layer(layer)
     end
     gfx.show_mouse_cursor(false)
@@ -387,22 +387,24 @@ function render_mesh(verts,tris,pos,squeezex,squeezey,rx,ry,altcol)
         local ab=v3d_sub({b[4],b[5],b[3]},{a[4],a[5],a[3]})
         local ac=v3d_sub({c[4],c[5],c[3]},{a[4],a[5],a[3]})
         local n=v3d_norm(v3d_cross(ab,ac))
-        local rgb = math.max(0.2,((1+v3d_dot(n,light_dir))*0.5)^3)
+        local diffuse = math.max(0.2,v3d_dot(n,light_dir))
+        local half = v3d_norm(v3d_add(v3d_norm(a),light_dir))
+        local specular = math.max(0,v3d_dot(n,half)) ^ 8
         if altcol then
             gfx.set_active_layer(n[3] > 0 and LAYER_ICO2 or LAYER_ICO1)
-            gfx.triangle(a[1],a[2],b[1],b[2],c[1],c[2],(128+127*t[4]/255)*rgb,0,0)
+            gfx.triangle(a[1],a[2],b[1],b[2],c[1],c[2],(128+127*t[4]/255)*diffuse,0,0)
         else
             gfx.set_active_layer(n[3] > 0 and LAYER_ICO3 or LAYER_ICO4)
-            gfx.triangle(a[1],a[2],b[1],b[2],c[1],c[2],t[4]*rgb,t[5]*rgb,t[6]*rgb)
+            gfx.triangle(a[1],a[2],b[1],b[2],c[1],c[2],t[4]*diffuse+specular*64,t[5]*diffuse+specular*64,t[6]*diffuse+specular*64)
         end
     end
 end
 
 function update_ico()
     if first then
-        gfx.set_active_layer(LAYER_FADE2WHITE)
-        gfx.clear(1,1,1)
-        gfx.show_layer(LAYER_FADE2WHITE)
+        for layer=LAYER_ICO1,LAYER_ICO4 do
+            gfx.show_layer(layer)
+        end
         ico_verts={
             {-0.5,-0.5,-0.5},
             {0.5,-0.5,-0.5},
@@ -465,6 +467,11 @@ function update_ico()
         pos2[1] = pos2[1] + (math.sin((t-10)*1.5) - pos2[1]) * 0.03 * pos2c
         pos2[2] = pos2[2] + (math.cos((t-10)*2.5) - pos2[2]) * 0.03 * pos2c
         squeeze = squeeze + (1-squeeze) * 0.01
+        if remt < 10 then
+            local zc = math.min(1,(10-remt)/7)
+            pos1[3] = pos1[3] + (200*math.cos(t*4) - pos1[3]) * 0.03 * zc
+            pos2[3] = pos2[3] + (200*math.cos((t-17)*4) - pos2[3]) * 0.03 * zc
+        end
     end
 end
 
@@ -512,7 +519,9 @@ function update()
             for layer=LAYER_ICO1,LAYER_ICO4 do
                 gfx.set_active_layer(layer)
                 gfx.clear(0,0,0)
+                gfx.hide_layer(layer)
             end
+            gfx.set_active_layer(0)
         end
         remticks=TIMES[fx]*60-tick
         remt = TIMES[fx]-t
@@ -539,12 +548,13 @@ function render()
         elseif trans == "fade2black" then
             gfx.show_layer(LAYER_FADE2BLACK)
             gfx.set_active_layer(LAYER_FADE2BLACK)
-            local rgb=math.min(255,math.floor(remt*255))
+            local rgb=math.max(1,math.floor(remt*255))
             gfx.clear(rgb,rgb,rgb)
             gfx.set_active_layer(0)
         end
     end
-    gfx.print(gfx.FONT_5X7, string.format("%.2f",t),20,5,1,1,1)
-    gfx.print(gfx.FONT_5X7, string.format("%.2f",t),22,7,1,1,1)
-    gfx.print(gfx.FONT_5X7, string.format("%.2f",t),21,6,255,255,255)
+    local fps=gfx.fps()
+    gfx.print(gfx.FONT_5X7, string.format("%3.2f %d fps",t,fps),20,5,1,1,1)
+    gfx.print(gfx.FONT_5X7, string.format("%3.2f %d fps",t,fps),22,7,1,1,1)
+    gfx.print(gfx.FONT_5X7, string.format("%3.2f %d fps",t,fps),21,6,255,255,255)
 end

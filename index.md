@@ -499,6 +499,15 @@ Example :
 local mousex,mousey = inp.mouse_pos()
 ```
 
+Note : you can show/hide the mouse cursor with the gfx API :
+
+* `show_mouse_cursor(onoff)`
+
+Example :
+
+```lua
+gfx.show_mouse_cursor(false)
+```
 
 ### <a name="h4.3"></a>4.3. Gamepad API
 ***in beta***
