@@ -43,7 +43,7 @@ local LAYER_ICO4 <const> = 5
 local LAYER_PIX <const> = 10
 local LAYER_FADE2WHITE <const> = 11
 local LAYER_FADE2BLACK <const> = 12
-fx=1
+fx=6
 t=0
 remt=0
 tick=0
@@ -262,11 +262,16 @@ function update_moire2()
             local rx2 = zoom*(lx+10) * c2 - zoom*ly * s2
             local rx3 = zoom*(lx+20) * c3 - zoom*ly * s3
             local rx4 = zoom*(lx+30) * c4 - zoom*ly * s4
-            local p1=math.abs(rx//10) < 7 and rx%10 <5 and 1 or 0
-            local p2=math.abs(rx2//10) < 7 and rx2%10 < 5 and 1 or 0
-            local p3=math.abs(rx3//10) < 7 and rx3%10 < 5 and 1 or 0
-            local p4=math.abs(rx4//10) < 7 and rx4%10 < 5 and 1 or 0
-            local col = math.min(COLNUM, math.max(1,(p1 + p2 + p3 + p4 )*2+rgb))
+            local p1=rx%10  <5 and rx < 70 and rx > -70 and 1 or 0
+            local p2= rx2%10 < 5 and rx2 < 70 and rx2 > -70 and 1 or 0
+            local p3= rx3%10 < 5 and rx3 < 70 and rx3 > -70 and 1 or 0
+            local p4= rx4%10 < 5 and rx4 < 70 and rx4 > -70 and 1 or 0
+            local col = (p1 + p2 + p3 + p4 )*2+rgb
+            if col < 1 then
+                col=1
+            elseif col > COLNUM then
+                col=COLNUM
+            end
             pix[p]=COLS[math.floor(col)]
             p=p+1
         end
