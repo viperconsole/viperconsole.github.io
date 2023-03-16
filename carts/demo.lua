@@ -1,9 +1,45 @@
 
 
+function v3d_sub(a, b)
+	return {a[1] - b[1], a[2] - b[2], a[3] - b[3]}
+end
+
+function v3d_add(a, b)
+	return {a[1] + b[1], a[2] + b[2], a[3] + b[3]}
+end
+
+function v3d_cross(a, b)
+	return {a[2] * b[3] - a[3] * b[2], -(a[1] * b[3] - a[3] * b[1]), a[1] * b[2] - a[2] * b[1]}
+end
+
+function v3d_dot(a, b)
+	return a[1]*b[1]+a[2]*b[2]+a[3]*b[3]
+end
+
+function v3d_len2(a)
+    return v3d_dot(a,a)
+end
+
+function v3d_len(a)
+    return math.sqrt(v3d_len2(a))
+end
+
+function v3d_norm(a)
+    local l=v3d_len(a)
+    if l==0 then
+        return a
+    end
+    local invl=1/l
+    return {a[1]*invl,a[2]*invl,a[3]*invl}
+end
 
 pix={}
 local LW <const> = 192
 local LH <const>  = 112
+local LAYER_ICO1 <const> = 2
+local LAYER_ICO2 <const> = 3
+local LAYER_ICO3 <const> = 4
+local LAYER_ICO4 <const> = 5
 local LAYER_PIX <const> = 10
 local LAYER_FADE2WHITE <const> = 11
 fx=1
@@ -31,11 +67,32 @@ local BASE_RAD <const> = 25
 local CIRCLE_NUM <const> = 60
 local tun={}
 local curtun=1
+----------------------
+-- checkerboard
+----------------------
+local bounce=1
+local bounce_acc=0
+----------------------
+-- ico
+----------------------
+local ico_verts = {}
+local ico_tris = {}
+local camera_distance = 4
+local light_dir = v3d_norm({1,1,1})
+local pos1={0,0,0}
+local squeeze=1
+local squeeze_amount=0
+local squeeze_t=0
+local acc=0
 
 function init()
     gfx.set_layer_size(LAYER_PIX,LW,LH)
     gfx.set_sprite_layer(LAYER_PIX)
     gfx.set_layer_operation(LAYER_FADE2WHITE,gfx.LAYEROP_ADD)
+    for layer=LAYER_ICO1,LAYER_ICO4 do
+        gfx.set_layer_operation(layer, gfx.LAYEROP_AVERAGE)
+        gfx.show_layer(layer)
+    end
     for i=1,COLNUM do
         local rg=math.min(255,i*256/COLNUM)
         local b=math.min(255,20+i*256/COLNUM)
@@ -225,7 +282,15 @@ function render_tunnel()
 end
 
 function update_checkerboard()
-    local bounce=t < 3 and ((3-t)/3)^2* math.abs(math.cos(t*math.pi*4/3)) or 0
+    if first then
+        bounce=1
+    end
+    bounce_acc = bounce_acc +0.002
+    bounce = bounce - bounce_acc
+    if bounce < 0 then
+        bounce=0
+        bounce_acc=-0.6 * bounce_acc
+    end
     local bouncey=math.floor(LH* (1 - bounce*0.3))
     fill_pix(0,0,0)
     for y=bouncey,bouncey+5 do
@@ -253,20 +318,152 @@ function update_checkerboard()
     gfx.set_active_layer(0)
 end
 
+
+function matrix_rotate_x(a)
+	local sa = -math.sin(a * 2 * math.pi)
+	local ca = math.cos(a * 2 * math.pi)
+	return { { 1, 0, 0 }, { 0, sa, ca }, { 0, ca, -sa } }
+end
+
+function matrix_rotate_y(a)
+	local sa = -math.sin(a * 2 * math.pi)
+	local ca = math.cos(a * 2 * math.pi)
+	return { { ca, 0, sa }, { -sa, 0, ca }, { 0, 1, 0 } }
+end
+
+function matrix_mul_add_row(m_row, v)
+	return m_row[1] * v[1] + m_row[2] * v[2] + m_row[3] * v[3]
+end
+
+function matrix_mul_add(m, v)
+	return {matrix_mul_add_row(m[1], v), matrix_mul_add_row(m[2], v), matrix_mul_add_row(m[3], v)}
+end
+
+function translate_to_view(v,pos,squeeze,mx,my)
+    local t = matrix_mul_add(mx, matrix_mul_add(my, v))
+    t[2] = t[2] * squeeze
+	local t = v3d_add(pos, t)
+	t[3] = t[3] + 252; -- camera fov
+	return {
+		math.floor(t[3] / camera_distance * t[1] + gfx.SCREEN_WIDTH/2 + 0.5),
+		math.floor(t[3] / camera_distance * t[2] + gfx.SCREEN_HEIGHT/2 + 0.5),
+		t[3]}
+end
+
+local function compare_tri(t1,t2)
+    return t1[7]>t2[7]
+end
+
+function render_mesh(verts,tris,pos,squeeze,rx,ry)
+    local mx=matrix_rotate_x(rx)
+    local my=matrix_rotate_y(ry)
+    local tverts={}
+    for i=1,#verts do
+        tverts[i]=translate_to_view(verts[i],pos,squeeze,mx,my)
+    end
+    for i=1,#tris do
+        local t=tris[i]
+        local p1=tverts[t[1]]
+        local p2=tverts[t[2]]
+        local p3=tverts[t[3]]
+        t[7]=(p1[3]+p2[3]+p3[3])/3
+    end
+    table.sort(tris, compare_tri)
+    for i=1,#tris do
+        local t=tris[i]
+        local a=tverts[t[1]]
+        local b=tverts[t[2]]
+        local c=tverts[t[3]]
+        local ab=v3d_sub(b,a)
+        local ac=v3d_sub(c,a)
+        local n=v3d_norm(v3d_cross(ab,ac))
+        local rgb = (2+v3d_dot(n,light_dir))/3
+        gfx.set_active_layer(n[3] > 0 and LAYER_ICO2 or LAYER_ICO1)
+        gfx.triangle(a[1],a[2],b[1],b[2],c[1],c[2],t[4]*rgb,t[5]*rgb,t[6]*rgb)
+    end
+end
+
 function update_ico()
     if first then
         gfx.set_active_layer(LAYER_FADE2WHITE)
         gfx.clear(1,1,1)
         gfx.show_layer(LAYER_FADE2WHITE)
+        ico_verts={
+            {-0.5,-0.5,-0.5},
+            {0.5,-0.5,-0.5},
+            {-0.5,0.5,-0.5},
+            {0.5,0.5,-0.5},
+            {-0.5,-0.5,0.5},
+            {0.5,-0.5,0.5},
+            {-0.5,0.5,0.5},
+            {0.5,0.5,0.5},
+            {0,0,-0.8},
+            {0,0,0.8},
+            {0,-0.8,0},
+            {0,0.8,0},
+            {-0.8,0,0},
+            {0.8,0,0}
+        }
+        ico_tris= {
+            {1,9,2, 0,0,255},
+            {2,9,4, 255,255,255},
+            {4,9,3, 0,0,255},
+            {3,9,1, 255,255,255},
+            {6,10,5, 0,0,255},
+            {8,10,6, 255,255,255},
+            {7,10,8, 0,0,255},
+            {5,10,7, 255,255,255},
+            {2,11,1, 255,255,255},
+            {6,11,2, 0,0,255},
+            {5,11,6, 255,255,255},
+            {1,11,5, 0,0,255},
+            {3,12,4, 255,255,255},
+            {4,12,8, 0,0,255},
+            {8,12,7, 255,255,255},
+            {7,12,3, 0,0,255},
+            {1,13,3, 0,0,255},
+            {3,13,7, 255,255,255},
+            {7,13,5, 0,0,255},
+            {5,13,1, 255,255,255},
+            {4,14,2, 0,0,255},
+            {8,14,4, 255,255,255},
+            {6,14,8, 0,0,255},
+            {2,14,6, 255,255,255},
+        }
+        pos1[2]=-3
+    end
+    if t < 10 then
+        acc=acc+0.001
+        pos1[2] = pos1[2]+acc
+        if pos1[2] > 0.85 then
+            acc=-0.07
+            pos1[2]=0.85
+            squeeze_amount=0.5
+            squeeze_t=t
+        end
+        squeeze_amount = math.max(0,squeeze_amount-0.01)
+        squeeze = 1 - squeeze_amount * math.cos((t-squeeze_t)*15)
+    else
+        pos1[2] = pos1[2] * 0.99
+        squeeze = squeeze + (1-squeeze) * 0.01
     end
 end
 
 function render_ico()
+    local rgb=t < 10 and 255 or t < 11 and (11-t)*255 or 0
     gfx.set_active_layer(0)
-    gfx.blit(0,0,LW,LH,0,0,255,255,255,nil,gfx.SCREEN_WIDTH,gfx.SCREEN_HEIGHT)
-    gfx.set_active_layer(LAYER_FADE2WHITE)
-    gfx.clear(0,0,1)
-    gfx.disk(gfx.SCREEN_WIDTH*(1+math.cos(t))*0.5,gfx.SCREEN_HEIGHT/2,50,50,255,0,0)
+    if rgb > 0 then
+        gfx.blit(0,0,LW,LH,0,0,rgb,rgb,rgb,nil,gfx.SCREEN_WIDTH,gfx.SCREEN_HEIGHT)
+    else
+        gfx.clear()
+    end
+    gfx.set_active_layer(LAYER_ICO1)
+    gfx.clear(0,0,0)
+    gfx.set_active_layer(LAYER_ICO2)
+    gfx.clear(0,0,0)
+    if #ico_tris > 0 then
+        render_mesh(ico_verts,ico_tris,pos1,squeeze,t*0.05, -t*0.5)
+    end
 end
 
 local UPDATES <const> = {update_checkerboard,update_ico,update_tunnel,update_moire,nil,update_moire2,nil}
