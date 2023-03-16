@@ -42,6 +42,7 @@ local LAYER_ICO3 <const> = 4
 local LAYER_ICO4 <const> = 5
 local LAYER_PIX <const> = 10
 local LAYER_FADE2WHITE <const> = 11
+local LAYER_FADE2BLACK <const> = 12
 fx=1
 t=0
 remt=0
@@ -78,7 +79,7 @@ local bounce_acc=0
 local ico_verts = {}
 local ico_tris = {}
 local camera_distance = 4
-local light_dir = v3d_norm({1,-1,-1})
+local light_dir = v3d_norm({1,-1,-2})
 local pos1={0,0,0}
 local pos2={0,0,0}
 local squeeze=1
@@ -90,10 +91,12 @@ function init()
     gfx.set_layer_size(LAYER_PIX,LW,LH)
     gfx.set_sprite_layer(LAYER_PIX)
     gfx.set_layer_operation(LAYER_FADE2WHITE,gfx.LAYEROP_ADD)
+    gfx.set_layer_operation(LAYER_FADE2BLACK,gfx.LAYEROP_MULTIPLY)
     for layer=LAYER_ICO1,LAYER_ICO4 do
         gfx.set_layer_operation(layer, gfx.LAYEROP_AVERAGE)
         gfx.show_layer(layer)
     end
+    gfx.show_mouse_cursor(false)
     for i=1,COLNUM do
         local rg=math.min(255,i*256/COLNUM)
         local b=math.min(255,20+i*256/COLNUM)
@@ -279,7 +282,7 @@ function render_moire()
 end
 
 function render_tunnel()
-    gfx.blit(0,0,LW,LH,0,0,255,255,255,nil,gfx.SCREEN_WIDTH,gfx.SCREEN_HEIGHT)
+    gfx.blit(0,0,LW,LH,0,0,255,255*remt/15,255*remt/15,nil,gfx.SCREEN_WIDTH,gfx.SCREEN_HEIGHT)
 end
 
 function update_checkerboard()
@@ -308,8 +311,8 @@ function update_checkerboard()
         local ycoef=(y-LH*0.7-1) / (bouncey-1-LH*0.7)
         local xoff = math.floor((1-ycoef)*LW/4)
         local ry=((1-ycoef)*(1-ycoef) * 8) % 2
-        local c1=ry <= 1 and 6 or 2
-        local c2=ry <= 1 and 2 or 6
+        local c1=ry <= 1 and 4 or 1
+        local c2=ry <= 1 and 1 or 4
         for x = xoff,LW-xoff do
             local rx = ((x-xoff)/(LW-2*xoff)*8) % 2
             local col = rx < 0.95 and c1 or rx > 1.05 and c2 or math.floor(c1+(c2-c1)*(rx-0.95)*10)
@@ -384,7 +387,7 @@ function render_mesh(verts,tris,pos,squeezex,squeezey,rx,ry,altcol)
         local ab=v3d_sub({b[4],b[5],b[3]},{a[4],a[5],a[3]})
         local ac=v3d_sub({c[4],c[5],c[3]},{a[4],a[5],a[3]})
         local n=v3d_norm(v3d_cross(ab,ac))
-        local rgb = math.max(0.2,((1+v3d_dot(n,light_dir))*0.5)^2)
+        local rgb = math.max(0.2,((1+v3d_dot(n,light_dir))*0.5)^3)
         if altcol then
             gfx.set_active_layer(n[3] > 0 and LAYER_ICO2 or LAYER_ICO1)
             gfx.triangle(a[1],a[2],b[1],b[2],c[1],c[2],(128+127*t[4]/255)*rgb,0,0)
@@ -456,8 +459,11 @@ function update_ico()
         squeeze_amount = math.max(0,squeeze_amount-0.01)
         squeeze = 1 - squeeze_amount * math.cos((t-squeeze_t)*15)
     else
-        pos1[1] = pos1[1] + (math.sin(t*2) - pos1[1]) * 0.01
-        pos1[2] = pos1[2] + (math.cos(t) - pos1[2]) * 0.01
+        pos1[1] = pos1[1] + (math.sin(t*3) - pos1[1]) * 0.02
+        pos1[2] = pos1[2] + (math.cos(t*2) - pos1[2]) * 0.02
+        local pos2c = remt > 10 and 0 or (10-remt)*0.1
+        pos2[1] = pos2[1] + (math.sin((t-10)*1.5) - pos2[1]) * 0.03 * pos2c
+        pos2[2] = pos2[2] + (math.cos((t-10)*2.5) - pos2[2]) * 0.03 * pos2c
         squeeze = squeeze + (1-squeeze) * 0.01
     end
 end
@@ -485,7 +491,7 @@ end
 
 local UPDATES <const> = {update_checkerboard,update_ico,update_tunnel,update_moire,nil,update_moire2,nil}
 local RENDERS <const> = {render_moire, render_ico, render_tunnel,render_moire,render_4hits,render_moire,nil}
-local TRANS <const> = {nil,nil,nil,"fade2white",nil,"panRight",nil}
+local TRANS <const> = {nil,"fade2black",nil,"fade2white",nil,"panRight",nil}
 local TIMES <const> = {3,27,15,17,2,28,1000}
 
 function update()
@@ -502,6 +508,7 @@ function update()
             fx=fx+1
             gfx.clear()
             gfx.hide_layer(LAYER_FADE2WHITE)
+            gfx.hide_layer(LAYER_FADE2BLACK)
             for layer=LAYER_ICO1,LAYER_ICO4 do
                 gfx.set_active_layer(layer)
                 gfx.clear(0,0,0)
@@ -522,11 +529,17 @@ function render()
     if RENDERS[fx] then
         RENDERS[fx]()
     end
-    if trans and remt < 0.5 then
+    if trans and remt < 1 then
         if trans == "fade2white" then
             gfx.show_layer(LAYER_FADE2WHITE)
             gfx.set_active_layer(LAYER_FADE2WHITE)
-            local rgb=math.min(255,math.floor((0.5-remt)*512))
+            local rgb=math.min(255,math.floor((1-remt)*255))
+            gfx.clear(rgb,rgb,rgb)
+            gfx.set_active_layer(0)
+        elseif trans == "fade2black" then
+            gfx.show_layer(LAYER_FADE2BLACK)
+            gfx.set_active_layer(LAYER_FADE2BLACK)
+            local rgb=math.min(255,math.floor(remt*255))
             gfx.clear(rgb,rgb,rgb)
             gfx.set_active_layer(0)
         end
