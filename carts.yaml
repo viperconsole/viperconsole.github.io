@@ -17,6 +17,9 @@ carts:
   - name: Super pitstop'93
     tags: [racing]
     source: pitstop.lua
+  - name: Second Reality
+    tags: [demoscene,alpha]
+    source: demo.lua
   - name: cryon
     tags: [shooter,alpha]
     source: cryon.lua
