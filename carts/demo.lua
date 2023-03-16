@@ -6,7 +6,7 @@ local LW <const> = 192
 local LH <const>  = 112
 local LAYER_PIX <const> = 10
 local LAYER_FADE2WHITE <const> = 11
-fx=3
+fx=1
 t=0
 remt=0
 tick=0
@@ -165,7 +165,7 @@ function render_4hits()
     end
 end
 
-function update_checkerboard()
+function update_moire2()
     local p=1
     local angle1 = t
     local angle2 = t*3
@@ -224,10 +224,55 @@ function render_tunnel()
     gfx.blit(0,0,LW,LH,0,0,255,255,255,nil,gfx.SCREEN_WIDTH,gfx.SCREEN_HEIGHT)
 end
 
-local UPDATES <const> = {update_tunnel,update_moire,nil,update_checkerboard,nil}
-local RENDERS <const> = {render_tunnel,render_moire,render_4hits,render_moire,nil}
-local TRANS <const> = {nil,"fade2white",nil,"panRight",nil}
-local TIMES <const> = {15,17,2,28,1000}
+function update_checkerboard()
+    local bounce=t < 3 and ((3-t)/3)^2* math.abs(math.cos(t*math.pi*4/3)) or 0
+    local bouncey=math.floor(LH* (1 - bounce*0.3))
+    fill_pix(0,0,0)
+    for y=bouncey,bouncey+5 do
+        for x=0,LW-1 do
+            pix[x+y*LW] = COLS[4]
+        end
+    end
+    for y=math.floor(LH*0.7)-1,math.floor(bouncey-1) do
+        local ycoef=(y-LH*0.7-1) / (bouncey-1-LH*0.7)
+        local xoff = math.floor((1-ycoef)*LW/4)
+        local ry=((1-ycoef)*(1-ycoef) * 8) % 2
+        local c1=ry <= 1 and 6 or 2
+        local c2=ry <= 1 and 2 or 6
+        for x = xoff,LW-xoff do
+            local rx = ((x-xoff)/(LW-2*xoff)*8) % 2
+            local col = rx < 0.95 and c1 or rx > 1.05 and c2 or math.floor(c1+(c2-c1)*(rx-0.95)*10)
+            local str=math.abs(rx-ry)
+            col=math.min(COLNUM,math.floor(col+(str*10%2)))
+            pix[x+y*LW] = COLS[col]
+        end
+    end
+    gfx.set_active_layer(LAYER_PIX)
+    gfx.clear(1,1,1)
+    gfx.blit_pixels(0,0,LW,pix)
+    gfx.set_active_layer(0)
+end
+
+function update_ico()
+    if first then
+        gfx.set_active_layer(LAYER_FADE2WHITE)
+        gfx.clear(1,1,1)
+        gfx.show_layer(LAYER_FADE2WHITE)
+    end
+end
+
+function render_ico()
+    gfx.set_active_layer(0)
+    gfx.blit(0,0,LW,LH,0,0,255,255,255,nil,gfx.SCREEN_WIDTH,gfx.SCREEN_HEIGHT)
+    gfx.set_active_layer(LAYER_FADE2WHITE)
+    gfx.clear(0,0,1)
+    gfx.disk(gfx.SCREEN_WIDTH*(1+math.cos(t))*0.5,gfx.SCREEN_HEIGHT/2,50,50,255,0,0)
+end
+
+local UPDATES <const> = {update_checkerboard,update_ico,update_tunnel,update_moire,nil,update_moire2,nil}
+local RENDERS <const> = {render_moire, render_ico, render_tunnel,render_moire,render_4hits,render_moire,nil}
+local TRANS <const> = {nil,nil,nil,"fade2white",nil,"panRight",nil}
+local TIMES <const> = {3,50,15,17,2,28,1000}
 
 function update()
     if inp.key_pressed(inp.KEY_SPACE) then
