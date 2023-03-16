@@ -78,8 +78,9 @@ local bounce_acc=0
 local ico_verts = {}
 local ico_tris = {}
 local camera_distance = 4
-local light_dir = v3d_norm({1,1,1})
+local light_dir = v3d_norm({1,-1,-1})
 local pos1={0,0,0}
+local pos2={0,0,0}
 local squeeze=1
 local squeeze_amount=0
 local squeeze_t=0
@@ -285,11 +286,16 @@ function update_checkerboard()
     if first then
         bounce=1
     end
-    bounce_acc = bounce_acc +0.002
-    bounce = bounce - bounce_acc
-    if bounce < 0 then
-        bounce=0
-        bounce_acc=-0.6 * bounce_acc
+    if t < 1.8 then
+        bounce_acc = bounce_acc +0.002
+        bounce = bounce - bounce_acc
+        if bounce < 0 then
+            bounce=0
+            bounce_acc=-0.6 * bounce_acc
+            if bounce_acc > -0.003 then
+                bounce_acc=0
+            end
+        end
     end
     local bouncey=math.floor(LH* (1 - bounce*0.3))
     fill_pix(0,0,0)
@@ -308,7 +314,7 @@ function update_checkerboard()
             local rx = ((x-xoff)/(LW-2*xoff)*8) % 2
             local col = rx < 0.95 and c1 or rx > 1.05 and c2 or math.floor(c1+(c2-c1)*(rx-0.95)*10)
             local str=math.abs(rx-ry)
-            col=math.min(COLNUM,math.floor(col+(str*10%2)))
+            col=math.min(COLNUM,math.floor(col+(str*10%2)+0.5))
             pix[x+y*LW] = COLS[col]
         end
     end
@@ -339,27 +345,28 @@ function matrix_mul_add(m, v)
 	return {matrix_mul_add_row(m[1], v), matrix_mul_add_row(m[2], v), matrix_mul_add_row(m[3], v)}
 end
 
-function translate_to_view(v,pos,squeeze,mx,my)
+function translate_to_view(v,pos,squeezex,squeezey,mx,my)
     local t = matrix_mul_add(mx, matrix_mul_add(my, v))
-    t[2] = t[2] * squeeze
+    t[1] = t[1] * squeezex
+    t[2] = t[2] * squeezey
 	local t = v3d_add(pos, t)
 	t[3] = t[3] + 252; -- camera fov
 	return {
 		math.floor(t[3] / camera_distance * t[1] + gfx.SCREEN_WIDTH/2 + 0.5),
 		math.floor(t[3] / camera_distance * t[2] + gfx.SCREEN_HEIGHT/2 + 0.5),
-		t[3]}
+		t[3],t[1],t[2]}
 end
 
 local function compare_tri(t1,t2)
     return t1[7]>t2[7]
 end
 
-function render_mesh(verts,tris,pos,squeeze,rx,ry)
+function render_mesh(verts,tris,pos,squeezex,squeezey,rx,ry,altcol)
     local mx=matrix_rotate_x(rx)
     local my=matrix_rotate_y(ry)
     local tverts={}
     for i=1,#verts do
-        tverts[i]=translate_to_view(verts[i],pos,squeeze,mx,my)
+        tverts[i]=translate_to_view(verts[i],pos,squeezex,squeezey,mx,my)
     end
     for i=1,#tris do
         local t=tris[i]
@@ -374,12 +381,17 @@ function render_mesh(verts,tris,pos,squeeze,rx,ry)
         local a=tverts[t[1]]
         local b=tverts[t[2]]
         local c=tverts[t[3]]
-        local ab=v3d_sub(b,a)
-        local ac=v3d_sub(c,a)
+        local ab=v3d_sub({b[4],b[5],b[3]},{a[4],a[5],a[3]})
+        local ac=v3d_sub({c[4],c[5],c[3]},{a[4],a[5],a[3]})
         local n=v3d_norm(v3d_cross(ab,ac))
-        local rgb = (2+v3d_dot(n,light_dir))/3
-        gfx.set_active_layer(n[3] > 0 and LAYER_ICO2 or LAYER_ICO1)
-        gfx.triangle(a[1],a[2],b[1],b[2],c[1],c[2],t[4]*rgb,t[5]*rgb,t[6]*rgb)
+        local rgb = math.max(0.2,((1+v3d_dot(n,light_dir))*0.5)^2)
+        if altcol then
+            gfx.set_active_layer(n[3] > 0 and LAYER_ICO2 or LAYER_ICO1)
+            gfx.triangle(a[1],a[2],b[1],b[2],c[1],c[2],(128+127*t[4]/255)*rgb,0,0)
+        else
+            gfx.set_active_layer(n[3] > 0 and LAYER_ICO3 or LAYER_ICO4)
+            gfx.triangle(a[1],a[2],b[1],b[2],c[1],c[2],t[4]*rgb,t[5]*rgb,t[6]*rgb)
+        end
     end
 end
 
@@ -444,7 +456,8 @@ function update_ico()
         squeeze_amount = math.max(0,squeeze_amount-0.01)
         squeeze = 1 - squeeze_amount * math.cos((t-squeeze_t)*15)
     else
-        pos1[2] = pos1[2] * 0.99
+        pos1[1] = pos1[1] + (math.sin(t*2) - pos1[1]) * 0.01
+        pos1[2] = pos1[2] + (math.cos(t) - pos1[2]) * 0.01
         squeeze = squeeze + (1-squeeze) * 0.01
     end
 end
@@ -457,19 +470,23 @@ function render_ico()
     else
         gfx.clear()
     end
-    gfx.set_active_layer(LAYER_ICO1)
-    gfx.clear(0,0,0)
-    gfx.set_active_layer(LAYER_ICO2)
-    gfx.clear(0,0,0)
+    for layer=LAYER_ICO1,LAYER_ICO4 do
+        gfx.set_active_layer(layer)
+        gfx.clear(0,0,0)
+    end
     if #ico_tris > 0 then
-        render_mesh(ico_verts,ico_tris,pos1,squeeze,t*0.05, -t*0.5)
+        render_mesh(ico_verts,ico_tris,pos1,1,squeeze,t*0.05, -t*0.5, false)
+        if t > 10 then
+            zoom= t < 11 and (t-10)*2 or 2
+            render_mesh(ico_verts,ico_tris,pos2,zoom,zoom,t*0.1, t*0.3, true)
+        end
     end
 end
 
 local UPDATES <const> = {update_checkerboard,update_ico,update_tunnel,update_moire,nil,update_moire2,nil}
 local RENDERS <const> = {render_moire, render_ico, render_tunnel,render_moire,render_4hits,render_moire,nil}
 local TRANS <const> = {nil,nil,nil,"fade2white",nil,"panRight",nil}
-local TIMES <const> = {3,50,15,17,2,28,1000}
+local TIMES <const> = {3,27,15,17,2,28,1000}
 
 function update()
     if inp.key_pressed(inp.KEY_SPACE) then
@@ -485,6 +502,10 @@ function update()
             fx=fx+1
             gfx.clear()
             gfx.hide_layer(LAYER_FADE2WHITE)
+            for layer=LAYER_ICO1,LAYER_ICO4 do
+                gfx.set_active_layer(layer)
+                gfx.clear(0,0,0)
+            end
         end
         remticks=TIMES[fx]*60-tick
         remt = TIMES[fx]-t
