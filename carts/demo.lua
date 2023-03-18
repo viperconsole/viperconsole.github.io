@@ -165,19 +165,20 @@ function update_tunnel()
     local coef2 = t < 10 and t*0.05 or 0.5
     local cx = LW/2 *(1 + coef*math.cos(t*5))
     local cy = LH/2 *(1 + coef2*math.cos(t*3))
+    local base_rad = BASE_RAD * (1 - math.sin(t)*0.2)
     if remticks < CIRCLE_NUM * 2 then
         if #tun > 0 then
             curtun = (curtun % #tun) + 1
             tun[curtun]=nil
         end
     elseif #tun < CIRCLE_NUM then
-        table.insert(tun,{cx,cy,BASE_RAD})
+        table.insert(tun,{cx,cy,base_rad})
         curtun = #tun
     else
         curtun = (curtun % #tun) + 1
         tun[curtun][1]=cx
         tun[curtun][2]=cy
-        tun[curtun][3]=BASE_RAD
+        tun[curtun][3]=base_rad
     end
     fill_pix(0,0,0)
     if #tun > 0 then
