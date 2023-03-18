@@ -8,6 +8,10 @@ function v3d_add(a, b)
 	return {a[1] + b[1], a[2] + b[2], a[3] + b[3]}
 end
 
+function v3d_scale(a, f)
+	return {a[1]*f, a[2]*f, a[3]*f}
+end
+
 function v3d_cross(a, b)
 	return {a[2] * b[3] - a[3] * b[2], -(a[1] * b[3] - a[3] * b[1]), a[1] * b[2] - a[2] * b[1]}
 end
@@ -404,7 +408,12 @@ function render_mesh(verts,tris,pos,squeezex,squeezey,rx,ry,altcol,mirror)
         else
             local rgb=mirror and mirror/768 or 1
             gfx.set_active_layer(n[3] > 0 and LAYER_ICO3 or LAYER_ICO4)
-            gfx.triangle(a[1],a[2],b[1],b[2],c[1],c[2],rgb*(t[4]*diffuse+specular*64),rgb*(t[5]*diffuse+specular*64),rgb*(t[6]*diffuse+specular*64))
+            gfx.triangle(a[1],a[2],
+                b[1],b[2],
+                c[1],c[2],
+                rgb*(t[4]*diffuse+specular*64),
+                rgb*(t[5]*diffuse+specular*64),
+                rgb*(t[6]*diffuse+specular*64))
         end
     end
 end
@@ -540,13 +549,29 @@ function update_ico()
             {18, 30, 40, 34, 21},
             {20, 29, 42, 38, 25}
         }
+        -- isolate pentagonal faces
+        local vcount=#ico_verts
+        for i=1,vcount do
+            local v=v3d_scale(ico_verts[i],1)
+            table.insert(ico_verts,v)
+        end
+        for i=1,#ico_tris do
+            local t=ico_tris[i]
+            if #t == 5 then
+                for j=1,5 do
+                    t[j] = t[j] + vcount
+                end
+            end
+        end
+        -- add color to faces
         for i=#ico_tris,1,-1 do
             local t=ico_tris[i]
             if #t > 3 then
-                local blue=#t == 4 and 0 or #t==5 and 128 or 255
+                local blue=#t == 4 and 128 or #t==5 and 0 or 255
+                -- split faces into triangles
                 table.remove(ico_tris,i)
                 for j=3,#t do
-                    table.insert(ico_tris,{t[1],t[j-1],t[j], blue,blue,255})
+                    table.insert(ico_tris,{t[1],t[j-1],t[j], blue,blue,255,count=#t})
                 end
             else
                 t[4] = 255
@@ -568,6 +593,20 @@ function update_ico()
         squeeze_amount = math.max(0,squeeze_amount-0.01)
         squeeze = 1 - squeeze_amount * math.cos((t-squeeze_t)*15)
     else
+        local vcount=#ico_verts/2
+        for i=1,vcount do
+            ico_verts[i+vcount] = v3d_scale(ico_verts[i],1+math.sin(t-10)*0.2)
+        end
+        if t % 1 <= 0.2 then
+            local pulse = (0.2-(t%1))*1275 -- between 255 and 0
+            for i=1,#ico_tris do
+                local t=ico_tris[i]
+                if t.count and t.count==5 then
+                    t[4] = pulse
+                    t[5] = pulse
+                end
+            end
+        end
         pos1[1] = pos1[1] + (math.sin(t*3) - pos1[1]) * 0.02
         pos1[2] = pos1[2] + (math.cos(t*2) - pos1[2]) * 0.02
         local pos2c = remt > 10 and 0 or (10-remt)*0.1
