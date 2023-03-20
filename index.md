@@ -416,7 +416,7 @@ Example :
 MUSIC_TITLE = [[NAM title screen
 PATLIST 56 57 58 59 60
 SEQ 024... 134...]]
-new_music(MUSIC_TITLE)
+snd.new_music(MUSIC_TITLE)
 ```
 
 Here the song is named "title screen". It uses 5 patterns number 56, 57, 58, 59 and 60.
