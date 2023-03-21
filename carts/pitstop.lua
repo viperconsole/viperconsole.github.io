@@ -190,7 +190,7 @@ lerp_pico_angle = function(a,b,c)
     return a + dist * c
 end
 rnd = function(n)
-    return math.random() * n
+    return math.random() * (n or 1)
 end
 abs = math.abs
 sqrt = math.sqrt
