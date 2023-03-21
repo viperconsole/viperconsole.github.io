@@ -3,9 +3,9 @@
 
 -- pico8 compatibility layer
 local X_OFFSET <const> = 80
-local Y_OFFSET <const> = 10
-local SPRITE_SIZE <const> = 8
-local SPRITE_PER_ROW <const> = math.floor(128 / SPRITE_SIZE)
+local Y_OFFSET <const> = 0
+local SPRITE_SIZE <const> = 14
+local SPRITE_PER_ROW <const> = math.floor(224 / SPRITE_SIZE)
 col = function(r, g, b)
     return { r = r, g = g, b = b }
 end
@@ -83,15 +83,15 @@ end
 
 function rectfill(x0, y0, x1, y1, pal)
     local col = PAL[pal]
-    local x0 = x0 + X_OFFSET
-    local x1 = x1 + X_OFFSET
-    local y0 = y0 + Y_OFFSET
-    local y1 = y1 + Y_OFFSET
+    local x0 = x0*14/8 + X_OFFSET
+    local x1 = x1*14/8 + X_OFFSET
+    local y0 = y0*14/8 + Y_OFFSET
+    local y1 = y1*14/8 + Y_OFFSET
     gfx.rectangle(x0, y0, x1 - x0 + 1, y1 - y0 + 1, col.r, col.g, col.b)
 end
 
 function line(x1, y1, x2, y2, col)
-    gfx.line(x1 + X_OFFSET, y1 + Y_OFFSET, x2 + X_OFFSET, y2 + Y_OFFSET, PAL[col].r, PAL[col].g, PAL[col].b)
+    gfx.line(x1*14/8 + X_OFFSET, y1*14/8 + Y_OFFSET, x2*14/8 + X_OFFSET, y2*14/8 + Y_OFFSET, PAL[col].r, PAL[col].g, PAL[col].b)
 end
 
 function sprcol(n, x, y, w, h, col, hflip, vflip)
@@ -109,8 +109,8 @@ function sprcol(n, x, y, w, h, col, hflip, vflip)
         spritey,
         w * SPRITE_SIZE,
         h * SPRITE_SIZE,
-        math.floor(x + X_OFFSET),
-        math.floor(y + Y_OFFSET),
+        math.floor(x*14/8 + X_OFFSET),
+        math.floor(y*14/8 + Y_OFFSET),
         c.r, c.g, c.b,
         nil,nil,nil,
         hflip,vflip
@@ -128,8 +128,8 @@ function spr(n, x, y, w, h, hflip, vflip)
         spritey,
         w * SPRITE_SIZE,
         h * SPRITE_SIZE,
-        math.floor(x + X_OFFSET),
-        math.floor(y + Y_OFFSET),
+        math.floor(x*14/8 + X_OFFSET),
+        math.floor(y*14/8 + Y_OFFSET),
         255, 255, 255,
         nil,nil,nil,
         hflip,vflip
@@ -147,8 +147,8 @@ function map(cx, cy, sx, sy, cw, ch, layer)
                     local spritex = (v % SPRITE_PER_ROW) * SPRITE_SIZE
                     local spritey = (v // SPRITE_PER_ROW) * SPRITE_SIZE
                     gfx.blit(spritex, spritey, SPRITE_SIZE, SPRITE_SIZE,
-                        sx + X_OFFSET + (x - cx) * SPRITE_SIZE,
-                        sy + Y_OFFSET + (y - cy) * SPRITE_SIZE
+                        math.floor(sx*14/8 + X_OFFSET + (x - cx) * SPRITE_SIZE),
+                        math.floor(sy*14/8 + Y_OFFSET + (y - cy) * SPRITE_SIZE)
                     )
                 end
             end
@@ -158,13 +158,7 @@ end
 
 function gprint(msg, px, py, col)
     local c = PAL[math.floor(col)]
-    gfx.print(gfx.FONT_4X6, msg, math.floor(px) + X_OFFSET, math.floor(py) + Y_OFFSET, c.r, c.g, c.b)
-end
-
-function pal(a, b)
-end
-
-function palt(a, b)
+    gfx.print(gfx.FONT_8X8, msg, math.floor(px*14/8) + X_OFFSET, math.floor(py*14/8) + Y_OFFSET, c.r, c.g, c.b)
 end
 
 function btnp(num)
@@ -542,18 +536,9 @@ function printcnt(str, x, y, col)
     gprint(str, x - #str * 2, y - 3, col)
 end
 
---change transparent color
-function transcol(c)
-    palt(0, false)
-    palt(c, true)
-end
-
 --draw moon
 function drawmoon(x, y)
-    spr(16, x, y)
-    spr(16, x + 8, y, 1, 1, true, false)
-    spr(16, x, y + 8, 1, 1, false, true)
-    spr(16, x + 8, y + 8, 1, 1, true, true)
+    spr(138, x, y,2,2)
 end
 
 --draw witch (player,final boss)
@@ -767,7 +752,6 @@ frog = {
         local img = 0
         if (this.t > 30) then img = 1 end
 
-        transcol(1)
         if this.flash > 0 then
             sprcol(50 + img, this.x, this.y,7)
         else
@@ -1652,7 +1636,8 @@ function init()
     snd.new_music(MUSIC)
     snd.new_music(MUSIC1)
     snd.new_music(MUSIC2)
-    gfx.load_img(1, "witch/witch.png")
+    snd.new_music(MUSIC3)
+    gfx.load_img(1, "witch/witch2.png")
     gfx.set_sprite_layer(1)
     --maximum hp
     lifemax = 5
@@ -2050,14 +2035,14 @@ function render()
         --level 2 background
         local wy = math.floor(28 + (112 - water) / 3)
 
-        rectfill(0, 0, 128, wy, 1)
+        rectfill(0, 0, 128, wy+1, 1)
 
         rectfill(0, 26, 128, 64, 2)
         line(0, 27, 128, 27, 1)
         rectfill(0, 40, 128, 64, 8)
         line(0, 41, 128, 41, 2)
 
-        rectfill(0, wy + 8, 128, 128, 0)
+        rectfill(0, wy + 7, 128, 128, 0)
 
         drawmoon(104, 8)
 
@@ -2110,10 +2095,7 @@ function render()
         line(0, 115, 128, 115, colors[2][colid])
 
         --clouds
-        pal(13, colors[2][colid])
-
         local dx
-
         for j = 0, 1 do
             for i = 0, 2 do
                 dx = -(lvlx * 3 % 96 + 48 * j) + i * 96
@@ -2121,8 +2103,6 @@ function render()
                 spr(13, dx, 24 + 64 * j, 3, 2)
             end
         end
-
-        pal()
     end
 
     --frog boss is behind the lava
@@ -2140,8 +2120,8 @@ function render()
         --lava in level 3
         local sprnum= lvl == 2 and 129 or 119
         for i = 0, 16 do
+            rectfill(0, math.floor(water)-1, 128, 128, lvl == 2 and 8 or 3)
             spr(sprnum, -(lvlx * 6 % 8) + 8 * i,math.floor(water - 8))
-            rectfill(0, math.floor(water), 128, 128, lvl == 2 and 8 or 3)
         end
     end
 
@@ -2185,23 +2165,13 @@ function render()
         local dy2 = 0.5 + 2 * picosin(endanim / 64 + 0.125)
 
         --"loves"
-        palt(12, true)
-        palt(13, true)
-        palt(1, true)
-        palt(4, true)
-        palt(9, true)
-        palt(10, true)
-        spr(90, 40, 40 + math.floor(dy2), 6, 2)
-        pal()
+        gfx.blit(156,77,52,14,90+X_OFFSET,math.floor((43+dy2)*14/8))
 
         --"witch"
-        palt(14, true)
-        palt(8, true)
-        spr(74, 40, math.floor(32 + 0.5 + 2 * picosin(endanim / 64)), 6, 2)
+        gfx.blit(142,56,82,20,74+X_OFFSET,math.floor((32 + 0.5 + 2 * picosin(endanim / 64))*14/8))
 
         --"bullets"
-        spr(106, 40, math.floor(48 + 0.5 + 2 * picosin(endanim / 64 + 0.25)), 6, 2)
-        pal()
+        gfx.blit(146,92,71,20,80+X_OFFSET,math.floor((50 + 0.5 + 2 * picosin(endanim / 64 + 0.25))*14/8))
 
         --hearts
         spr(41 + (endanim / 8) % 2, 30, 60 + dy2)
@@ -2271,20 +2241,17 @@ function render()
             end
         end
 
-        pal()
-
         --draw lives
         if lives > 0 then
             spr(47, 0, 7)
             gprint(lives, 10, 9, 7)
-            pal()
         end
 
         --score
-        gprint(score, 128 - 4 * #tostring(score),
+        gprint(score, 120 - 4 * #tostring(score),
             1, 7)
         for i = #tostring(score) + 1, 6 do
-            gprint(0, 128 - 4 * i, 1,7)
+            gprint(0, 120 - 4 * i, 1,7)
         end
 
         if multiplier > 10 then
@@ -2318,15 +2285,9 @@ function render()
             printcnt("Continue", 64, 88, 7 - choice)
             printcnt("Give Up", 64, 96, 6 + choice)
 
-            if choice == 1 then
-                transcol(1)
-            end
-
             for i = -1, 1, 2 do
                 spr(47 - choice, 60 + 20 * i, 84 + 8 * choice, 1, 1, i < 0, false)
             end
-
-            pal()
         end
     end
 
@@ -2341,7 +2302,7 @@ function render()
 
             --start ending music
             if endanim == 120 then
-                music(44)
+                music(3)
             end
 
             --update first
@@ -2381,10 +2342,10 @@ function render()
 
             local endtxt = {
                 "Congratulations",
-                "Game by Matthieu Le Gallic",
-                "Music composed by Dustin Van Wyk",
-                "pico music by Matthieu Le Gallic",
-                "Score : " .. score .. "   Deaths : " .. deaths,
+                "Game by\nMatthieu Le Gallic",
+                "Music composed by\nDustin Van Wyk",
+                "pico music by\nMatthieu Le Gallic",
+                "Score : " .. score .. "\nDeaths : " .. deaths,
                 "Congratulations"
             }
 
@@ -2396,10 +2357,7 @@ function render()
             line(0, 119, 128, 119, 15)
 
             --clouds
-            pal(13, 14)
-
             local j
-
             for i = 0, 3 do
                 --drawing 2 clouds gives the
                 --illusion of a bigger cloud
@@ -2437,9 +2395,7 @@ function render()
         end
     end
     gfx.rectangle(0,0,X_OFFSET,224,0,0,1)
-    gfx.rectangle(X_OFFSET+128,0,384,224,0,0,1)
-    gfx.rectangle(0,0,384,Y_OFFSET,0,0,1)
-    gfx.rectangle(0,Y_OFFSET+128,384,224,0,0,1)
+    gfx.rectangle(X_OFFSET+224,0,384,224,0,0,1)
 end
 
 SPRITE_FLAGS = {
@@ -2760,6 +2716,7 @@ SFX={
 	"PAT 16 D#4040 D#4021 D.4040 ...... D#4040 ...... D.4040 ...... G.4040 G.4040 F.4040 ...... D#4042 D#4042 D#4042 D#4042 F.4040 F.4045 D.4042 D.4042 F.4150 D#4150 D.4150 D#4150",
     -- 20
 	"PAT 16 C.3953 ...... C.3825 D.3835 C.3845 ...... C.2953 ...... C.2844 C.2845 E.2845 E.2805 C.3953 ...... E.2825 F.2835 E.2845 ...... C.3953 ...... C.2844 C.2845 E.2845 ......",
+    "PAT 16 C.213. ...... G.213. C.213. G.213. ...... F.213. ...... C.313. ...... G.213. ...... D#213. ...... G.213. D#213. G.313. ...... D.213. ...... G.213. ...... B.213. ......",
 	"PAT 16 C.4150 ...... ...... ...... ...... ...... ...... ...... C.5040 B.4040 C.5040 ...... G#4040 ...... G.4040 ...... G#4040 ...... G.4042 G.4042 G.4042 ...... C.4040 D.4040",
 	"PAT 16 D#4040 D#4021 D.4040 ...... C.4040 ...... D.4042 D.4042 D.4042 ...... B.3040 ...... C.4042 C.4042 C.4042 C.4042 D.4040 D.4045 B.3042 B.3042 B.3042 B.3042 ...... ......",
 	"PAT 16 C.4050 C.4001 G.4720 ...... G.4720 ...... F.4720 ...... G#4720 ...... ...... ...... ...... ...... F.4720 ...... F.4720 ...... D#4720 ...... G.4720 ...... ...... ......",
@@ -2768,8 +2725,8 @@ SFX={
 	"PAT 16 D#4040 D#4021 D.4040 ...... C.4040 ...... D.4042 D.4042 D.4042 ...... B.3040 ...... C.4042 C.4042 C.4042 C.4042 D.4040 D.4045 B.3042 B.3042 B.3042 B.3042 F.4040 G.4040",
 	"PAT 16 G#4042 G#4042 G#4042 ...... G.4040 ...... F.4042 F.4042 F.4042 ...... D#4040 F.4040 G.4042 G.4042 G.4042 ...... F.4040 ...... D#4042 D#4042 D#4042 D#4042 D#4045 ......",
 	"PAT 16 F.4042 F.4042 F.4042 F.4042 F.4045 ...... D#4042 D#4042 D#4042 D#4045 F.4040 D#4040 D.4060 ...... C.4060 ...... D.4060 ...... C.4030 C.4033 ...... ...... ...... ......",
-    -- 30
 	"PAT 16 C.1150 C.1145 ...... ...... ...... ...... F.1150 F.1145 ...... ...... G.1150 G.1155 D.1150 D.1145 ...... ...... ...... ...... G.1150 G.1145 ...... ...... C.1150 C.1155",
+    -- 30
 	"PAT 12 ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ...... ......",
 	"PAT 16 D.4042 D.4042 D.4042 D.4042 D.4045 ...... C.4042 C.4042 C.4042 C.4045 D#4040 D#4045 D.4042 D.4042 D.4042 D.4042 D.4045 ...... C.4042 C.4042 C.4042 C.4045 D.4040 D#4040",
 	"PAT 12 D.4730 D.4730 D.4721 D.4725 ...... ...... ...... ...... F#4730 F#4730 F#4721 F#4725 ...... ...... ...... ...... E.4730 E.4730 E.4721 E.4725 ...... ...... ...... ...... G.4730 G.4730 G.4721 G.4725 ...... ...... ...... C.3700",
@@ -2779,8 +2736,8 @@ SFX={
 	"PAT 12 B.3130 B.3130 B.3121 B.3111 ...... ...... F#4130 E.4130 D.4130 ...... B.3130 ...... A.3130 ...... B.3130 ...... A.3130 A.3130 A.3121 A.3111 D.4130 ...... G.4130 ...... F#4130 F#4130 F#4121 F#4111 E.4130 E.4130 E.4121 E.4111",
 	"PAT 12 D.4130 D.4130 D.4121 D.4111 C#4130 C#4130 C#4121 C#4111 B.3130 B.3130 B.3121 B.3111 A.3130 A.3130 A.3121 A.3111 F#3130 F#3130 F#3121 F#3111 G.3130 G.3130 G.3121 G.3111 A.3130 A.3130 A.3121 A.3111 C#4130 C#4130 C#4121 C#4111",
 	"PAT 12 C.3043 ...... D.2635 C.2635 E.3043 C.2005 C.2635 ...... C.3043 ...... D.2635 C.2635 E.3043 C.2005 C.2635 ...... C.3043 ...... D.2635 C.2635 E.3043 C.2005 C.2635 ...... C.3043 ...... D.2635 C.2635 E.3043 D.2635 C.2635 ......",
-    -- 40
 	"PAT 12 B.2565 ...... F#3565 F#3565 B.2565 ...... F#3565 ...... B.2565 ...... F#3565 F#3565 B.2565 ...... F#3565 ...... E.3565 C.1505 G.3565 G.3565 B.2565 ...... G.3565 ...... E.3565 C.1505 G.3565 G.3565 B.2565 ...... G.3565 ......",
+    -- 40
 	"PAT 12 A.2565 ...... E.3565 E.3565 A.2565 ...... E.3565 ...... A.2565 ...... E.3565 E.3565 A.2565 ...... E.3565 ...... F#2565 ...... C#3565 C#3565 F#2565 ...... C#3565 ...... A.2565 ...... E.3565 E.3565 A.2565 ...... E.3565 ......",
 	"PAT 12 B.1070 B.1075 ...... ...... F#1070 F#1075 ...... ...... B.1070 B.1075 ...... ...... F#1070 F#1075 ...... ...... B.1070 B.1075 ...... ...... G.1070 G.1075 ...... ...... B.1070 B.1075 ...... ...... G.1070 G.1075 ...... ......",
 	"PAT 12 A.1070 A.1075 ...... ...... E.1070 E.1075 ...... ...... A.1070 A.1075 ...... ...... E.1070 E.1075 ...... ...... F#1070 F#1075 ...... ...... F#1070 F#1075 ...... ...... A.1070 A.1075 ...... ...... A#1070 A#1075 ...... ......",
@@ -2790,8 +2747,8 @@ SFX={
 	"PAT 12 G.2565 ...... D.3565 D.3565 G.2565 ...... D.3565 ...... G.2565 ...... D.3565 D.3565 G.2565 ...... D.3565 ...... F#2565 C.1505 C#3565 C#3565 F#2565 ...... C#3565 ...... F#2565 C.1505 C#3565 C#3565 F#2565 ...... C#3565 ......",
 	"PAT 12 G#2565 ...... D.3565 D.3565 G#2565 ...... D.3565 ...... G#2565 ...... D.3565 D.3565 G#2565 ...... D.3565 ...... G#2565 ...... D.3565 D.3565 G#2565 ...... D.3565 ...... G#2560 G#2565 ...... ...... ...... ...... ...... ......",
 	"PAT 16 B.2130 ...... F.3130 E.3130 F.3130 ...... B.2130 ...... F.3130 ...... B.2130 ...... C.3130 ...... G.3130 F#3130 G.3130 ...... C.3130 ...... G.3130 ...... C.3130 ......",
-    -- 50
 	"PAT 16 B.2130 ...... F.3130 E.3130 F.3130 ...... B.2130 ...... F.3130 ...... B.2130 ...... D.3140 ...... C.3140 ...... D.3140 ...... C.3130 C.3133 ...... ...... ...... ......",
+    -- 50
 	"PAT 16 A#1070 ...... ...... A#1070 ...... A#1075 A#1070 ...... ...... A#1070 ...... A#1075 C.2070 ...... ...... C.2070 ...... C.2075 C.2070 ...... ...... C.2070 C.2070 ......",
 	"PAT 16 G.3540 G.3545 ...... A.3540 A.3545 ...... A#3540 A#3531 A#3535 ...... ...... ...... F.4540 E.4540 D.4540 E.4540 D.4540 C.4540 D.4540 D.4531 D.4521 A#3540 A#3531 A#3521",
 	"PAT 16 G.3540 G.3531 G.3535 ...... A.3540 A#3540 A.3540 A.3545 ...... F.3540 F.3545 ...... G.3540 F.3540 E.3540 E.3531 E.3521 E.3511 ...... ...... ...... D.3540 D.3545 ......",
@@ -2801,8 +2758,8 @@ SFX={
 	"PAT 16 F.5740 F.5731 F.5721 F.5711 ...... ...... E.5740 E.5731 E.5721 E.5711 ...... ...... D.5740 D.5731 D.5721 D.5711 ...... ...... C.5740 C.5731 C.5721 C.5711 ...... ......",
 	"PAT 16 A.4740 A.4731 A.4721 A.4711 ...... ...... G.4740 G.4731 G.4735 G.4740 ...... D.5740 C.5740 C.5731 C.5721 C.5711 C.5711 C.5715 ...... ...... ...... ...... ...... ......",
 	"PAT 21 F.3530 ...... ...... G#3530 ...... ...... ...... ...... F.3530 ...... ...... G#3530 ...... ...... ...... ...... F.3530 ...... ...... G#3530 ...... ...... A#3530 ...... F.3530 ...... ...... G#3530 ...... C#3530 G#3530 ......",
-    -- 60
 	"PAT 21 C#4750 ...... ...... ...... ...... F.4750 F#4750 ...... G#4750 G#4731 G#4711 ...... ...... A#4750 G#4750 ...... F.4750 F.4731 F.4711 ...... ...... ...... ...... D#4750 ...... F.4750 ...... D#4750 ...... F.4750 D#4750 C#4750",
+    -- 60
 	"PAT 21 ...... ...... ...... ...... ...... F.4750 F#4750 ...... G#4750 G#4731 G#4711 ...... ...... C#5750 A#4750 ...... G#4750 G#4731 G#4711 ...... ...... ...... ...... C#4750 C#4750 G#3750 ...... F.4750 ...... D#4750 C#4750 ......",
 	"PAT 21 C.2625 ...... ...... D.2625 ...... C.2615 D.2625 ...... C.2625 ...... ...... D.2625 ...... C.2615 D.2625 ...... C.2625 ...... ...... D.2625 ...... C.2615 D.2625 ...... C.2625 ...... ...... D.2625 ...... C.2615 D.2625 ......",
 	"PAT 21 C#2050 ...... ...... D#2050 ...... ...... ...... ...... F.2050 ...... ...... D#2050 ...... ...... ...... ...... C#2050 ...... ...... D#2050 ...... ...... ...... ...... F.2050 ...... ...... D#2050 ...... ...... ...... ......",
@@ -2832,4 +2789,9 @@ SEQ2 20171e1d.... 21181f1d.... 20171e1d.... 21181f1d.... 20191e1d.... 211a1f1d..
 MUSIC2 = [[NAM boss
 PATLIST 3 4 5 6 7 8 14 15 16 17 18 19 20 22 23 24 25 26 27 28 29 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63
 SEQ2 152d2e...... 152d2e...... 15292a2e.... 152c2b2e.... 15292a2e.... 152c2b2e.... 15292f2e.... 152c302e.... 15292f2e.... 152c302e....
+]]
+
+MUSIC3 = [[NAM ending
+PATLIST 3 4 5 6 7 8 14 15 16 17 18 19 20 22 23 24 25 26 27 28 29 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63
+SEQ2 313435...... 31033435.... 31323435.... 31333435.... 31323435.... 31333435.... 000134...... 000234...... 000134...... 000434......
 ]]
