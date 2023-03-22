@@ -424,6 +424,13 @@ Here the song is named "title screen". It uses 5 patterns number 56, 57, 58, 59 
 * The second sequence plays pattern 1 (57) on channel 1, 3 (59) on channel 2, 4 (60) on channel 3.
 * The last 3 channels are not used and can be used to play other sound effects (using the `play_pattern` function while the music is playing.
 
+If you have more than 16 patterns, a single hexadecimal digit is not enough. You can then use SEQ2 instead of SEQ where each pattern index is a 2 digits hex number :
+
+```
+SEQ2 000204...... 010304......
+```
+
+
 * `play_music(id, channel_mask)` : play a music. The channel_mask defines the channels to be used to play the music patterns. There must be enough channel to play all the simultaneous patterns in a sequence.
 
 For example with the previous song, which requires 3 channels, you can use the binary mask 111 = 7. This would result in the song using the channels 0,1,2.
