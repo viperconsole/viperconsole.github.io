@@ -47,6 +47,7 @@ local LAYER_ICO4 <const> = 5
 local LAYER_LANDSCAPE1 <const> = 6
 local LAYER_LANDSCAPE2 <const> = 7
 local LAYER_LANDSCAPE3 <const> = 8
+local LAYER_BITMAP <const> = 9
 local LAYER_PIX <const> = 10
 local LAYER_FADE2WHITE <const> = 11
 local LAYER_FADE2BLACK <const> = 12
@@ -102,6 +103,7 @@ function init()
     gfx.load_img(LAYER_LANDSCAPE1,"demo/land1.png")
     gfx.load_img(LAYER_LANDSCAPE2,"demo/land2.png")
     gfx.load_img(LAYER_LANDSCAPE3,"demo/land3.png")
+    gfx.load_img(LAYER_BITMAP,"demo/pic1.png")
     for layer=LAYER_ICO1,LAYER_ICO4 do
         gfx.set_layer_operation(layer, gfx.LAYEROP_ADD)
         gfx.show_layer(layer)
@@ -659,7 +661,7 @@ function update_landscape()
         gfx.show_layer(LAYER_LANDSCAPE3)
     end
     local w,h = gfx.get_layer_size(LAYER_LANDSCAPE1)
-    local offt=math.min(1,t/(t+remt-10))
+    local offt=math.min(1,t/(t+remt-26))
     local offease=0.98
     local coef=offease/0.9
     local offx=offt <= 0.9 and (w-gfx.SCREEN_WIDTH)*offt*coef or ease_out_cubic(offt-0.9,(w-gfx.SCREEN_WIDTH)*offease,(w-gfx.SCREEN_WIDTH)*(1-offease),0.1)
@@ -676,10 +678,37 @@ function render_landscape()
 
 end
 
-local UPDATES <const> = {update_landscape,update_checkerboard,update_ico,update_tunnel,update_moire,nil,update_moire2,nil}
-local RENDERS <const> = {render_landscape,render_moire, render_ico, render_tunnel,render_moire,render_4hits,render_moire,nil}
-local TRANS <const> = {nil,"fade2black",nil,"fade2white",nil,"panRight",nil}
-local TIMES <const> = {35,3,27,15,17,2,28,1000}
+function update_title()
+end
+
+function render_title()
+end
+
+function update_werewolf()
+end
+
+function render_werewolf()
+    gfx.set_sprite_layer(LAYER_BITMAP)
+    gfx.blit(0,0,gfx.SCREEN_WIDTH,gfx.SCREEN_HEIGHT,0,0,255,255,255)
+    if remt <= 1.0 then
+        local ct = ease_in_cubic(1-remt,0,1,1)
+        local y1=(2*gfx.SCREEN_HEIGHT/3)*ct
+        local y2=gfx.SCREEN_HEIGHT-(gfx.SCREEN_HEIGHT/3-5)*ct
+        gfx.rectangle(0,0,gfx.SCREEN_WIDTH, y1,0,0,1)
+        gfx.rectangle(0,y2,gfx.SCREEN_WIDTH, gfx.SCREEN_HEIGHT-y2,0,0,1)
+        gfx.set_active_layer(LAYER_FADE2WHITE)
+        gfx.clear(0,0,1)
+        local rgb=math.min(255,math.floor(ct*255))
+        gfx.rectangle(0,y1,gfx.SCREEN_WIDTH,y2-y1+1,rgb,rgb,rgb)
+        gfx.set_active_layer(0)
+    end
+end
+
+local UPDATES <const> =   {update_title,update_landscape,update_werewolf,update_checkerboard,update_ico,  update_tunnel,update_moire,nil,         update_moire2,nil}
+local RENDERS <const> =   {render_title,render_landscape,render_werewolf,render_moire,       render_ico,  render_tunnel,render_moire,render_4hits,render_moire, nil}
+local TRANS_IN <const> =  {nil,         "fadefromblack", "fadefromwhite",nil,                nil,         nil,          nil,         nil,         nil,          nil}
+local TRANS_OUT <const> = {"fade2black","fade2white",    nil,            nil,                "fade2black",nil,          "fade2white",nil,         "panRight",   nil}
+local TIMES <const> =     {2,           69,              11,             3,                  27,          15,           17,          2,           28,           1000}
 
 function update()
     if inp.key_pressed(inp.KEY_SPACE) then
@@ -705,6 +734,7 @@ function update()
                 gfx.hide_layer(layer)
             end
             gfx.set_active_layer(0)
+            gfx.set_sprite_layer(LAYER_PIX)
         end
         remticks=TIMES[fx]*60-tick
         remt = TIMES[fx]-t
@@ -717,18 +747,34 @@ end
 
 function render()
     gfx.clear()
-    trans=TRANS[fx]
+    trans_in=TRANS_IN[fx]
+    trans_out=TRANS_OUT[fx]
     if RENDERS[fx] then
         RENDERS[fx]()
     end
-    if trans and remt < 1 then
-        if trans == "fade2white" then
+    if trans_in and t < 1 then
+        if trans_in == "fadefromwhite" then
+            gfx.show_layer(LAYER_FADE2WHITE)
+            gfx.set_active_layer(LAYER_FADE2WHITE)
+            local rgb=math.min(255,math.floor((1-t)*255))
+            gfx.clear(rgb,rgb,rgb)
+            gfx.set_active_layer(0)
+        elseif trans_in == "fadefromblack" then
+            gfx.show_layer(LAYER_FADE2BLACK)
+            gfx.set_active_layer(LAYER_FADE2BLACK)
+            local rgb=math.max(1,math.floor(t*255))
+            gfx.clear(rgb,rgb,rgb)
+            gfx.set_active_layer(0)
+        end
+    end
+    if trans_out and remt < 1 then
+        if trans_out == "fade2white" then
             gfx.show_layer(LAYER_FADE2WHITE)
             gfx.set_active_layer(LAYER_FADE2WHITE)
             local rgb=math.min(255,math.floor((1-remt)*255))
             gfx.clear(rgb,rgb,rgb)
             gfx.set_active_layer(0)
-        elseif trans == "fade2black" then
+        elseif trans_out == "fade2black" then
             gfx.show_layer(LAYER_FADE2BLACK)
             gfx.set_active_layer(LAYER_FADE2BLACK)
             local rgb=math.max(1,math.floor(remt*255))
