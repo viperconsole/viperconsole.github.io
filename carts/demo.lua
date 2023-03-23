@@ -48,9 +48,10 @@ local LAYER_LANDSCAPE1 <const> = 6
 local LAYER_LANDSCAPE2 <const> = 7
 local LAYER_LANDSCAPE3 <const> = 8
 local LAYER_BITMAP <const> = 9
-local LAYER_PIX <const> = 10
-local LAYER_FADE2WHITE <const> = 11
-local LAYER_FADE2BLACK <const> = 12
+local LAYER_BITMAP2 <const> = 10
+local LAYER_PIX <const> = 11
+local LAYER_FADE2WHITE <const> = 12
+local LAYER_FADE2BLACK <const> = 13
 fx=1
 t=0
 remt=0
@@ -104,6 +105,7 @@ function init()
     gfx.load_img(LAYER_LANDSCAPE2,"demo/land2.png")
     gfx.load_img(LAYER_LANDSCAPE3,"demo/land3.png")
     gfx.load_img(LAYER_BITMAP,"demo/pic1.png")
+    gfx.load_img(LAYER_BITMAP2,"demo/pic2.png")
     for layer=LAYER_ICO1,LAYER_ICO4 do
         gfx.set_layer_operation(layer, gfx.LAYEROP_ADD)
         gfx.show_layer(layer)
@@ -295,7 +297,11 @@ function update_moire2()
 end
 
 function render_moire()
-    local x = (trans=="panRight" and remt < 1.0) and (1.0-remt)*gfx.SCREEN_WIDTH or 0
+    local x = 0
+    if mode.name=="moire2" and remt < 1.0 then
+        x =(1.0-remt)*gfx.SCREEN_WIDTH
+    end
+
     gfx.blit(0,0,LW,LH,x,0,255,255,255,nil,gfx.SCREEN_WIDTH,gfx.SCREEN_HEIGHT)
 end
 
@@ -665,10 +671,10 @@ function update_landscape()
     local offease=0.98
     local coef=offease/0.9
     local offx=offt <= 0.9 and (w-gfx.SCREEN_WIDTH)*offt*coef or ease_out_cubic(offt-0.9,(w-gfx.SCREEN_WIDTH)*offease,(w-gfx.SCREEN_WIDTH)*(1-offease),0.1)
-    local offx2 = offt <= 0.9 and -120+240*offt*coef or ease_out_cubic(offt-0.9,-120+240*offease,240*(1-offease),0.1)
+    local offx2 = offt <= 0.9 and -240+480*offt*coef or ease_out_cubic(offt-0.9,-240+480*offease,480*(1-offease),0.1)
     gfx.set_layer_offset(LAYER_LANDSCAPE1,offx*0.7,0)
     gfx.set_layer_offset(LAYER_LANDSCAPE2,offx,0)
-    gfx.set_layer_offset(LAYER_LANDSCAPE3,offx*1.7,0)
+    gfx.set_layer_offset(LAYER_LANDSCAPE3,offx*2.57,0)
     gfx.set_rowscroll(LAYER_LANDSCAPE2,0,119,0)
     gfx.set_rowscroll(LAYER_LANDSCAPE2,120,190,0,offx2)
     gfx.set_rowscroll(LAYER_LANDSCAPE2,191,224,0)
@@ -704,11 +710,151 @@ function render_werewolf()
     end
 end
 
-local UPDATES <const> =   {update_title,update_landscape,update_werewolf,update_checkerboard,update_ico,  update_tunnel,update_moire,nil,         update_moire2,nil}
-local RENDERS <const> =   {render_title,render_landscape,render_werewolf,render_moire,       render_ico,  render_tunnel,render_moire,render_4hits,render_moire, nil}
-local TRANS_IN <const> =  {nil,         "fadefromblack", "fadefromwhite",nil,                nil,         nil,          nil,         nil,         nil,          nil}
-local TRANS_OUT <const> = {"fade2black","fade2white",    nil,            nil,                "fade2black",nil,          "fade2white",nil,         "panRight",   nil}
-local TIMES <const> =     {2,           69,              11,             3,                  27,          15,           17,          2,           28,           1000}
+function render_troll()
+    if first then
+        gfx.show_layer(LAYER_FADE2WHITE)
+    end
+    gfx.set_sprite_layer(LAYER_BITMAP2)
+    if remt > 1 then
+        local x=t < 1 and gfx.SCREEN_WIDTH*ease_out_bounce(t,1,-1,1) or 0
+        gfx.blit(0,0,gfx.SCREEN_WIDTH,gfx.SCREEN_HEIGHT,x,0,255,255,255)
+    elseif remt > 0.5 then
+        local coef = ease_out_cubic(2*(1-remt),0,1,1)
+        local h=gfx.SCREEN_HEIGHT+(10-gfx.SCREEN_HEIGHT) * coef
+        local y=(gfx.SCREEN_HEIGHT-h)/2
+        gfx.blit(0,0,gfx.SCREEN_WIDTH,gfx.SCREEN_HEIGHT,0,y,255,255,255,nil,nil,h)
+        gfx.set_active_layer(LAYER_FADE2WHITE)
+        if remt > 1-1/60 then
+            gfx.clear(255,255,255)
+        else
+            gfx.clear(0,0,1)
+            local rgb=math.min(255,math.floor(coef*255))
+            gfx.rectangle(80,y,gfx.SCREEN_WIDTH-160,h,rgb,rgb,rgb)
+        end
+        gfx.set_active_layer(0)
+    elseif remt > 0.25 then
+        gfx.set_active_layer(LAYER_FADE2WHITE)
+        gfx.clear(0,0,1)
+        gfx.set_active_layer(0)
+        local h=math.max(1,40*(remt-0.25))
+        local y=(gfx.SCREEN_HEIGHT-h)/2
+        gfx.rectangle(80,y,224,h,255,255,255)
+    elseif remt > 0.125 then
+        local w=224*(remt-0.125)*8
+        local x=(gfx.SCREEN_WIDTH-w)/2
+        gfx.line(x,112,x+w,112,255,255,255)
+    else
+        local rgb=(1-remt*8)*255
+        gfx.rectangle(192,112,1,1,rgb,rgb,rgb)
+    end
+    if t > 0.3 and t < 0.6 then
+        gfx.set_active_layer(LAYER_FADE2WHITE)
+        local rgb=math.min(255,math.floor((0.6-t)/0.3*255))
+        gfx.clear(rgb,rgb,rgb)
+        gfx.set_active_layer(0)
+    end
+end
+
+function fade_to_black()
+    gfx.show_layer(LAYER_FADE2BLACK)
+    gfx.set_active_layer(LAYER_FADE2BLACK)
+    local rgb=math.max(1,math.floor(remt*255))
+    gfx.clear(rgb,rgb,rgb)
+    gfx.set_active_layer(0)
+end
+function fade_from_black()
+    gfx.show_layer(LAYER_FADE2BLACK)
+    gfx.set_active_layer(LAYER_FADE2BLACK)
+    local rgb=math.max(1,math.floor(t*255))
+    gfx.clear(rgb,rgb,rgb)
+    gfx.set_active_layer(0)
+end
+function fade_to_white()
+    gfx.show_layer(LAYER_FADE2WHITE)
+    gfx.set_active_layer(LAYER_FADE2WHITE)
+    local rgb=math.min(255,math.floor((1-remt)*255))
+    gfx.clear(rgb,rgb,rgb)
+    gfx.set_active_layer(0)
+end
+function fade_from_white()
+    gfx.show_layer(LAYER_FADE2WHITE)
+    gfx.set_active_layer(LAYER_FADE2WHITE)
+    local rgb=math.min(255,math.floor((1-t)*255))
+    gfx.clear(rgb,rgb,rgb)
+    gfx.set_active_layer(0)
+end
+
+modes = {
+    {
+        name="title",
+        update=update_title,
+        render=render_title,
+        trans_out=fade_to_black,
+        duration=2
+    },
+    {
+        name="landscape",
+        update=update_landscape,
+        render=render_landscape,
+        trans_in=fade_from_black,
+        trans_out=fade_to_white,
+        duration=69
+    },
+    {
+        name="werewolf",
+        render=render_werewolf,
+        trans_in=fade_from_white,
+        duration=11
+    },
+    {
+        name="checkboard",
+        update=update_checkerboard,
+        render=render_moire,
+        duration=3
+    },
+    {
+        name="rhombo",
+        update=update_ico,
+        render=render_ico,
+        trans_out=fade_to_black,
+        duration=27
+    },
+    {
+        name="tunnel",
+        update=update_tunnel,
+        render=render_tunnel,
+        duration=15
+    },
+    {
+        name="moire",
+        update=update_moire,
+        render=render_moire,
+        trans_out=fade_to_white,
+        duration=17
+    },
+    {
+        name="hits",
+        render=render_4hits,
+        duration=2
+    },
+    {
+        name="moire2",
+        update=update_moire2,
+        render=render_moire,
+        duration=28
+    },
+    {
+        name="troll",
+        render=render_troll,
+        duration=10,
+    },
+    {
+        name="endless end",
+        duration=1000
+    }
+
+}
+mode=modes[fx]
 
 function update()
     if inp.key_pressed(inp.KEY_SPACE) then
@@ -717,17 +863,19 @@ function update()
     if not pause then
         t=t + 1/60
         tick=tick+1
-        if t >= TIMES[fx] then
+        if t >= mode.duration then
             t=0
             tick=0
             first=true
             fx=fx+1
+            mode=modes[fx]
             gfx.clear()
             gfx.hide_layer(LAYER_FADE2WHITE)
             gfx.hide_layer(LAYER_FADE2BLACK)
             gfx.hide_layer(LAYER_LANDSCAPE1)
             gfx.hide_layer(LAYER_LANDSCAPE2)
             gfx.hide_layer(LAYER_LANDSCAPE3)
+            gfx.clear_scroll(LAYER_LANDSCAPE2)
             for layer=LAYER_ICO1,LAYER_ICO4 do
                 gfx.set_active_layer(layer)
                 gfx.clear(0,0,0)
@@ -736,54 +884,28 @@ function update()
             gfx.set_active_layer(0)
             gfx.set_sprite_layer(LAYER_PIX)
         end
-        remticks=TIMES[fx]*60-tick
-        remt = TIMES[fx]-t
-        if UPDATES[fx] then
-            UPDATES[fx]()
+        remticks=mode.duration*60-tick
+        remt = mode.duration-t
+        if mode.update then
+            mode.update()
         end
-        first=false
     end
 end
 
 function render()
     gfx.clear()
-    trans_in=TRANS_IN[fx]
-    trans_out=TRANS_OUT[fx]
-    if RENDERS[fx] then
-        RENDERS[fx]()
+    if mode.render then
+        mode.render()
     end
-    if trans_in and t < 1 then
-        if trans_in == "fadefromwhite" then
-            gfx.show_layer(LAYER_FADE2WHITE)
-            gfx.set_active_layer(LAYER_FADE2WHITE)
-            local rgb=math.min(255,math.floor((1-t)*255))
-            gfx.clear(rgb,rgb,rgb)
-            gfx.set_active_layer(0)
-        elseif trans_in == "fadefromblack" then
-            gfx.show_layer(LAYER_FADE2BLACK)
-            gfx.set_active_layer(LAYER_FADE2BLACK)
-            local rgb=math.max(1,math.floor(t*255))
-            gfx.clear(rgb,rgb,rgb)
-            gfx.set_active_layer(0)
-        end
+    if mode.trans_in and t < 1 then
+        mode.trans_in()
     end
-    if trans_out and remt < 1 then
-        if trans_out == "fade2white" then
-            gfx.show_layer(LAYER_FADE2WHITE)
-            gfx.set_active_layer(LAYER_FADE2WHITE)
-            local rgb=math.min(255,math.floor((1-remt)*255))
-            gfx.clear(rgb,rgb,rgb)
-            gfx.set_active_layer(0)
-        elseif trans_out == "fade2black" then
-            gfx.show_layer(LAYER_FADE2BLACK)
-            gfx.set_active_layer(LAYER_FADE2BLACK)
-            local rgb=math.max(1,math.floor(remt*255))
-            gfx.clear(rgb,rgb,rgb)
-            gfx.set_active_layer(0)
-        end
+    if mode.trans_out and remt < 1 then
+        mode.trans_out()
     end
     local fps=gfx.fps()
     gfx.print(gfx.FONT_5X7, string.format("%3.2f %d fps",t,fps),20,5,1,1,1)
     gfx.print(gfx.FONT_5X7, string.format("%3.2f %d fps",t,fps),22,7,1,1,1)
     gfx.print(gfx.FONT_5X7, string.format("%3.2f %d fps",t,fps),21,6,255,255,255)
+    first=false
 end
