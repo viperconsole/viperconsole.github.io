@@ -44,6 +44,9 @@ local LAYER_ICO1 <const> = 2
 local LAYER_ICO2 <const> = 3
 local LAYER_ICO3 <const> = 4
 local LAYER_ICO4 <const> = 5
+local LAYER_LANDSCAPE1 <const> = 6
+local LAYER_LANDSCAPE2 <const> = 7
+local LAYER_LANDSCAPE3 <const> = 8
 local LAYER_PIX <const> = 10
 local LAYER_FADE2WHITE <const> = 11
 local LAYER_FADE2BLACK <const> = 12
@@ -96,6 +99,9 @@ function init()
     gfx.set_sprite_layer(LAYER_PIX)
     gfx.set_layer_operation(LAYER_FADE2WHITE,gfx.LAYEROP_ADD)
     gfx.set_layer_operation(LAYER_FADE2BLACK,gfx.LAYEROP_MULTIPLY)
+    gfx.load_img(LAYER_LANDSCAPE1,"demo/land1.png")
+    gfx.load_img(LAYER_LANDSCAPE2,"demo/land2.png")
+    gfx.load_img(LAYER_LANDSCAPE3,"demo/land3.png")
     for layer=LAYER_ICO1,LAYER_ICO4 do
         gfx.set_layer_operation(layer, gfx.LAYEROP_ADD)
         gfx.show_layer(layer)
@@ -646,10 +652,34 @@ function render_ico()
     end
 end
 
-local UPDATES <const> = {update_checkerboard,update_ico,update_tunnel,update_moire,nil,update_moire2,nil}
-local RENDERS <const> = {render_moire, render_ico, render_tunnel,render_moire,render_4hits,render_moire,nil}
+function update_landscape()
+    if first then
+        gfx.show_layer(LAYER_LANDSCAPE1)
+        gfx.show_layer(LAYER_LANDSCAPE2)
+        gfx.show_layer(LAYER_LANDSCAPE3)
+    end
+    local w,h = gfx.get_layer_size(LAYER_LANDSCAPE1)
+    local offt=math.min(1,t/(t+remt-10))
+    local offease=0.98
+    local coef=offease/0.9
+    local offx=offt <= 0.9 and (w-gfx.SCREEN_WIDTH)*offt*coef or ease_out_cubic(offt-0.9,(w-gfx.SCREEN_WIDTH)*offease,(w-gfx.SCREEN_WIDTH)*(1-offease),0.1)
+    local offx2 = offt <= 0.9 and -120+240*offt*coef or ease_out_cubic(offt-0.9,-120+240*offease,240*(1-offease),0.1)
+    gfx.set_layer_offset(LAYER_LANDSCAPE1,offx*0.7,0)
+    gfx.set_layer_offset(LAYER_LANDSCAPE2,offx,0)
+    gfx.set_layer_offset(LAYER_LANDSCAPE3,offx*1.7,0)
+    gfx.set_rowscroll(LAYER_LANDSCAPE2,0,119,0)
+    gfx.set_rowscroll(LAYER_LANDSCAPE2,120,190,0,offx2)
+    gfx.set_rowscroll(LAYER_LANDSCAPE2,191,224,0)
+end
+
+function render_landscape()
+
+end
+
+local UPDATES <const> = {update_landscape,update_checkerboard,update_ico,update_tunnel,update_moire,nil,update_moire2,nil}
+local RENDERS <const> = {render_landscape,render_moire, render_ico, render_tunnel,render_moire,render_4hits,render_moire,nil}
 local TRANS <const> = {nil,"fade2black",nil,"fade2white",nil,"panRight",nil}
-local TIMES <const> = {3,27,15,17,2,28,1000}
+local TIMES <const> = {35,3,27,15,17,2,28,1000}
 
 function update()
     if inp.key_pressed(inp.KEY_SPACE) then
@@ -666,6 +696,9 @@ function update()
             gfx.clear()
             gfx.hide_layer(LAYER_FADE2WHITE)
             gfx.hide_layer(LAYER_FADE2BLACK)
+            gfx.hide_layer(LAYER_LANDSCAPE1)
+            gfx.hide_layer(LAYER_LANDSCAPE2)
+            gfx.hide_layer(LAYER_LANDSCAPE3)
             for layer=LAYER_ICO1,LAYER_ICO4 do
                 gfx.set_active_layer(layer)
                 gfx.clear(0,0,0)
