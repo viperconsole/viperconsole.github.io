@@ -13,13 +13,23 @@ local flr = math.floor
 local max = math.max
 local min = math.min
 local abs = math.abs
-local cos = math.cos
-local sin = math.sin
 local ceil = math.ceil
 local sqrt = math.sqrt
 local chr = string.char
 local sub = string.sub
 local tostr = tostring
+
+function sin(v)
+    return math.sin(from_pico_angle(v))
+end
+
+function cos(v)
+    return math.cos(from_pico_angle(v))
+end
+
+function from_pico_angle(v)
+    return v < 0.5 and -v * 2 * math.pi or (1 - v) * 2 * math.pi
+end
 
 col = function(r, g, b)
     return {
@@ -61,6 +71,12 @@ function btnp(num)
         return inp.action1_pressed()
     elseif num == 5 then
         return inp.action2_pressed()
+    elseif num == inp.KEY_LSHIFT or num == inp.KEY_RSHIFT or num == inp.KEY_LEFT or num == inp.KEY_RIGHT or num == inp.KEY_X or num == inp.KEY_C then
+        return inp.key_pressed(num)
+    elseif num == inp.XBOX360_LB or num == inp.XBOX360_RB then
+        return inp.pad_button_pressed(1,num)
+    elseif num == inp.MOUSE_LEFT or num == inp.MOUSE_RIGHT then
+        return inp.mouse_button_pressed(num)
     end
 end
 
@@ -209,12 +225,17 @@ function sspr(sx, sy, sw, sh, dx, dy, dw, dh, hflip, vflip)
 	gfx.blit(sx, sy, sw, sh,
 		X_OFFSET + dx, Y_OFFSET + dy, 255, 255, 255, nil, dw, dh, hflip, vflip)
 end
+function sspr_col(sx, sy, sw, sh, dx, dy, dw, dh, hflip, vflip, col)
+    local c=PAL[col]
+	gfx.blit_col(sx, sy, sw, sh,
+		X_OFFSET + dx, Y_OFFSET + dy, c.r, c.g, c.b, nil, dw, dh, hflip, vflip)
+end
 
 function map()
     for x = 0, 15 do
         for y = 0,15 do
             local v = TILE_MAP[x + y * 128 + 1]
-            if v~=nil then
+            if v~=nil and v ~= 0 then
                 local spritex = (v % SPRITE_PER_ROW) * SPRITE_SIZE
                 local spritey = (v // SPRITE_PER_ROW) * SPRITE_SIZE
                 gfx.blit(spritex, spritey, SPRITE_SIZE, SPRITE_SIZE,
@@ -404,12 +425,13 @@ function read_highscores()
 end
 
 function write_highscores()
-    for i = 0, 9 do
-        for j = 1, 3 do
-            dset(i * 4 + j, highscores[i + 1][j])
-        end
-        dset(i * 4 + 4, highscores[i + 1].c)
-    end
+    -- TODO
+    -- for i = 0, 9 do
+    --     for j = 1, 3 do
+    --         dset(i * 4 + j, highscores[i + 1][j])
+    --     end
+    --     dset(i * 4 + 4, highscores[i + 1].c)
+    -- end
 end
 
 function toggle_music()
@@ -430,16 +452,19 @@ end
 -- #include draw/draw_collider.p8
 function draw_spr(_obj)
     local _spr = _obj.spr_coords
+    local col=4
     if _obj.hit > 0 and not transitioning then
         _spr = _obj.hit_spr_coords or _spr
         -- pal(_obj.unlit_col or 8, 9)
+        col=9
         _obj.hit = _obj.hit - 1
     elseif _obj.lit and not transitioning then
         -- pal(_obj.unlit_col or 8, 10)
+        col=10
     end
     local _off = _obj.origin:plus(_obj.spr_off)
     local _w, _h = _obj.spr_w, _obj.spr_h
-    sspr(_spr.x, _spr.y, _w, _h, _off.x, _off.y, _w, _h, _obj.flip_x, _obj.flip_y)
+    sspr_col(_spr.x, _spr.y, _w, _h, _off.x, _off.y, _w, _h, _obj.flip_x, _obj.flip_y,col)
     if not transitioning then
         -- pal()
     end
@@ -716,8 +741,8 @@ function init_launch()
     refuel_lights_lit = -1
     light_refuel_lights()
 
-    evt_disable_bonus(kickouts[2])
-    evt_disable_bonus(kickouts[3])
+    evt_disable_bonus({kickouts[2]})
+    evt_disable_bonus({kickouts[3]})
 
     reset_drain(left_drain)
     reset_drain(right_drain)
@@ -1331,15 +1356,16 @@ end
 
 function close_left_drain()
     reset_drain(left_drain)
-    add_to_queue(evt_close_drain, 30, left_drain)
+    add_to_queue(evt_close_drain, 30, {left_drain})
 end
 
 function close_right_drain()
     reset_drain(right_drain)
-    add_to_queue(evt_close_drain, 30, right_drain)
+    add_to_queue(evt_close_drain, 30, {right_drain})
 end
 
 function evt_close_drain(_d)
+    local _d=_d[1]
     if _d.light.lit then
         add(static_over, _d)
         add(always_colliders, _d)
@@ -1447,7 +1473,7 @@ function check_collision_with_target(_obj, _pin)
         if _obj.light.flashing then
             target_hunt_cnt = target_hunt_cnt + 1
             update_prog_light_group(pent_lights, target_hunt_cnt)
-            add_to_queue(evt_end_target_hunt, 1800, true)
+            add_to_queue(evt_end_target_hunt, 1800, {true})
             if target_hunt_cnt >= 5 then
                 evt_end_target_hunt()
                 increase_score(500, 1)
@@ -1469,7 +1495,7 @@ function check_collision_with_skillshot(_t, _pin)
             "skillshot!",
             t = 90
         })
-        evt_disable_bonus(_t)
+        evt_disable_bonus({_t})
         _t.hit = 7
         sfx(10)
     end
@@ -1524,7 +1550,7 @@ function check_collision_with_spinner(_s, _pin)
         evt_cycle_lights({spinner_lights, 1, 3, flr(60 / #spinner_lights)})
     end
     spinner.deactivated = true
-    add_to_queue(evt_reactivate, 30, spinner)
+    add_to_queue(evt_reactivate, 30, {spinner})
 end
 
 function update_spinner()
@@ -1602,7 +1628,7 @@ function check_collision_with_rollover(_r, _pin)
     end
 
     _r.deactivated = true
-    add_to_queue(evt_reactivate, 20, _r)
+    add_to_queue(evt_reactivate, 20, {_r})
     increase_score(1234)
     if _r.action ~= nil then
         _r.action(_r, _pin)
@@ -1651,7 +1677,7 @@ function group_elem_lit(_grp)
     flash_table(_grp.elements, 2, false)
 
     _grp.deactivated = true
-    add_to_queue(evt_reactivate, 65, _grp)
+    add_to_queue(evt_reactivate, 65, {_grp})
 
     _grp:all_lit_action()
 end
@@ -1667,7 +1693,7 @@ function shift_light(_r, _dir)
         add(_cpy, i.lit or false)
     end
     for i = 1, #_r do
-        evt_set_light({_r[mod(i + _dir, #_r)], _cpy[i]})
+        _r[mod(i + _dir, #_r)].lit = _cpy[i]
     end
 end
 
@@ -1725,17 +1751,18 @@ function check_collision_with_capture(_cap, _pin)
     if _cap.action ~= nil then
         _cap:action()
     end
-    add_to_queue(evt_eject_captured, 90, _cap)
+    add_to_queue(evt_eject_captured, 90, {_cap})
 end
 
 function evt_eject_captured(_cap)
     -- eject the ball
+    local _cap=_cap[1]
     _cap.captured_pinball.spd = _cap.output_vector:copy()
     _cap.captured_pinball.captured = false
     _cap.captured_pinball = nil
     _cap.bonus_timer = 0
-    evt_disable_bonus(_cap)
-    add_to_queue(evt_reactivate, 30, _cap)
+    evt_disable_bonus({_cap})
+    add_to_queue(evt_reactivate, 30, {_cap})
 end
 
 function draw_capture(_cap)
@@ -1815,14 +1842,14 @@ function evt_end_blastoff_mode()
     end
     blastoff_mode = false
     reset_light.lit = false
-    evt_reactivate(_cap)
+    evt_reactivate({_cap})
     del(ongoing_msgs, blastoff_msg)
     end_flash(_cap, false)
     end_flash_table(refuel_lights, false)
 end
 
 function start_target_hunt()
-    add_to_queue(evt_end_target_hunt, 1800, true)
+    add_to_queue(evt_end_target_hunt, 1800, {true})
     sfx(28)
     if not target_hunt then
         add(ongoing_msgs, target_hunt_msg)
@@ -1857,7 +1884,7 @@ function evt_end_target_hunt(_timeout)
     end
     del(ongoing_msgs, target_hunt_msg)
     target_hunt = false
-    if _timeout then
+    if _timeout and _timeout[1] then
         sfx(30, 2)
         target_hunt_cnt = 0
         update_prog_light_group(pent_lights, target_hunt_cnt)
@@ -2326,18 +2353,18 @@ function add_to_queue(_func, _delay, _args)
 end
 
 function evt_reactivate(_r)
-    _r.deactivated = false
+    _r[1].deactivated = false
 end
 
 function evt_disable_bonus(_o)
-    _o.bonus_enabled = false
-    end_flash(_o, false)
+    _o[1].bonus_enabled = false
+    end_flash(_o[1], false)
 end
 
 function enable_bonus(_o, _t)
     _o.bonus_enabled = true
     evt_flash({_o, -99, true})
-    add_to_queue(evt_disable_bonus, _t, _o)
+    add_to_queue(evt_disable_bonus, _t, {_o})
 end
 
 function evt_flash(args)
@@ -2499,10 +2526,10 @@ end
 
 function add_to_long(_long, _to_add, _offset)
     _offset = _offset or 0
-    _long[_offset + 1] = _long[_offset + 1] + _to_add
+    _long[_offset + 1] = _long[_offset + 1] + flr(_to_add)
     for i = _offset + 2, #_long do
         if _long[i - 1] >= 1000 then
-            _long[i] = _long[i] + flr(_long[i - 1] / 1000)
+            _long[i] = _long[i] + _long[i - 1] // 1000
             _long[i - 1] = _long[i - 1] % 1000
         end
     end
