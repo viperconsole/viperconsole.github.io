@@ -290,6 +290,8 @@ function init()
     f = 0
     gfx.load_img(1, "pinball/pinball.png")
     gfx.set_sprite_layer(1)
+    gfx.set_layer_operation(2,gfx.LAYEROP_ADD)
+    gfx.show_layer(2)
     version = "1.2.0"
     -- TODO
     -- cartdata("xietanu_terranovapinball_v1")
@@ -464,7 +466,10 @@ function draw_spr(_obj)
     end
     local _off = _obj.origin:plus(_obj.spr_off)
     local _w, _h = _obj.spr_w, _obj.spr_h
-    sspr_col(_spr.x, _spr.y, _w, _h, _off.x, _off.y, _w, _h, _obj.flip_x, _obj.flip_y,col)
+    sspr(_spr.x, _spr.y, _w, _h, _off.x, _off.y, _w, _h, _obj.flip_x, _obj.flip_y)
+    gfx.set_active_layer(2)
+    sspr_col(_spr.x, _spr.y, _w, _h, _off.x, _off.y, _w, _h, _obj.flip_x, _obj.flip_y,col == 4 and 0 or col)
+    gfx.set_active_layer(0)
     if not transitioning then
         -- pal()
     end
