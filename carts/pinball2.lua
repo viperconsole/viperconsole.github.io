@@ -9,6 +9,8 @@ local SPRING_BOUNCE <const> = 0.4
 local SPRING_LENGTH <const> = 38
 local SPRING_POS <const> = 408
 local WALL_BOUNCE <const> = 0.8
+local FLIPPER_BOUNCE <const> = 0.9
+local BUMPER_BOUNCE <const> = 2
 
 function v2d(x,y)
     return {x=x,y=y}
@@ -166,7 +168,9 @@ function init_pinball()
         spring=0,
         spring_col=nil,
         balls={},
-        ready_ball=nil
+        ready_ball=nil,
+        lflipper=nil,
+        rflipper=nil,
     }
     pinball.spring_col=add_wall_collider(281,SPRING_POS,275,SPRING_POS,SPRING_BOUNCE)
     add_ball(279,SPRING_POS-BALL_RADIUS)
@@ -178,13 +182,13 @@ function init_pinball()
         184,451,265,406,269,400,269,312,267,307,250,294,248,286,253,281,259,272,258,262,
         249,232,249,226,255,219,255,214,241,201,241,195,268,95
     },{ -- right gutter
-        185,419,240,388,250,376,251,323
+        185,418,240,388,250,376,251,323
     },{ --  left gutter
         18,323,18,374,21,382,80,418
     }, { -- left bumper
-        {x=65,bounce=5},375,46,322,42,320,38,322,36,363,40,369,63,382,66,382,65,375
+        {x=65,bounce=BUMPER_BOUNCE},375,46,322,42,320,38,322,36,363,40,369,63,382,66,382,65,375
     }, { -- right bumper
-        {x=223,bounce=5},322,201,377,203,381,208,383,231,368,233,364,233,324,230,320,225,319,223,322
+        {x=223,bounce=BUMPER_BOUNCE},322,201,377,203,381,208,383,231,368,233,364,233,324,230,320,225,319,223,322
     }}
     for i=1,#walls do
         local w=walls[i]
@@ -197,6 +201,17 @@ function init_pinball()
             end
         end
     end
+    pinball.lflipper={
+        collider=add_collider({v2d(7,0),v2d(39,22),v2d(38,25),v2d(35,26),v2d(1,10),v2d(0,4),v2d(7,0)},FLIPPER_BOUNCE,0)
+    }
+    pinball.rflipper={
+        collider=add_collider({v2d(7,0),v2d(39,22),v2d(38,25),v2d(35,26),v2d(1,10),v2d(0,4),v2d(7,0)},FLIPPER_BOUNCE,0)
+    }
+    pinball.lflipper.collider.pos=v2d(82,425)
+    pinball.lflipper.collider.origin=v2d(8,8)
+    pinball.rflipper.collider.pos=v2d(187,425)
+    pinball.rflipper.collider.origin=v2d(8,8)
+    pinball.rflipper.collider.hflip=true
 end
 function update_spring()
     local spring_spd=0
@@ -252,6 +267,12 @@ function render_pinball()
     gfx.blit(288,446,15,6,272,443-cam)
     gfx.blit(288,371,14,75,272,49-cam)
     gfx.set_sprite_layer(LAYER_FONTS)
+    -- debug colliders
+    -- for i=1,#pinball.colliders do
+    --     local b={old_pos=v2d(1000,1000),pos=v2d(1000,1000)}
+    --     local c=pinball.colliders[i]
+    --     c.collide(b,c)
+    -- end
 end
 
 flipper_sprites={
@@ -262,17 +283,21 @@ flipper_sprites={
 function render_lflipper()
     local spr=1 -- TODO
     local s=flipper_sprites[spr]
-    local y=419-cam-8
+    local pos=pinball.lflipper.collider.pos
+    local origin=pinball.lflipper.collider.origin
+    local y=pos.y-cam-origin.y
     if y < gfx.SCREEN_HEIGHT then
-        gfx.blit(s.x,s.y,s.w,s.h,82-8,y,nil,nil,nil,nil,nil,nil,false,false)
+        gfx.blit(s.x,s.y,s.w,s.h,pos.x-origin.x,y,nil,nil,nil,nil,nil,nil,false,false)
     end
 end
 function render_rflipper()
     local spr=1 -- TODO
     local s=flipper_sprites[spr]
-    local y=419-cam-8
+    local pos=pinball.rflipper.collider.pos
+    local origin=pinball.rflipper.collider.origin
+    local y=pos.y-cam-origin.y
     if y < gfx.SCREEN_HEIGHT then
-        gfx.blit(s.x,s.y,s.w,s.h,187-s.w,y,nil,nil,nil,nil,nil,nil,true,false)
+        gfx.blit(s.x,s.y,s.w,s.h,pos.x-s.w+origin.x,y,nil,nil,nil,nil,nil,nil,true,false)
     end
 end
 function render_spring(pos)
@@ -294,14 +319,13 @@ function render_ball(b)
 end
 
 function add_wall_collider(x1,y1,x2,y2,bounce_coef, bounce)
-    local col=add_collider(x1,y1,x2,y2)
+    return add_collider({v2d(x1,y1),v2d(x2,y2)},bounce_coef,bounce)
+end
+function add_collider(points,bounce_coef, bounce)
+    local col=points
     col.collide=collide_polygon
     col.bounce_coef=bounce_coef
     col.bounce = bounce or 0
-    return col
-end
-function add_collider(x1,y1,x2,y2)
-    local col={v2d(x1,y1),v2d(x2,y2)}
     table.insert(pinball.colliders,col)
     return col
 end
@@ -336,10 +360,7 @@ function update_ball(b)
             v2d_scale(new_spd, c.bounce_coef)
             if c.bounce > 0 then
                 v2d_scale(n,c.bounce)
-                print("OLD "..new_spd.x.." "..new_spd.y)
-                print("n "..n.x.." "..n.y)
                 new_spd=v2d_add(new_spd,n)
-                print("NEW "..new_spd.x.." "..new_spd.y)
             end
             b.spd=new_spd
         end
@@ -350,6 +371,25 @@ function collide_polygon(ball,poly)
     for i=2,#poly do
         local p1=poly[i-1]
         local p2=poly[i]
+        if poly.hflip then
+            p1=v2d(-p1.x,p1.y)
+            p2=v2d(-p2.x,p2.y)
+        end
+        if poly.origin then
+            if poly.hflip then
+                p1=v2d(p1.x+poly.origin.x,p1.y-poly.origin.y)
+                p2=v2d(p2.x+poly.origin.x,p2.y-poly.origin.y)
+            else
+                p1=v2d_sub(p1,poly.origin)
+                p2=v2d_sub(p2,poly.origin)
+            end
+        end
+        if poly.pos then
+            p1=v2d_add(p1,poly.pos)
+            p2=v2d_add(p2,poly.pos)
+        end
+        -- debug colliders
+        -- gfx.line(p1.x,p1.y-cam,p2.x,p2.y-cam,255,0,0)
         if collide_line(ball.old_pos, ball.pos, p1, p2) then
             return {p1,p2}
         end
