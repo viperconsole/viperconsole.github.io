@@ -170,23 +170,31 @@ function init_pinball()
     }
     pinball.spring_col=add_wall_collider(281,SPRING_POS,275,SPRING_POS,SPRING_BOUNCE)
     add_ball(279,SPRING_POS-BALL_RADIUS)
-    local walls={{
+    local walls={{ -- outer wall
         284,103,283,78,281,59,279,43,274,29,266,19,257,12,246,7,234,4,181,2,66,2,
         51,4,35,11,20,22,9,35,2,52,2,99,17,164,28,192,30,187,28,191,19,202,16,212,
         16,279,13,286,4,294,0,302,0,405,84,451
-    },{
+    },{ -- outer wall, bottom right part
         184,451,265,406,269,400,269,312,267,307,250,294,248,286,253,281,259,272,258,262,
         249,232,249,226,255,219,255,214,241,201,241,195,268,95
-    },{
+    },{ -- right gutter
         185,419,240,388,250,376,251,323
-    },{
+    },{ --  left gutter
         18,323,18,374,21,382,80,418
+    }, { -- left bumper
+        {x=65,bounce=5},375,46,322,42,320,38,322,36,363,40,369,63,382,66,382,65,375
+    }, { -- right bumper
+        {x=223,bounce=5},322,201,377,203,381,208,383,231,368,233,364,233,324,230,320,225,319,223,322
     }}
     for i=1,#walls do
         local w=walls[i]
         for j=0,#w/2-2 do
             local p=j*2+1
-            add_wall_collider(w[p],w[p+1],w[p+2],w[p+3],WALL_BOUNCE)
+            if type(w[p]) == "table" then
+                add_wall_collider(w[p].x,w[p+1],w[p+2],w[p+3],WALL_BOUNCE,w[p].bounce)
+            else
+                add_wall_collider(w[p],w[p+1],w[p+2],w[p+3],WALL_BOUNCE,0)
+            end
         end
     end
 end
@@ -285,10 +293,11 @@ function render_ball(b)
     end
 end
 
-function add_wall_collider(x1,y1,x2,y2,bounce_coef)
+function add_wall_collider(x1,y1,x2,y2,bounce_coef, bounce)
     local col=add_collider(x1,y1,x2,y2)
     col.collide=collide_polygon
     col.bounce_coef=bounce_coef
+    col.bounce = bounce or 0
     return col
 end
 function add_collider(x1,y1,x2,y2)
@@ -321,9 +330,17 @@ function update_ball(b)
             -- bounce
             local wall_line=v2d_sub(wall[2],wall[1])
             local n=v2d_perpendicular(v2d_norm(wall_line))
-            v2d_scale(n, 2*v2d_dot(b.spd,n))
-            local new_spd=v2d_sub(b.spd,n)
+            local sn=v2d_clone(n)
+            v2d_scale(sn, 2*v2d_dot(b.spd,sn))
+            local new_spd=v2d_sub(b.spd,sn)
             v2d_scale(new_spd, c.bounce_coef)
+            if c.bounce > 0 then
+                v2d_scale(n,c.bounce)
+                print("OLD "..new_spd.x.." "..new_spd.y)
+                print("n "..n.x.." "..n.y)
+                new_spd=v2d_add(new_spd,n)
+                print("NEW "..new_spd.x.." "..new_spd.y)
+            end
             b.spd=new_spd
         end
     end
