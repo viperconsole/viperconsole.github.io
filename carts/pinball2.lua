@@ -3,9 +3,19 @@ local LAYER_PINBALL_L1 <const> = 2
 local FONT_ZONE_H <const> = 32
 local BALL_FRICTION <const> = 0.995
 local BALL_GRAVITY <const> = 0.3
+local BALL_RADIUS <const> = 6
+local SPRING_BOUNCE <const> = 0.4
+local SPRING_LENGTH <const> = 38
+local SPRING_POS <const> = 408
 
 function v2d(x,y)
     return {x=x,y=y}
+end
+function v2d_add(a,b)
+    return v2d(a.x+b.x,a.y+b.y)
+end
+function v2d_sub(a,b)
+    return v2d(a.x-b.x,a.y-b.y)
 end
 function v2d_clone(v)
     return {x=v.x,y=v.y}
@@ -14,12 +24,29 @@ function v2d_scale(v,f)
     v.x = v.x*f
     v.y = v.y*f
 end
+function v2d_len2(v)
+    return v.x*v.x+v.y*v.y
+end
 function v2d_len(v)
     local l=v.x*v.x+v.y*v.y
     return math.sqrt(l)
 end
+function v2d_norm(v)
+    local l=v2d_len(v)
+    l = l==0 and 1 or l
+    return v2d(v.x/l,v.y/l)
+end
+function v2d_perpendicular(v)
+    return v2d(-v.y,v.x)
+end
+function v2d_dot(a,b)
+    return a.x*b.x+a.y*b.y
+end
 function clamp(v,min,max)
     return v < min and min or v > max and max or v
+end
+function sign(val)
+	return val > 0 and 1 or (val < 0 and -1 or 0)
 end
 
 function inp_lflip_pressed()
@@ -139,38 +166,37 @@ function init_pinball()
         balls={},
         ready_ball=nil
     }
-    table.spring_col=add_collider(275,446-38,281,446-38)
-    add_ball(279,446-38-6)
+    pinball.spring_col=add_wall_collider(281,SPRING_POS,275,SPRING_POS,SPRING_BOUNCE)
+    add_ball(279,SPRING_POS-BALL_RADIUS)
+end
+function update_spring()
+    local spring_spd=0
+    if inp.key(inp.KEY_DOWN) or inp.pad_button(1,inp.XBOX360_A) then
+        pinball.spring = math.min(22,pinball.spring+0.5)
+    elseif pinball.spring > 0 then
+        spring_spd = pinball.spring
+        pinball.spring=0
+    end
+    local spring_y=SPRING_POS + pinball.spring
+    pinball.spring_col[1].y=spring_y
+    pinball.spring_col[2].y=spring_y
+    return spring_y,spring_spd
 end
 function update_pinball()
+    local spring_y,spring_spd=update_spring()
+    if pinball.ready_ball and spring_spd > 0 then
+        local b=pinball.ready_ball
+        if b.pos.y >= spring_y-BALL_RADIUS then
+            b.pos.y = spring_y-BALL_RADIUS
+            b.spd.y = -spring_spd
+        end
+    end
     local lowest_ball=nil
     for i=1,#pinball.balls do
         local b=pinball.balls[i]
         update_ball(b)
         if lowest_ball == nil or b.pos.y > lowest_ball.pos.y then
             lowest_ball = b
-        end
-    end
-    local spring_spd=0
-    if inp.key(inp.KEY_DOWN) or inp.pad_button(1,inp.XBOX360_A) then
-        local old_spring=pinball.spring
-        pinball.spring = math.min(22,pinball.spring+0.5)
-    elseif pinball.spring > 0 then
-        spring_spd = pinball.spring
-        pinball.spring=0
-    end
-    local spring_y=446-38 + pinball.spring
-    table.spring_col.y1=spring_y
-    table.spring_col.y2=spring_y
-    if pinball.ready_ball then
-        local b=pinball.ready_ball
-        if b.pos.y > spring_y-6 then
-            local old_pos=b.pos.y
-            b.pos.y = spring_y-6
-            b.spd.y=-b.spd.y * 0.4
-            if spring_spd > 0 then
-                b.spd.y = -spring_spd
-            end
         end
     end
     local target=lowest_ball.pos.y-gfx.SCREEN_HEIGHT/2
@@ -211,9 +237,9 @@ function render_rflipper()
     end
 end
 function render_spring(pos)
-    local y=446-38-cam+pos
+    local y=SPRING_POS-cam+pos
     if y < gfx.SCREEN_HEIGHT then
-        gfx.blit(115,160,6,38,276,y)
+        gfx.blit(115,160,6,SPRING_LENGTH,276,y)
         local s=pos*5//22
         gfx.blit(121+s*8,168+s*4,8,30-s*4,275,y+8,nil,nil,nil,nil,nil,30-pos)
         gfx.set_sprite_layer(LAYER_PINBALL_L1)
@@ -222,14 +248,20 @@ function render_spring(pos)
     end
 end
 function render_ball(b)
-    local y=b.pos.y-6-cam
+    local y=b.pos.y-BALL_RADIUS-cam
     if y < gfx.SCREEN_HEIGHT and y > -12 then
-        gfx.blit(0,170,12,12,b.pos.x-6,y)
+        gfx.blit(0,170,12,12,b.pos.x-BALL_RADIUS,y)
     end
 end
 
+function add_wall_collider(x1,y1,x2,y2,bounce_coef)
+    local col=add_collider(x1,y1,x2,y2)
+    col.collide=collide_polygon
+    col.bounce_coef=bounce_coef
+    return col
+end
 function add_collider(x1,y1,x2,y2)
-    local col={x1=x1,y1=y1,x2=x2,y2=y2}
+    local col={v2d(x1,y1),v2d(x2,y2)}
     table.insert(pinball.colliders,col)
     return col
 end
@@ -248,6 +280,69 @@ function update_ball(b)
     b.old_pos.y=b.pos.y
     b.pos.x = b.pos.x + b.spd.x
     b.pos.y = b.pos.y + b.spd.y
+    for i=1,#pinball.colliders do
+        local c=pinball.colliders[i]
+        local wall=c.collide(b,c)
+        if wall then
+            -- revert to old position
+            b.pos.x=b.old_pos.x
+            b.pos.y=b.old_pos.y
+            -- bounce
+            local wall_line=v2d_sub(wall[2],wall[1])
+            local n=v2d_perpendicular(v2d_norm(wall_line))
+            v2d_scale(n, 2*v2d_dot(b.spd,n))
+            local new_spd=v2d_sub(b.spd,n)
+            v2d_scale(new_spd, c.bounce_coef)
+            b.spd=new_spd
+        end
+    end
+end
+
+function collide_polygon(ball,poly)
+    for i=2,#poly do
+        local p1=poly[i-1]
+        local p2=poly[i]
+        if collide_line(ball.old_pos, ball.pos, p1, p2) then
+            return {p1,p2}
+        end
+        local closest=closest_point_to_sphere(ball.pos,p1,p2)
+        local dist=v2d_len2(v2d_sub(closest,ball.pos))
+        if dist <= 36 then
+            return {p1, p2}
+        end
+    end
+end
+function closest_point_to_sphere(sph,p1,p2)
+    local l = v2d_sub(p1,sph)
+    local wall=v2d_sub(p2,p1)
+    local len2=v2d_len2(wall)
+    local nwall=v2d_norm(wall)
+    local dot = v2d_dot(l,nwall)
+    v2d_scale(nwall,dot)
+    return dot < 0 and p1 or dot > len2 and p2 or v2d_add(p1,nwall)
+end
+function calc_inf_line_abc(p1, p2)
+    local a = p2.y - p1.y
+    local b = p1.x - p2.x
+    local c = (p2.x * p1.y) - (p1.x * p2.y)
+    return a, b, c
+end
+function collide_line(ba1,ba2,li1,li2)
+    local a1,b1,c1=calc_inf_line_abc(ba1,ba2)
+    local a2,b2,c2=calc_inf_line_abc(li1,li2)
+    local d1 = (a1 * li1.x) + (b1 * li1.y) + c1
+    local d2 = (a1 * li2.x) + (b1 * li2.y) + c1
+    if sign(d1) == sign(d2) then
+        return false
+    end
+    local d1 = (a2 * ba1.x) + (b2 * ba1.y) + c2
+    local d2 = (a2 * ba2.x) + (b2 * ba2.y) + c2
+
+    if sign(d1) == sign(d2) then
+        return false
+    end
+
+    return true
 end
 
 function init()
