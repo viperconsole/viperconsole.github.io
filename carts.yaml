@@ -14,6 +14,9 @@ carts:
   - name: Witch Loves Bullets
     tags: [shooter,pico8]
     source: witch.lua
+  - name: Terra Nova Pinball
+    tags: [pinball,pico8]
+    source: pinball.lua
   - name: Super pitstop'93
     tags: [racing]
     source: pitstop.lua
@@ -26,3 +29,6 @@ carts:
   - name: tcod
     tags: [rpg,alpha]
     source: tcod.lua
+  - name: mansion
+    tags: [pinball,alpha]
+    source: pinball2.lua
