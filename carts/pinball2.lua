@@ -1,12 +1,14 @@
 local LAYER_FONTS <const> = 1
 local LAYER_PINBALL_L1 <const> = 2
 local FONT_ZONE_H <const> = 32
+local TABLE_HEIGHT <const> = 452
 local BALL_FRICTION <const> = 0.995
 local BALL_GRAVITY <const> = 0.3
 local BALL_RADIUS <const> = 6
 local SPRING_BOUNCE <const> = 0.4
 local SPRING_LENGTH <const> = 38
 local SPRING_POS <const> = 408
+local WALL_BOUNCE <const> = 0.8
 
 function v2d(x,y)
     return {x=x,y=y}
@@ -168,6 +170,25 @@ function init_pinball()
     }
     pinball.spring_col=add_wall_collider(281,SPRING_POS,275,SPRING_POS,SPRING_BOUNCE)
     add_ball(279,SPRING_POS-BALL_RADIUS)
+    local walls={{
+        284,103,283,78,281,59,279,43,274,29,266,19,257,12,246,7,234,4,181,2,66,2,
+        51,4,35,11,20,22,9,35,2,52,2,99,17,164,28,192,30,187,28,191,19,202,16,212,
+        16,279,13,286,4,294,0,302,0,405,84,451
+    },{
+        184,451,265,406,269,400,269,312,267,307,250,294,248,286,253,281,259,272,258,262,
+        249,232,249,226,255,219,255,214,241,201,241,195,268,95
+    },{
+        185,419,240,388,250,376,251,323
+    },{
+        18,323,18,374,21,382,80,418
+    }}
+    for i=1,#walls do
+        local w=walls[i]
+        for j=0,#w/2-2 do
+            local p=j*2+1
+            add_wall_collider(w[p],w[p+1],w[p+2],w[p+3],WALL_BOUNCE)
+        end
+    end
 end
 function update_spring()
     local spring_spd=0
@@ -195,6 +216,12 @@ function update_pinball()
     for i=1,#pinball.balls do
         local b=pinball.balls[i]
         update_ball(b)
+        if b.pos.y > TABLE_HEIGHT + BALL_RADIUS then
+            b.pos.x=279
+            b.pos.y=SPRING_POS-BALL_RADIUS
+            b.spd.x=0
+            b.spd.y=0
+        end
         if lowest_ball == nil or b.pos.y > lowest_ball.pos.y then
             lowest_ball = b
         end
@@ -213,6 +240,10 @@ function render_pinball()
     for i=1,#pinball.balls do
         render_ball(pinball.balls[i])
     end
+    gfx.set_sprite_layer(LAYER_PINBALL_L1)
+    gfx.blit(288,446,15,6,272,443-cam)
+    gfx.blit(288,371,14,75,272,49-cam)
+    gfx.set_sprite_layer(LAYER_FONTS)
 end
 
 flipper_sprites={
@@ -243,7 +274,7 @@ function render_spring(pos)
         local s=pos*5//22
         gfx.blit(121+s*8,168+s*4,8,30-s*4,275,y+8,nil,nil,nil,nil,nil,30-pos)
         gfx.set_sprite_layer(LAYER_PINBALL_L1)
-        gfx.blit(275,452-8,8,8,275,452-8-cam)
+        gfx.blit(275,TABLE_HEIGHT-8,8,8,275,TABLE_HEIGHT-8-cam)
         gfx.set_sprite_layer(LAYER_FONTS)
     end
 end
@@ -305,9 +336,9 @@ function collide_polygon(ball,poly)
         if collide_line(ball.old_pos, ball.pos, p1, p2) then
             return {p1,p2}
         end
-        local closest=closest_point_to_sphere(ball.pos,p1,p2)
-        local dist=v2d_len2(v2d_sub(closest,ball.pos))
-        if dist <= 36 then
+        local closest = closest_point_to_sphere(ball.pos,p1,p2)
+        local dist2 = v2d_len2(v2d_sub(closest,ball.pos))
+        if dist2 <= BALL_RADIUS*BALL_RADIUS then
             return {p1, p2}
         end
     end
