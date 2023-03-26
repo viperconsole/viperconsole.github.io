@@ -588,7 +588,28 @@ function draw_game()
             gprint(_m[i], 83, 31 + i * 8, 10)
         end
     end
-
+    -- draw colliders
+    -- for s in all(static_colliders) do
+    --     local c=s.simple_collider
+        -- local x1=X_OFFSET+c.x1
+        -- local y1=c.y1
+        -- local x2=X_OFFSET+c.x2
+        -- local y2=c.y2
+        -- gfx.line(x1,y1,x2,y1,255,0,0)
+        -- gfx.line(x1,y1,x1,y2,255,0,0)
+        -- gfx.line(x1,y2,x2,y2,255,0,0)
+        -- gfx.line(x2,y1,x2,y2,255,0,0)
+        -- c=s.collider
+        -- if c then
+        --     local oldp
+        --     for p in all(c) do
+        --         if oldp then
+        --             gfx.line(X_OFFSET+oldp.x,oldp.y,X_OFFSET+p.x,p.y,0,255,0)
+        --         end
+        --         oldp=p
+        --     end
+        -- end
+    -- end
 end
 
 function pass()

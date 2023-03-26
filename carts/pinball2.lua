@@ -1,6 +1,26 @@
 local LAYER_FONTS <const> = 1
 local LAYER_PINBALL_L1 <const> = 2
 local FONT_ZONE_H <const> = 32
+local BALL_FRICTION <const> = 0.995
+local BALL_GRAVITY <const> = 0.3
+
+function v2d(x,y)
+    return {x=x,y=y}
+end
+function v2d_clone(v)
+    return {x=v.x,y=v.y}
+end
+function v2d_scale(v,f)
+    v.x = v.x*f
+    v.y = v.y*f
+end
+function v2d_len(v)
+    local l=v.x*v.x+v.y*v.y
+    return math.sqrt(l)
+end
+function clamp(v,min,max)
+    return v < min and min or v > max and max or v
+end
 
 function inp_lflip_pressed()
     return inp.action1_pressed() or inp.pad_button_pressed(1,inp.XBOX360_LB)
@@ -114,16 +134,48 @@ end
 function init_pinball()
     pinball={
         colliders={},
-        spring=0
+        spring=0,
+        spring_col=nil,
+        balls={},
+        ready_ball=nil
     }
-    --add_collider()
+    table.spring_col=add_collider(275,446-38,281,446-38)
+    add_ball(279,446-38-6)
 end
 function update_pinball()
-    if inp.key(inp.KEY_DOWN) or inp.pad_button(1,inp.XBOX360_A) then
-        pinball.spring = math.min(22,pinball.spring+0.5)
-    else
-        pinball.spring = pinball.spring * 0.1
+    local lowest_ball=nil
+    for i=1,#pinball.balls do
+        local b=pinball.balls[i]
+        update_ball(b)
+        if lowest_ball == nil or b.pos.y > lowest_ball.pos.y then
+            lowest_ball = b
+        end
     end
+    local spring_spd=0
+    if inp.key(inp.KEY_DOWN) or inp.pad_button(1,inp.XBOX360_A) then
+        local old_spring=pinball.spring
+        pinball.spring = math.min(22,pinball.spring+0.5)
+    elseif pinball.spring > 0 then
+        spring_spd = pinball.spring
+        pinball.spring=0
+    end
+    local spring_y=446-38 + pinball.spring
+    table.spring_col.y1=spring_y
+    table.spring_col.y2=spring_y
+    if pinball.ready_ball then
+        local b=pinball.ready_ball
+        if b.pos.y > spring_y-6 then
+            local old_pos=b.pos.y
+            b.pos.y = spring_y-6
+            b.spd.y=-b.spd.y * 0.4
+            if spring_spd > 0 then
+                b.spd.y = -spring_spd
+            end
+        end
+    end
+    local target=lowest_ball.pos.y-gfx.SCREEN_HEIGHT/2
+    local cam_target=MAX_CAM * clamp(target/MAX_CAM,0,1)
+    cam = cam + (cam_target-cam)*0.5
 end
 function render_pinball()
     gfx.set_sprite_layer(LAYER_PINBALL_L1)
@@ -132,6 +184,9 @@ function render_pinball()
     render_lflipper()
     render_rflipper()
     render_spring(pinball.spring)
+    for i=1,#pinball.balls do
+        render_ball(pinball.balls[i])
+    end
 end
 
 flipper_sprites={
@@ -161,7 +216,38 @@ function render_spring(pos)
         gfx.blit(115,160,6,38,276,y)
         local s=pos*5//22
         gfx.blit(121+s*8,168+s*4,8,30-s*4,275,y+8,nil,nil,nil,nil,nil,30-pos)
+        gfx.set_sprite_layer(LAYER_PINBALL_L1)
+        gfx.blit(275,452-8,8,8,275,452-8-cam)
+        gfx.set_sprite_layer(LAYER_FONTS)
     end
+end
+function render_ball(b)
+    local y=b.pos.y-6-cam
+    if y < gfx.SCREEN_HEIGHT and y > -12 then
+        gfx.blit(0,170,12,12,b.pos.x-6,y)
+    end
+end
+
+function add_collider(x1,y1,x2,y2)
+    local col={x1=x1,y1=y1,x2=x2,y2=y2}
+    table.insert(pinball.colliders,col)
+    return col
+end
+function add_ball(x,y)
+    local pos=v2d(x,y)
+    table.insert(pinball.balls,{pos=pos,old_pos=v2d_clone(pos),spd=v2d(0,0),spd_mag=0})
+    if #pinball.balls == 1 then
+        pinball.ready_ball=pinball.balls[1]
+    end
+end
+function update_ball(b)
+    v2d_scale(b.spd, BALL_FRICTION)
+    b.spd.y = b.spd.y + BALL_GRAVITY
+    b.spd_mag=v2d_len(b.spd)
+    b.old_pos.x=b.pos.x
+    b.old_pos.y=b.pos.y
+    b.pos.x = b.pos.x + b.spd.x
+    b.pos.y = b.pos.y + b.spd.y
 end
 
 function init()
