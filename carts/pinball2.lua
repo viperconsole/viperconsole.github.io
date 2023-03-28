@@ -183,6 +183,12 @@ function update_game()
         mode.msg[2].msg=string.format("PLAYER %.0f",player.num)
         mode.msg[3].msg=string.format("BALLS  %.0f",player.rem_balls)
     end
+    if mode.rbump_timer then
+        mode.rbump_timer = mode.rbump_timer > 1 and mode.rbump_timer-1 or nil
+    end
+    if mode.lbump_timer then
+        mode.lbump_timer = mode.lbump_timer > 1 and mode.lbump_timer-1 or nil
+    end
 end
 
 function render_game()
@@ -208,7 +214,12 @@ function render_msg()
         end
     end
 end
-
+function cbk_rbumper()
+    mode.rbump_timer=15
+end
+function cbk_lbumper()
+    mode.lbump_timer=15
+end
 function init_pinball()
     pinball={
         colliders={},
@@ -231,16 +242,16 @@ function init_pinball()
         251,325,250,378,240,390,185,420
     },{ name="left gutter",
         82,419,21,382,18,374,18,323
-    }, { name="left bumper",bounce=BUMPER_BOUNCE,
+    }, { name="left bumper",bounce=BUMPER_BOUNCE,callback=cbk_lbumper,
         65,375,46,322,42,320,38,322,36,363,40,369,63,382,66,382,65,375
-    }, { name="right bumper",bounce=BUMPER_BOUNCE,
+    }, { name="right bumper",bounce=BUMPER_BOUNCE,callback=cbk_rbumper,
         223,322,201,377,203,381,208,383,231,368,233,364,233,324,230,320,225,319,223,322
     }}
     for i=1,#walls do
         local w=walls[i]
         for j=0,#w/2-2 do
             local p=j*2+1
-            add_wall_collider(w.name, w[p],w[p+1],w[p+2],w[p+3],WALL_BOUNCE,w.bounce or 0)
+            add_wall_collider(w.name, w[p],w[p+1],w[p+2],w[p+3],WALL_BOUNCE,w.bounce or 0,w.callback)
         end
     end
     pinball.launch_block=add_collider("launch block",{v2d(280,49),v2d(268,95)},WALL_BOUNCE,0,collide_polygon)
@@ -339,6 +350,12 @@ function render_pinball()
     gfx.set_sprite_layer(LAYER_PINBALL_L1)
     gfx.blit(288,446,15,6,272,443-cam)
     gfx.blit(288,371,14,75,272,49-cam)
+    if mode.rbump_timer then
+        gfx.blit(303,396,28,56,204,325-cam)
+    end
+    if mode.lbump_timer then
+        gfx.blit(302,342,22,54,42,325-cam)
+    end
     gfx.set_sprite_layer(LAYER_FONTS)
     if debug_colliders then
         for i=1,#pinball.colliders do
@@ -412,15 +429,16 @@ function render_ball(b)
     end
 end
 
-function add_wall_collider(name, x1,y1,x2,y2,bounce_coef, bounce)
-    return add_collider(name, {v2d(x1,y1),v2d(x2,y2)},bounce_coef,bounce,collide_polygon)
+function add_wall_collider(name, x1,y1,x2,y2,bounce_coef, bounce, cbk)
+    return add_collider(name, {v2d(x1,y1),v2d(x2,y2)},bounce_coef,bounce,collide_polygon,cbk)
 end
-function add_collider(name,points,bounce_coef, bounce, collide_fn)
+function add_collider(name,points,bounce_coef, bounce, collide_fn, cbk)
     local col=points
     col.name=name
     col.collide=collide_fn
     col.bounce_coef=bounce_coef
     col.bounce = bounce or 0
+    col.cbk=cbk
     table.insert(pinball.colliders,col)
     return col
 end
@@ -452,11 +470,14 @@ function update_ball(b)
         for i=1,#pinball.colliders do
             local c=pinball.colliders[i]
             if not c.disabled then
-                local wall,inter,spd=c.collide(b,c)
+                local idx,wall,inter,spd=c.collide(b,c)
                 if wall then
                     -- fix ball position
                     local wall_line=v2d_sub(wall[2],wall[1])
                     local n=v2d_perpendicular(v2d_norm(wall_line))
+                    if idx==1 and c.cbk then
+                        c.cbk()
+                    end
                     collides=true
                     -- bounce
                     if spd then
@@ -506,7 +527,7 @@ function collide_flipper(ball,flipper_col)
                 (flipper_col.hflip and spd_mag or -spd_mag) * math.sin(real_angle),
                 -spd_mag * math.cos(real_angle))
             flipper_col.cooldown=4
-            return wall,inter,spd_vec
+            return i-1,wall,inter,spd_vec
         end
     end
 end
@@ -522,12 +543,12 @@ function collide_polygon(ball,poly)
         if vlen > 0.1 then
             local inter=collide_line(ball.old_pos, ballp2, p1, p2)
             if inter then
-                return {p1,p2},inter
+                return i-1,{p1,p2},inter
             end
         end
         local wall,inter=collide_sphere(ball,p1,p2)
         if wall then
-            return wall,inter
+            return i-1,wall,inter
         end
     end
 end
