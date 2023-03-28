@@ -244,15 +244,15 @@ function init_pinball()
     pinball.spring_col=add_wall_collider("spring",285,SPRING_POS,272,SPRING_POS,SPRING_BOUNCE)
     add_ball(279,SPRING_POS-BALL_RADIUS)
     local walls={{ name="outer wall",
-        84,451,0,405,0,302,4,294,13,286,16,279,16,212,19,202,28,191,30,187,28,180,17,164,
-        2,99,2,52,9,35,20,22,35,11,51,4,66,2,181,2,234,4,246,7,257,12,266,19,274,29,279,43,281,59,283,78,284,103
+        84,451,0,405,0,312,18,283,19,275,4,261,3,255,30,209,31,200,2,99,2,52,9,35,20,22,35,11,51,4,
+        66,2,181,2,234,4,246,7,257,12,266,19,274,29,279,43,281,59,283,78,284,103
     },{ name="outer wall2",
         268,95,241,195,241,201,255,214,255,219,249,226,249,232,258,262,259,272,253,281,
         248,286,250,294,267,307,269,312,269,400,265,406,189,451
     },{ name="right gutter",
-        251,325,250,378,240,390,185,420
+        251,325,250,378,240,390,188,415
     },{ name="left gutter",
-        84,420,21,382,18,374,18,323
+        81,415,21,382,18,374,18,323
     }, { name="left bumper",bounce=BUMPER_BOUNCE,callback=cbk_lbumper,
         65,375,46,322,42,320,38,322,36,363,40,369,63,382,66,382,65,375
     }, { name="right bumper",bounce=BUMPER_BOUNCE,callback=cbk_rbumper,
@@ -282,18 +282,18 @@ function init_pinball()
     table.insert(pinball.rbumpers,add_round_collider("round bumper 3",219,83,RBUMPER_RADIUS,BUMPER_BOUNCE))
     pinball.launch_block=add_collider("launch block",{v2d(280,49),v2d(268,95)},WALL_BOUNCE,0,collide_polygon)
     pinball.launch_block.disabled=true
-    pinball.lflipper=add_collider("left flipper",{v2d(7,0),v2d(0,4),v2d(1,10),v2d(35,26),v2d(39,26),v2d(40,23),v2d(7,0)},FLIPPER_BOUNCE,0,collide_flipper)
-    pinball.rflipper=add_collider("right flipper",{v2d(7,0),v2d(40,23),v2d(39,26),v2d(35,26),v2d(1,10),v2d(0,4),v2d(7,0)},FLIPPER_BOUNCE,0,collide_flipper)
+    pinball.lflipper=add_collider("left flipper",{v2d(42,24),v2d(6,0),v2d(4,0),v2d(0,9),v2d(38,28),v2d(41,27),v2d(42,24)},FLIPPER_BOUNCE,0,collide_flipper)
+    pinball.rflipper=add_collider("right flipper",{v2d(6,0),v2d(42,24),v2d(41,27),v2d(38,28),v2d(0,9),v2d(4,0),v2d(6,0)},FLIPPER_BOUNCE,0,collide_flipper)
     pinball.lflipper.base_collider={}
     pinball.rflipper.base_collider={}
     for i=1,#pinball.lflipper do
         table.insert(pinball.lflipper.base_collider,v2d_clone(pinball.lflipper[i]))
         table.insert(pinball.rflipper.base_collider,v2d_clone(pinball.rflipper[i]))
     end
-    pinball.lflipper.pos=v2d(82,425)
+    pinball.lflipper.pos=v2d(81,421)
     pinball.lflipper.origin=v2d(6,6)
     pinball.lflipper.angle=0
-    pinball.rflipper.pos=v2d(187,425)
+    pinball.rflipper.pos=v2d(188,421)
     pinball.rflipper.origin=v2d(6,6)
     pinball.rflipper.hflip=true
     pinball.rflipper.angle=0
@@ -377,14 +377,12 @@ end
 function render_pinball()
     gfx.set_sprite_layer(LAYER_PINBALL_L1)
     gfx.blit(0,cam,gfx.SCREEN_WIDTH-96,gfx.SCREEN_HEIGHT,0,0)
-    gfx.set_sprite_layer(LAYER_FONTS)
     render_flipper(pinball.lflipper)
     render_flipper(pinball.rflipper)
     render_spring(pinball.spring)
     for i=1,#pinball.balls do
         render_ball(pinball.balls[i])
     end
-    gfx.set_sprite_layer(LAYER_PINBALL_L1)
     for i=1,#pinball.rbumpers do
         local b=pinball.rbumpers[i]
         if b.timer then
@@ -436,11 +434,11 @@ function update_flipper(flipper,inp_fn)
     end
 end
 flipper_sprites={
-    {x=0,y=143,w=40,h=27},
-    {x=40,y=143,w=43,h=19},
-    {x=83,y=143,w=44,h=12},
-    {x=40,y=143,w=43,h=19},
-    {x=0,y=143,w=40,h=27},
+    {x=288,y=263,w=43,h=29},
+    {x=331,y=263,w=46,h=20},
+    {x=331,y=283,w=48,h=12},
+    {x=331,y=263,w=46,h=20},
+    {x=288,y=263,w=43,h=29},
 }
 function render_flipper(flipper)
     local spr=clamp(5*flipper.angle//FLIPPER_MAX_ANGLE+1,1,5)
@@ -461,18 +459,16 @@ end
 function render_spring(pos)
     local y=SPRING_POS-cam+pos
     if y < gfx.SCREEN_HEIGHT then
-        gfx.blit(115,160,6,SPRING_LENGTH,276,y)
+        gfx.blit(300,225,6,SPRING_LENGTH,276,y)
         local s=pos*5//22
-        gfx.blit(121+s*8,168+s*4,8,30-s*4,275,y+8,nil,nil,nil,nil,nil,30-pos)
-        gfx.set_sprite_layer(LAYER_PINBALL_L1)
+        gfx.blit(306+s*8,233+s*4,8,30-s*4,275,y+8,nil,nil,nil,nil,nil,30-pos)
         gfx.blit(275,TABLE_HEIGHT-8,8,8,275,TABLE_HEIGHT-8-cam)
-        gfx.set_sprite_layer(LAYER_FONTS)
     end
 end
 function render_ball(b)
     local y=b.pos.y-BALL_RADIUS-cam
     if y < gfx.SCREEN_HEIGHT and y > -12 then
-        gfx.blit(0,170,12,12,b.pos.x-BALL_RADIUS,y)
+        gfx.blit(288,225,12,12,b.pos.x-BALL_RADIUS,y)
     end
 end
 function add_round_collider(name,x,y,r,bounce)
