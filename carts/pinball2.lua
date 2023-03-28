@@ -201,7 +201,7 @@ function init_pinball()
     },{ name="right gutter",
         251,325,250,378,240,390,185,420
     },{ name="left gutter",
-        80,418,21,382,18,374,18,323
+        82,419,21,382,18,374,18,323
     }, { name="left bumper",bounce=BUMPER_BOUNCE,
         65,375,46,322,42,320,38,322,36,363,40,369,63,382,66,382,65,375
     }, { name="right bumper",bounce=BUMPER_BOUNCE,
@@ -214,6 +214,8 @@ function init_pinball()
             add_wall_collider(w.name, w[p],w[p+1],w[p+2],w[p+3],WALL_BOUNCE,w.bounce or 0)
         end
     end
+    pinball.launch_block=add_collider("launch block",{v2d(280,49),v2d(268,95)},WALL_BOUNCE,0,collide_polygon)
+    pinball.launch_block.disabled=true
     pinball.lflipper=add_collider("left flipper",{v2d(7,0),v2d(0,4),v2d(1,10),v2d(35,26),v2d(39,26),v2d(40,23),v2d(7,0)},FLIPPER_BOUNCE,0,collide_flipper)
     pinball.rflipper=add_collider("right flipper",{v2d(7,0),v2d(40,23),v2d(39,26),v2d(35,26),v2d(1,10),v2d(0,4),v2d(7,0)},FLIPPER_BOUNCE,0,collide_flipper)
     pinball.lflipper.base_collider={}
@@ -245,11 +247,16 @@ function update_spring()
 end
 function update_pinball()
     local spring_y,spring_spd=update_spring()
-    if pinball.ready_ball and spring_spd > 0 then
+    if pinball.ready_ball then
         local b=pinball.ready_ball
-        if b.pos.y >= spring_y-BALL_RADIUS then
-            b.pos.y = spring_y-BALL_RADIUS
-            b.spd.y = -spring_spd
+        if spring_spd > 0 then
+            if b.pos.y >= spring_y-BALL_RADIUS then
+                b.pos.y = spring_y-BALL_RADIUS
+                b.spd.y = -spring_spd
+            end
+        elseif pinball.launch_block.collide(b,pinball.launch_block) then
+            pinball.ready_ball=nil
+            pinball.launch_block.disabled=false
         end
     end
     update_flipper(pinball.lflipper,inp_lflip)
@@ -258,11 +265,13 @@ function update_pinball()
     for i=1,#pinball.balls do
         local b=pinball.balls[i]
         update_ball(b)
-        if b.pos.y > TABLE_HEIGHT + BALL_RADIUS then
+        if pinball.ready_ball == nil and b.pos.y > TABLE_HEIGHT + BALL_RADIUS then
             b.pos.x=279
             b.pos.y=SPRING_POS-BALL_RADIUS
             b.spd.x=0
             b.spd.y=0
+            pinball.ready_ball=b
+            pinball.launch_block.disabled=true
         end
         if lowest_ball == nil or b.pos.y > lowest_ball.pos.y then
             lowest_ball = b
@@ -292,7 +301,7 @@ function render_pinball()
             for i=2,#c do
                 local p1=world_pos(c,i-1)
                 local p2=world_pos(c,i)
-                gfx.line(p1.x,p1.y-cam,p2.x,p2.y-cam,255,0,0)
+                gfx.line(p1.x,p1.y-cam,p2.x,p2.y-cam,c.disabled and 0 or 255,0,c.disabled and 255 or 0)
                 local v=v2d_norm(v2d_perpendicular(v2d_sub(p2,p1)))
                 gfx.line(p1.x,p1.y-cam,p1.x+v.x*3,p1.y+v.y*3-cam,0,255,0)
             end
@@ -397,36 +406,38 @@ function update_ball(b)
         spd=math.min(2,rem_spd)
         for i=1,#pinball.colliders do
             local c=pinball.colliders[i]
-            local wall,inter,spd=c.collide(b,c)
-            if wall then
-                -- fix ball position
-                local wall_line=v2d_sub(wall[2],wall[1])
-                local n=v2d_perpendicular(v2d_norm(wall_line))
-                collides=true
-                -- bounce
-                if spd then
-                    b.spd=v2d_add(b.spd,spd)
+            if not c.disabled then
+                local wall,inter,spd=c.collide(b,c)
+                if wall then
+                    -- fix ball position
+                    local wall_line=v2d_sub(wall[2],wall[1])
+                    local n=v2d_perpendicular(v2d_norm(wall_line))
+                    collides=true
+                    -- bounce
+                    if spd then
+                        b.spd=v2d_add(b.spd,spd)
+                        if debug_colliders then
+                            print(string.format("COLL %s new speed %.0f,%.0f",c.name, b.spd.x,b.spd.y))
+                        end
+                    else
+                        local sn=v2d_clone(n)
+                        v2d_scale(sn, 2*c.bounce_coef*v2d_dot(b.spd,n))
+                        local new_spd=v2d_sub(b.spd,sn)
+                        if c.bounce > 0 then
+                            v2d_scale(n,c.bounce)
+                            new_spd=v2d_add(new_spd,n)
+                        end
+                        if debug_colliders then
+                            print(string.format("COLL %s n %.0f %.0f sn %.0f %.0f spd %.0f,%.0f -> %.1f,%.1f",c.name,n.x,n.y,sn.x,sn.y,b.spd.x,b.spd.y,new_spd.x,new_spd.y))
+                        end
+                        b.spd=new_spd
+                    end
+                    local spddir=v2d_norm(v2d_clone(b.spd))
+                    b.pos.x=inter.x+n.x * BALL_RADIUS+b.spd.x * TIME_COEF
+                    b.pos.y=inter.y+n.y * BALL_RADIUS+b.spd.y * TIME_COEF
                     if debug_colliders then
-                        print(string.format("COLL %s new speed %.0f,%.0f",c.name, b.spd.x,b.spd.y))
+                        print(string.format(">ball pos %.0f %.0f",b.pos.x,b.pos.y))
                     end
-                else
-                    local sn=v2d_clone(n)
-                    v2d_scale(sn, 2*c.bounce_coef*v2d_dot(b.spd,n))
-                    local new_spd=v2d_sub(b.spd,sn)
-                    if c.bounce > 0 then
-                        v2d_scale(n,c.bounce)
-                        new_spd=v2d_add(new_spd,n)
-                    end
-                    if debug_colliders then
-                        print(string.format("COLL %s n %.0f %.0f sn %.0f %.0f spd %.0f,%.0f -> %.1f,%.1f",c.name,n.x,n.y,sn.x,sn.y,b.spd.x,b.spd.y,new_spd.x,new_spd.y))
-                    end
-                    b.spd=new_spd
-                end
-                local spddir=v2d_norm(v2d_clone(b.spd))
-                b.pos.x=inter.x+n.x * BALL_RADIUS+b.spd.x * TIME_COEF
-                b.pos.y=inter.y+n.y * BALL_RADIUS+b.spd.y * TIME_COEF
-                if debug_colliders then
-                    print(string.format(">ball pos %.0f %.0f",b.pos.x,b.pos.y))
                 end
             end
         end
