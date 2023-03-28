@@ -2,7 +2,7 @@ local LAYER_FONTS <const> = 1
 local LAYER_PINBALL_L1 <const> = 2
 local FONT_ZONE_H <const> = 32
 local TABLE_HEIGHT <const> = 452
-local BALL_FRICTION <const> = 0.99
+local BALL_FRICTION <const> = 0.01
 local BALL_GRAVITY <const> = 0.2
 local BALL_RADIUS <const> = 6
 local SPRING_BOUNCE <const> = 0.8
@@ -14,7 +14,9 @@ local FLIPPER_ANGLE_SPEED <const> = 0.07 * math.pi * 2
 local FLIPPER_MAX_ANGLE <const> = 0.17 * math.pi * 2
 local FLIPPER_ANGLE_FIX <const> = 0.035 * math.pi * 2
 local BUMPER_BOUNCE <const> = 1.5
+local TIME_COEF <const> = 0.8
 debug_colliders=false
+pause=false
 
 function v2d(x,y)
     return {x=x,y=y}
@@ -140,9 +142,6 @@ function update_ready()
         mode.blink = (mode.blink + 0.2)%2
     else
         mode.blink=0
-    end
-    if cam < MAX_CAM then
-        cam = cam+(MAX_CAM-cam)*0.1
     end
     if inp_lflip_pressed() and mode.credits > 1 then
         mode.credits=mode.credits-1
@@ -271,7 +270,7 @@ function update_pinball()
     end
     local target=lowest_ball.pos.y-gfx.SCREEN_HEIGHT/2
     local cam_target=MAX_CAM * clamp(target/MAX_CAM,0,1)
-    cam = cam + (cam_target-cam)*0.5
+    cam = cam + (cam_target-cam)*0.3
 end
 function render_pinball()
     gfx.set_sprite_layer(LAYER_PINBALL_L1)
@@ -379,16 +378,17 @@ function add_ball(x,y)
     end
 end
 function update_ball(b)
-    v2d_scale(b.spd, BALL_FRICTION)
-    b.spd.y = b.spd.y + BALL_GRAVITY
+    v2d_scale(b.spd, 1-BALL_FRICTION*TIME_COEF)
+    b.spd.y = b.spd.y + BALL_GRAVITY*TIME_COEF
     b.spd_mag=v2d_len(b.spd)
     local spd=math.min(2,b.spd_mag)
     local rem_spd=b.spd_mag
-    while spd > 0 do
+    local collides=false
+    while spd > 0 and not collides do
         b.old_pos.x=b.pos.x
         b.old_pos.y=b.pos.y
-        b.pos.x = b.pos.x + b.spd.x*spd/b.spd_mag
-        b.pos.y = b.pos.y + b.spd.y*spd/b.spd_mag
+        b.pos.x = b.pos.x + b.spd.x*spd/b.spd_mag*TIME_COEF
+        b.pos.y = b.pos.y + b.spd.y*spd/b.spd_mag*TIME_COEF
         if debug_colliders then
             print(string.format("    ball pos %.0f %.0f spd %.0f %.0f",b.pos.x,b.pos.y,b.spd.x,b.spd.y))
         end
@@ -402,13 +402,13 @@ function update_ball(b)
                 -- fix ball position
                 local wall_line=v2d_sub(wall[2],wall[1])
                 local n=v2d_perpendicular(v2d_norm(wall_line))
-                b.pos.x=inter.x+n.x * (BALL_RADIUS-1)
-                b.pos.y=inter.y+n.y * (BALL_RADIUS-1)
+                collides=true
                 -- bounce
                 if spd then
                     b.spd=v2d_add(b.spd,spd)
-                    print(string.format("COLL %s new speed %.0f,%.0f",c.name, b.spd.x,b.spd.y))
-                    print(string.format(">ball pos %.0f %.0f",b.pos.x,b.pos.y))
+                    if debug_colliders then
+                        print(string.format("COLL %s new speed %.0f,%.0f",c.name, b.spd.x,b.spd.y))
+                    end
                 else
                     local sn=v2d_clone(n)
                     v2d_scale(sn, 2*c.bounce_coef*v2d_dot(b.spd,n))
@@ -418,19 +418,25 @@ function update_ball(b)
                         new_spd=v2d_add(new_spd,n)
                     end
                     if debug_colliders then
-                        print(string.format("COLL %s n %.0f %.0f sn %.0f %.0f spd %.0f,%.0f -> %.0f,%.0f",c.name,n.x,n.y,sn.x,sn.y,b.spd.x,b.spd.y,new_spd.x,new_spd.y))
-                        print(string.format(">ball pos %.0f %.0f",b.pos.x,b.pos.y))
+                        print(string.format("COLL %s n %.0f %.0f sn %.0f %.0f spd %.0f,%.0f -> %.1f,%.1f",c.name,n.x,n.y,sn.x,sn.y,b.spd.x,b.spd.y,new_spd.x,new_spd.y))
                     end
                     b.spd=new_spd
                 end
-                b.pos.x=b.pos.x+b.spd.x
-                b.pos.y=b.pos.y+b.spd.y
+                local spddir=v2d_norm(v2d_clone(b.spd))
+                b.pos.x=inter.x+n.x * BALL_RADIUS+b.spd.x * TIME_COEF
+                b.pos.y=inter.y+n.y * BALL_RADIUS+b.spd.y * TIME_COEF
+                if debug_colliders then
+                    print(string.format(">ball pos %.0f %.0f",b.pos.x,b.pos.y))
+                end
             end
         end
     end
 end
 function collide_flipper(ball,flipper_col)
-    if (flipper_col.moving == 0) or flipper_col.cooldown then
+    if flipper_col.cooldown then
+        return nil
+    end
+    if (flipper_col.moving == 0) then
         return collide_polygon(ball,flipper_col)
     end
     for i=2,#flipper_col do
@@ -457,9 +463,11 @@ function collide_polygon(ball,poly)
     for i=2,#poly do
         local p1=world_pos(poly,i-1)
         local p2=world_pos(poly,i)
-        local inter=collide_line(ball.old_pos, ballp2, p1, p2)
-        if inter then
-            return {p1,p2},inter
+        if vlen > 0.1 then
+            local inter=collide_line(ball.old_pos, ballp2, p1, p2)
+            if inter then
+                return {p1,p2},inter
+            end
         end
         local wall,inter=collide_sphere(ball,p1,p2)
         if wall then
@@ -467,7 +475,7 @@ function collide_polygon(ball,poly)
         end
     end
 end
-function world_pos(poly, i)
+function world_pos(poly,i)
     local p=poly[i]
     if poly.hflip then
         p=v2d(-p.x,p.y)
@@ -485,35 +493,55 @@ function world_pos(poly, i)
     return p
 end
 function collide_sphere(ball,p1,p2)
-    local closest = closest_point_to_sphere(ball.pos,p1,p2)
-    local dist2 = v2d_len2(v2d_sub(closest,ball.pos))
-    if dist2 <= BALL_RADIUS*BALL_RADIUS then
-        if debug_colliders then
-            print(string.format("collide_sphere : sphere at %.0f %.0f collides with %.0f %.0f - %.0f %.0f at %.0f %.0f",
-                ball.pos.x,ball.pos.y,
-                p1.x,p1.y,p2.x,p2.y,
-                closest.x,closest.y
-            ))
-        end
-        return {p1, p2},closest
+    -- adapted from https://github.com/mreinstein/collision-2d/blob/main/src/ray-sphere-overlap.js
+    local dp=v2d_sub(p2,p1)
+    local a=v2d_len2(dp)
+    local b=2*v2d_dot(dp,v2d_sub(p1,ball.pos))
+    local c=v2d_len2(ball.pos) + v2d_len2(p1) - 2*v2d_dot(p1,ball.pos) - BALL_RADIUS*BALL_RADIUS
+    local bb4ac = b*b-4*a*c
+    if bb4ac < 0 then
+        return
     end
+    bb4ac=math.sqrt(bb4ac)
+    local c1=(bb4ac-b)/(2*a)
+    local c2=(-bb4ac-b)/(2*a)
+    local coef=-1
+    if c1 >= 0 and c1 <= 1 then
+        if c2 >= 0 and c2 <= 1 then
+            coef=(c1+c2)*0.5
+        else
+            coef=c1
+        end
+    elseif c2 >=0 and c2 <= 1 then
+        coef=c2
+    end
+    if coef == -1 then
+        return
+    end
+    local inter=v2d(p1.x+dp.x*coef,p1.y+dp.y*coef)
+    if debug_colliders then
+        print(string.format("collide_sphere : sphere at %.0f %.0f collides with %.0f %.0f - %.0f %.0f at %.0f %.0f",
+            ball.pos.x,ball.pos.y,
+            p1.x,p1.y,p2.x,p2.y,
+            inter.x,inter.y
+        ))
+    end
+    return {p1,p2},inter
 end
-function closest_point_to_sphere(sph,p1,p2)
-    local l = v2d_sub(p1,sph)
-    local wall=v2d_sub(p2,p1)
-    local len2=v2d_len2(wall)
-    local nwall=v2d_norm(wall)
-    local dot = v2d_dot(l,nwall)
-    v2d_scale(nwall,dot)
-    return dot < 0 and p1 or dot > len2 and p2 or v2d_add(p1,nwall)
-end
+
 function calc_inf_line_abc(p1, p2)
     local a = p2.y - p1.y
     local b = p1.x - p2.x
     local c = (p2.x * p1.y) - (p1.x * p2.y)
     return a, b, c
 end
+function side_of_line(v1, v2, p)
+    return (p.x - v1.x) * (v2.y - v1.y) - (p.y - v1.y) * (v2.x - v1.x)
+end
 function collide_line(p1,p2,q1,q2)
+    if side_of_line(q1,q2,p2)<= 0 then
+        return nil
+    end
     local a1,b1,c1=calc_inf_line_abc(p1,p2)
     local a2,b2,c2=calc_inf_line_abc(q1,q2)
     local d1 = (a1 * q1.x) + (b1 * q1.y) + c1
@@ -537,6 +565,49 @@ function collide_line(p1,p2,q1,q2)
         ))
     end
     return inter
+end
+
+function init_dbgphys()
+    mode.msg={
+        {msg="DEBUG",font=fonts.big}
+    }
+end
+
+function update_dbgphys()
+    local mx,my=inp.mouse_pos()
+    local ball=pinball.balls[1]
+    ball.old_pos.x=ball.pos.x
+    ball.old_pos.y=ball.pos.y
+    ball.pos.x=mx
+    ball.pos.y=my+cam
+    mode.wall=nil
+    mode.inter=nil
+    mode.spd=nil
+    update_flipper(pinball.lflipper,inp_lflip)
+    update_flipper(pinball.rflipper,inp_rflip)
+    for i=1,#pinball.colliders do
+        local c=pinball.colliders[i]
+        local wall,inter,spd=c.collide(ball,c)
+        if wall then
+            mode.wall=wall
+            mode.inter=inter
+            mode.spd=spd
+        end
+    end
+end
+
+function render_dbgphys()
+    render_msg()
+    render_pinball()
+    if mode.wall then
+        local w=mode.wall
+        local p1=w[1]
+        local p2=w[2]
+        gfx.line(p1.x,p1.y-cam,p2.x,p2.y-cam,255,255,0)
+        gfx.disk(mode.inter.x,mode.inter.y-cam,2,2,0,0,255)
+    end
+    local ball=pinball.balls[1]
+    gfx.print(gfx.FONT_5X7,string.format("ball pos %.1f %.1f",ball.pos.x,ball.pos.y),5,5)
 end
 
 function init()
@@ -565,6 +636,11 @@ function init()
             update=update_ready,
             render=render_ready,
             credits=1,
+        },
+        debug_phys={
+            init=init_dbgphys,
+            update=update_dbgphys,
+            render=render_dbgphys
         }
     }
     scores={
@@ -583,11 +659,27 @@ end
 
 function update()
     t=t+1/60
-    local old_mode=mode
-    mode.update()
-    if mode ~= old_mode then
-        mode.blink=0
-        mode.init()
+    local step=false
+    if inp.key_pressed(inp.KEY_ESCAPE) then
+        pause=not pause
+    elseif inp.key_pressed(inp.KEY_END) then
+        step=true
+    elseif inp.key_pressed(inp.KEY_F1) then
+        if mode==modes.debug_phys then
+            mode=modes.ready
+        else
+            mode=modes.debug_phys
+            mode.blink=0
+            mode.init()
+        end
+    end
+    if not pause or step then
+        local old_mode=mode
+        mode.update()
+        if mode ~= old_mode then
+            mode.blink=0
+            mode.init()
+        end
     end
 end
 
