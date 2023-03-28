@@ -123,8 +123,10 @@ function update_title()
         mode.msg[1].msg=string.format("%d %s",i,scores[i].name)
         mode.msg[2].msg=tostring(scores[i].score)
     end
-    if inp_lflip_pressed() or inp_rflip_pressed() or inp.pad_button_pressed(1,inp.XBOX360_START) then
-        mode=modes.ready
+    if t > 3 then
+        if inp_lflip_pressed() or inp_rflip_pressed() or inp.pad_button_pressed(1,inp.XBOX360_START) then
+            mode=modes.ready
+        end
     end
 end
 
@@ -182,7 +184,7 @@ end
 
 function update_game()
     if player.score ~= mode.old_score then
-        mode.msg[1].msg=string.format("%.0f",player.score)
+        mode.msg[1].msg=string.format("%8.0f",player.score)
     end
     if player.num ~= mode.old_pnum then
         mode.msg[2].msg=string.format("PLAYER %.0f",player.num)
@@ -250,11 +252,22 @@ function init_pinball()
     },{ name="right gutter",
         251,325,250,378,240,390,185,420
     },{ name="left gutter",
-        82,419,21,382,18,374,18,323
+        84,420,21,382,18,374,18,323
     }, { name="left bumper",bounce=BUMPER_BOUNCE,callback=cbk_lbumper,
         65,375,46,322,42,320,38,322,36,363,40,369,63,382,66,382,65,375
     }, { name="right bumper",bounce=BUMPER_BOUNCE,callback=cbk_rbumper,
         223,322,201,377,203,381,208,383,231,368,233,364,233,324,230,320,225,319,223,322
+    }, { name="island 1",
+        225,67,220,103,223,111,227,121,231,121,233,117,234,106,256,51,256,39,241,22,225,16,222,18,218,33,213,40,215,44,221,46,225,55,225,67
+    }, { name="island 2",
+        217,140,195,114,163,120,160,123,160,164,163,169,172,136,201,144,197,178,198,182,206,184,219,148,217,140
+    }, { name="island 3",
+        56,22,49,27,35,36,24,54,23,79,28,102,45,142,62,183,64,185,70,183,71,180,58,83,54,33,59,23,56,22
+    }, { name="island 4",
+        100,0,113,8,117,20,113,28,103,33,79,44,74,49,77,68,104,174,153,191,155,187,145,177,144,171,144,107,150,94,160,61,
+        160,23,155,18,141,19,140,38,122,38,122,20,128,8,135,2,145,0
+    }, { name="tower door",
+        160,22,160,1
     }}
     for i=1,#walls do
         local w=walls[i]
@@ -264,9 +277,9 @@ function init_pinball()
         end
     end
     pinball.rbumpers={}
-    table.insert(pinball.rbumpers,add_round_collider("round bumper 1",157,78,RBUMPER_RADIUS,BUMPER_BOUNCE))
-    table.insert(pinball.rbumpers,add_round_collider("round bumper 2",179,113,RBUMPER_RADIUS,BUMPER_BOUNCE))
-    table.insert(pinball.rbumpers,add_round_collider("round bumper 3",219,82,RBUMPER_RADIUS,BUMPER_BOUNCE))
+    table.insert(pinball.rbumpers,add_round_collider("round bumper 1",157,79,RBUMPER_RADIUS,BUMPER_BOUNCE))
+    table.insert(pinball.rbumpers,add_round_collider("round bumper 2",179,114,RBUMPER_RADIUS,BUMPER_BOUNCE))
+    table.insert(pinball.rbumpers,add_round_collider("round bumper 3",219,83,RBUMPER_RADIUS,BUMPER_BOUNCE))
     pinball.launch_block=add_collider("launch block",{v2d(280,49),v2d(268,95)},WALL_BOUNCE,0,collide_polygon)
     pinball.launch_block.disabled=true
     pinball.lflipper=add_collider("left flipper",{v2d(7,0),v2d(0,4),v2d(1,10),v2d(35,26),v2d(39,26),v2d(40,23),v2d(7,0)},FLIPPER_BOUNCE,0,collide_flipper)
@@ -376,8 +389,6 @@ function render_pinball()
         local b=pinball.rbumpers[i]
         if b.timer then
             gfx.blit(321,308,34,34,b.p.x-RBUMPER_RADIUS,b.p.y-RBUMPER_RADIUS-cam)
-        else
-            gfx.blit(288,308,34,34,b.p.x-RBUMPER_RADIUS,b.p.y-RBUMPER_RADIUS-cam)
         end
     end
     gfx.blit(288,446,15,6,272,443-cam)
@@ -386,7 +397,11 @@ function render_pinball()
         gfx.blit(303,396,28,56,204,325-cam)
     end
     if pinball.lbump_timer then
-        gfx.blit(302,342,22,54,42,325-cam)
+        gfx.blit(303,342,22,54,42,325-cam)
+    end
+    if not pinball.tower_open then
+        -- tower door
+        gfx.blit(332,420,7,18,154,3-cam)
     end
     gfx.set_sprite_layer(LAYER_FONTS)
     if debug_colliders then
@@ -815,6 +830,7 @@ function update()
         local old_mode=mode
         mode.update()
         if mode ~= old_mode then
+            t=0
             mode.blink=0
             mode.init()
         end
