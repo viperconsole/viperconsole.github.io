@@ -15,6 +15,8 @@ local FLIPPER_MAX_ANGLE <const> = 0.17 * math.pi * 2
 local FLIPPER_ANGLE_FIX <const> = 0.035 * math.pi * 2
 local BUMPER_BOUNCE <const> = 1.5
 local TIME_COEF <const> = 0.8
+local RBUMPER_RADIUS <const> = 17
+local RBUMPER_BASE_SCORE <const> = 130
 debug_colliders=false
 pause=false
 
@@ -164,6 +166,9 @@ function init_game()
         {msg="PLAYER 1",font=fonts.smol},
         {msg="BALLS  3",font=fonts.smol},
     }
+    mode.old_score=0
+    mode.old_pnum=1
+    mode.old_balls=3
     players={}
     for i=1,modes.ready.credits do
         table.insert(players, {
@@ -176,19 +181,19 @@ function init_game()
 end
 
 function update_game()
-    update_pinball()
-    if mode.refresh_msg then
-        mode.refresh_msg=false
+    if player.score ~= mode.old_score then
         mode.msg[1].msg=string.format("%.0f",player.score)
+    end
+    if player.num ~= mode.old_pnum then
         mode.msg[2].msg=string.format("PLAYER %.0f",player.num)
+    end
+    if player.rem_balls ~= mode.old_balls then
         mode.msg[3].msg=string.format("BALLS  %.0f",player.rem_balls)
     end
-    if mode.rbump_timer then
-        mode.rbump_timer = mode.rbump_timer > 1 and mode.rbump_timer-1 or nil
-    end
-    if mode.lbump_timer then
-        mode.lbump_timer = mode.lbump_timer > 1 and mode.lbump_timer-1 or nil
-    end
+    mode.old_score=player.score
+    mode.old_pnum=player.num
+    mode.old_balls=player.rem_balls
+    update_pinball()
 end
 
 function render_game()
@@ -214,11 +219,15 @@ function render_msg()
         end
     end
 end
-function cbk_rbumper()
-    mode.rbump_timer=15
+function cbk_rbumper(c)
+    pinball.rbump_timer=15
 end
-function cbk_lbumper()
-    mode.lbump_timer=15
+function cbk_lbumper(c)
+    pinball.lbump_timer=15
+end
+function cbk_round_bumper(c)
+    c.timer=15
+    player.score = player.score + RBUMPER_BASE_SCORE
 end
 function init_pinball()
     pinball={
@@ -254,6 +263,10 @@ function init_pinball()
             add_wall_collider(w.name, w[p],w[p+1],w[p+2],w[p+3],WALL_BOUNCE,w.bounce or 0,w.callback)
         end
     end
+    pinball.rbumpers={}
+    table.insert(pinball.rbumpers,add_round_collider("round bumper 1",157,78,RBUMPER_RADIUS,BUMPER_BOUNCE))
+    table.insert(pinball.rbumpers,add_round_collider("round bumper 2",179,113,RBUMPER_RADIUS,BUMPER_BOUNCE))
+    table.insert(pinball.rbumpers,add_round_collider("round bumper 3",219,82,RBUMPER_RADIUS,BUMPER_BOUNCE))
     pinball.launch_block=add_collider("launch block",{v2d(280,49),v2d(268,95)},WALL_BOUNCE,0,collide_polygon)
     pinball.launch_block.disabled=true
     pinball.lflipper=add_collider("left flipper",{v2d(7,0),v2d(0,4),v2d(1,10),v2d(35,26),v2d(39,26),v2d(40,23),v2d(7,0)},FLIPPER_BOUNCE,0,collide_flipper)
@@ -304,11 +317,24 @@ function update_pinball()
     end
     update_flipper(pinball.lflipper,inp_lflip)
     update_flipper(pinball.rflipper,inp_rflip)
+    if pinball.rbump_timer then
+        pinball.rbump_timer = pinball.rbump_timer > 1 and pinball.rbump_timer-1 or nil
+    end
+    if pinball.lbump_timer then
+        pinball.lbump_timer = pinball.lbump_timer > 1 and pinball.lbump_timer-1 or nil
+    end
+    for i=1,#pinball.rbumpers do
+        local b=pinball.rbumpers[i]
+        if b.timer then
+            b.timer = b.timer > 1 and b.timer-1 or nil
+        end
+    end
     local lowest_ball=nil
     for i=1,#pinball.balls do
         local b=pinball.balls[i]
         update_ball(b)
         if pinball.ready_ball == nil and b.pos.y > TABLE_HEIGHT + BALL_RADIUS then
+            -- ball is lost
             b.pos.x=279
             b.pos.y=SPRING_POS-BALL_RADIUS
             b.spd.x=0
@@ -325,8 +351,6 @@ function update_pinball()
             if player.rem_balls == 0 then
                 -- game over
                 mode=modes.title
-            else
-                mode.refresh_msg=true
             end
         end
         if lowest_ball == nil or b.pos.y > lowest_ball.pos.y then
@@ -348,12 +372,20 @@ function render_pinball()
         render_ball(pinball.balls[i])
     end
     gfx.set_sprite_layer(LAYER_PINBALL_L1)
+    for i=1,#pinball.rbumpers do
+        local b=pinball.rbumpers[i]
+        if b.timer then
+            gfx.blit(321,308,34,34,b.p.x-RBUMPER_RADIUS,b.p.y-RBUMPER_RADIUS-cam)
+        else
+            gfx.blit(288,308,34,34,b.p.x-RBUMPER_RADIUS,b.p.y-RBUMPER_RADIUS-cam)
+        end
+    end
     gfx.blit(288,446,15,6,272,443-cam)
     gfx.blit(288,371,14,75,272,49-cam)
-    if mode.rbump_timer then
+    if pinball.rbump_timer then
         gfx.blit(303,396,28,56,204,325-cam)
     end
-    if mode.lbump_timer then
+    if pinball.lbump_timer then
         gfx.blit(302,342,22,54,42,325-cam)
     end
     gfx.set_sprite_layer(LAYER_FONTS)
@@ -428,7 +460,18 @@ function render_ball(b)
         gfx.blit(0,170,12,12,b.pos.x-BALL_RADIUS,y)
     end
 end
-
+function add_round_collider(name,x,y,r,bounce)
+    local col={
+        p=v2d(x,y),
+        r=r,
+        bounce=bounce,
+        bounce_coef=1,
+        collide=collide_rbumper,
+        cbk=cbk_round_bumper
+    }
+    table.insert(pinball.colliders,col)
+    return col
+end
 function add_wall_collider(name, x1,y1,x2,y2,bounce_coef, bounce, cbk)
     return add_collider(name, {v2d(x1,y1),v2d(x2,y2)},bounce_coef,bounce,collide_polygon,cbk)
 end
@@ -470,13 +513,10 @@ function update_ball(b)
         for i=1,#pinball.colliders do
             local c=pinball.colliders[i]
             if not c.disabled then
-                local idx,wall,inter,spd=c.collide(b,c)
-                if wall then
-                    -- fix ball position
-                    local wall_line=v2d_sub(wall[2],wall[1])
-                    local n=v2d_perpendicular(v2d_norm(wall_line))
+                local idx,inter,n,spd=c.collide(b,c)
+                if inter then
                     if idx==1 and c.cbk then
-                        c.cbk()
+                        c.cbk(c)
                     end
                     collides=true
                     -- bounce
@@ -498,7 +538,6 @@ function update_ball(b)
                         end
                         b.spd=new_spd
                     end
-                    local spddir=v2d_norm(v2d_clone(b.spd))
                     b.pos.x=inter.x+n.x * BALL_RADIUS+b.spd.x * TIME_COEF
                     b.pos.y=inter.y+n.y * BALL_RADIUS+b.spd.y * TIME_COEF
                     if debug_colliders then
@@ -508,6 +547,18 @@ function update_ball(b)
             end
         end
     end
+end
+function collide_rbumper(ball,col)
+    local dist=v2d_sub(ball.pos,col.p)
+    local l=v2d_len2(dist)
+    if l > (BALL_RADIUS+col.r)^2 then
+        return
+    end
+    local n=v2d_norm(dist)
+    local ivec=v2d_clone(n)
+    v2d_scale(ivec,col.r)
+    local inter=v2d_add(col.p,ivec)
+    return 1,inter,n
 end
 function collide_flipper(ball,flipper_col)
     if flipper_col.cooldown then
@@ -519,15 +570,15 @@ function collide_flipper(ball,flipper_col)
     for i=2,#flipper_col do
         local p1=world_pos(flipper_col,i-1)
         local p2=world_pos(flipper_col,i)
-        local wall,inter=collide_sphere(ball,p1,p2)
-        if wall then
+        local inter,n=collide_sphere(ball,p1,p2)
+        if n then
             local spd_mag = 0.1 * flipper_col.moving * v2d_len(v2d_sub(flipper_col.origin, ball.pos)) * math.sin(FLIPPER_ANGLE_SPEED)
             local real_angle=flipper_col.angle - FLIPPER_ANGLE_FIX - FLIPPER_MAX_ANGLE/2
             local spd_vec = v2d(
                 (flipper_col.hflip and spd_mag or -spd_mag) * math.sin(real_angle),
                 -spd_mag * math.cos(real_angle))
             flipper_col.cooldown=4
-            return i-1,wall,inter,spd_vec
+            return i-1,inter,n,spd_vec
         end
     end
 end
@@ -543,12 +594,14 @@ function collide_polygon(ball,poly)
         if vlen > 0.1 then
             local inter=collide_line(ball.old_pos, ballp2, p1, p2)
             if inter then
-                return i-1,{p1,p2},inter
+                local wall_line=v2d_sub(p2,p1)
+                local n=v2d_perpendicular(v2d_norm(wall_line))
+                return i-1,inter,n
             end
         end
-        local wall,inter=collide_sphere(ball,p1,p2)
-        if wall then
-            return i-1,wall,inter
+        local inter,n=collide_sphere(ball,p1,p2)
+        if n then
+            return i-1,inter,n
         end
     end
 end
@@ -603,7 +656,9 @@ function collide_sphere(ball,p1,p2)
             inter.x,inter.y
         ))
     end
-    return {p1,p2},inter
+    local wall_line=v2d_sub(p2,p1)
+    local n=v2d_perpendicular(v2d_norm(wall_line))
+    return inter,n
 end
 
 function calc_inf_line_abc(p1, p2)
