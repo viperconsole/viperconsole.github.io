@@ -83,6 +83,8 @@ function inp_rflip()
 end
 
 function init_title()
+    cam=0
+    mode.cam_spd=1
     mode.layout_w,mode.layout_h = gfx.get_layer_size(LAYER_PINBALL_L1)
     MAX_CAM=mode.layout_h-gfx.SCREEN_HEIGHT
     mode.msg={
@@ -156,7 +158,34 @@ function update_ready()
     update_pinball()
 end
 
-function render_ready()
+function init_game()
+    mode.msg={
+        {msg="       0",font=fonts.big},
+        {msg="PLAYER 1",font=fonts.smol},
+        {msg="BALLS  3",font=fonts.smol},
+    }
+    players={}
+    for i=1,modes.ready.credits do
+        table.insert(players, {
+            num=i,
+            score=0,
+            rem_balls=3
+        })
+    end
+    player=players[1]
+end
+
+function update_game()
+    update_pinball()
+    if mode.refresh_msg then
+        mode.refresh_msg=false
+        mode.msg[1].msg=string.format("%.0f",player.score)
+        mode.msg[2].msg=string.format("PLAYER %.0f",player.num)
+        mode.msg[3].msg=string.format("BALLS  %.0f",player.rem_balls)
+    end
+end
+
+function render_game()
     render_msg()
     render_pinball()
 end
@@ -257,6 +286,9 @@ function update_pinball()
         elseif pinball.launch_block.collide(b,pinball.launch_block) then
             pinball.ready_ball=nil
             pinball.launch_block.disabled=false
+            if mode == modes.ready then
+                mode=modes.game
+            end
         end
     end
     update_flipper(pinball.lflipper,inp_lflip)
@@ -272,6 +304,19 @@ function update_pinball()
             b.spd.y=0
             pinball.ready_ball=b
             pinball.launch_block.disabled=true
+            player.rem_balls = player.rem_balls - 1
+            local steps=0
+            repeat
+                local next_player=(player.num % #players) + 1
+                player=players[next_player]
+                steps=steps+1
+            until player.rem_balls > 0 or steps==#players
+            if player.rem_balls == 0 then
+                -- game over
+                mode=modes.title
+            else
+                mode.refresh_msg=true
+            end
         end
         if lowest_ball == nil or b.pos.y > lowest_ball.pos.y then
             lowest_ball = b
@@ -645,7 +690,13 @@ function init()
         ready={
             init=init_ready,
             update=update_ready,
-            render=render_ready,
+            render=render_game,
+            credits=1,
+        },
+        game={
+            init=init_game,
+            update=update_game,
+            render=render_game,
             credits=1,
         },
         debug_phys={
