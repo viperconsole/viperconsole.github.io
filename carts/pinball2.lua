@@ -231,6 +231,9 @@ function cbk_round_bumper(c)
     c.timer=15
     player.score = player.score + RBUMPER_BASE_SCORE
 end
+function cbk_target(c)
+    c.lit=true
+end
 function init_pinball()
     pinball={
         colliders={},
@@ -285,6 +288,17 @@ function init_pinball()
     add_round_collider("key_pin1.2",178,46,2.5,0)
     add_round_collider("key_pin2.1",197,38,2.5,0)
     add_round_collider("key_pin2.2",197,46,2.5,0)
+    -- nightmare targets
+    pinball.targets={}
+    add_target("N",{15,256,19,247},17,250)
+    add_target("I",{21,242,26,233},24,236)
+    add_target("G",{29,229,34,220},32,222)
+    add_target("H",{65,191,74,187},67,190)
+    add_target("T",{114,182,124,185},112,185)
+    add_target("M",{131,187,141,190},129,190)
+    add_target("A",{194,187,204,190},192,191)
+    add_target("R",{244,240,249,250},234,244)
+    add_target("E",{250,258,255,268},238,260)
     add_round_collider("central pin",134,443,2.5,0)
     pinball.rollover={}
     add_rollover_detector(169,42,369,296,14,14,163,47)
@@ -406,6 +420,12 @@ function render_pinball()
             gfx.blit(s.x,s.y,s.w,s.h,r.sprite_pos.x,r.sprite_pos.y-cam)
         end
     end
+    for i=1,#pinball.targets do
+        local t=pinball.targets[i]
+        if t.lit then
+            gfx.blit(355,295+(i-1)*14,14,14,t.sprite_pos.x,t.sprite_pos.y-cam)
+        end
+    end
     for i=1,#pinball.balls do
         render_ball(pinball.balls[i])
     end
@@ -509,6 +529,12 @@ function render_ball(b)
     if y < gfx.SCREEN_HEIGHT and y > -12 then
         gfx.blit(288,225,12,12,b.pos.x-BALL_RADIUS,y)
     end
+end
+function add_target(name,wall,sx,sy)
+    local col=add_collider(name,{v2d(wall[1],wall[2]),v2d(wall[3],wall[4])},WALL_BOUNCE,0,collide_polygon,cbk_target)
+    col.sprite_pos={x=sx,y=sy}
+    col.lit=false
+    table.insert(pinball.targets,col)
 end
 function add_rollover_detector(x,y,sx,sy,sw,sh,px,py)
     local col=add_round_collider("rollover",x,y,1,0)
