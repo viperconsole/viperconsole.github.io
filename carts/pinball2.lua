@@ -258,7 +258,7 @@ function init_pinball()
     }, { name="right bumper",bounce=BUMPER_BOUNCE,callback=cbk_rbumper,
         223,322,201,377,203,381,208,383,231,368,233,364,233,324,230,320,225,319,223,322
     }, { name="island 1",
-        225,67,220,103,223,111,227,121,231,121,233,117,234,106,256,51,256,39,241,22,225,16,222,18,218,33,213,40,215,44,221,46,225,55,225,67
+        225,67,220,103,223,111,227,121,231,121,233,117,234,106,256,51,256,39,241,22,225,16,222,18,218,33,215,41,217,44,221,46,225,55,225,67
     }, { name="island 2",
         217,140,195,114,163,120,160,123,160,164,163,169,172,136,201,144,197,178,198,182,206,184,219,148,217,140
     }, { name="island 3",
@@ -277,9 +277,19 @@ function init_pinball()
         end
     end
     pinball.rbumpers={}
-    table.insert(pinball.rbumpers,add_round_collider("round bumper 1",157,79,RBUMPER_RADIUS,BUMPER_BOUNCE))
-    table.insert(pinball.rbumpers,add_round_collider("round bumper 2",179,114,RBUMPER_RADIUS,BUMPER_BOUNCE))
-    table.insert(pinball.rbumpers,add_round_collider("round bumper 3",219,83,RBUMPER_RADIUS,BUMPER_BOUNCE))
+    table.insert(pinball.rbumpers,add_round_collider("round bumper 1",157,79,RBUMPER_RADIUS,BUMPER_BOUNCE,cbk_round_bumper))
+    table.insert(pinball.rbumpers,add_round_collider("round bumper 2",179,114,RBUMPER_RADIUS,BUMPER_BOUNCE,cbk_round_bumper))
+    table.insert(pinball.rbumpers,add_round_collider("round bumper 3",219,83,RBUMPER_RADIUS,BUMPER_BOUNCE,cbk_round_bumper))
+    -- tower key pins
+    add_round_collider("key_pin1.1",178,38,2.5,0)
+    add_round_collider("key_pin1.2",178,46,2.5,0)
+    add_round_collider("key_pin2.1",197,38,2.5,0)
+    add_round_collider("key_pin2.2",197,46,2.5,0)
+    add_round_collider("central pin",134,443,2.5,0)
+    pinball.rollover={}
+    add_rollover_detector(169,42,369,296,14,14,163,47)
+    add_rollover_detector(188,42,369,312,14,14,183,47)
+    add_rollover_detector(206,45,369,328,14,14,202,51)
     pinball.launch_block=add_collider("launch block",{v2d(280,49),v2d(268,95)},WALL_BOUNCE,0,collide_polygon)
     pinball.launch_block.disabled=true
     pinball.lflipper=add_collider("left flipper",{v2d(42,24),v2d(6,0),v2d(4,0),v2d(0,9),v2d(38,28),v2d(41,27),v2d(42,24)},FLIPPER_BOUNCE,0,collide_flipper)
@@ -328,8 +338,9 @@ function update_pinball()
             end
         end
     end
-    update_flipper(pinball.lflipper,inp_lflip)
-    update_flipper(pinball.rflipper,inp_rflip)
+
+    update_flipper(pinball.lflipper,inp_lflip,inp_lflip_pressed,-1)
+    update_flipper(pinball.rflipper,inp_rflip,inp_rflip_pressed,1)
     if pinball.rbump_timer then
         pinball.rbump_timer = pinball.rbump_timer > 1 and pinball.rbump_timer-1 or nil
     end
@@ -346,6 +357,14 @@ function update_pinball()
     for i=1,#pinball.balls do
         local b=pinball.balls[i]
         update_ball(b)
+        for i=1,#pinball.rollover do
+            local c=pinball.rollover[i]
+            local collide=c.collide(b,c)
+            if not collide and c.collides then
+                c.lit=true
+            end
+            c.collides=collide
+        end
         if pinball.ready_ball == nil and b.pos.y > TABLE_HEIGHT + BALL_RADIUS then
             -- ball is lost
             b.pos.x=279
@@ -380,6 +399,13 @@ function render_pinball()
     render_flipper(pinball.lflipper)
     render_flipper(pinball.rflipper)
     render_spring(pinball.spring)
+    for i=1,#pinball.rollover do
+        local r=pinball.rollover[i]
+        if r.lit then
+            local s=r.sprite
+            gfx.blit(s.x,s.y,s.w,s.h,r.sprite_pos.x,r.sprite_pos.y-cam)
+        end
+    end
     for i=1,#pinball.balls do
         render_ball(pinball.balls[i])
     end
@@ -416,7 +442,7 @@ function render_pinball()
     end
 end
 
-function update_flipper(flipper,inp_fn)
+function update_flipper(flipper,inp_fn,inp_pressed_fn,keydir)
     if flipper.cooldown then
         flipper.cooldown = flipper.cooldown>1 and flipper.cooldown-1 or nil
     end
@@ -430,6 +456,19 @@ function update_flipper(flipper,inp_fn)
         local ang=flipper.angle
         for i=1,#flipper do
             flipper[i] = v2d_rotate(flipper.base_collider[i],flipper.origin,ang)
+        end
+    end
+    if inp_pressed_fn() then
+        for i=1,#pinball.rollover do
+            local next=(i%#pinball.rollover) + 1
+            if keydir == -1 then
+                pinball.rollover[i].nlit = pinball.rollover[next].lit
+            else
+                pinball.rollover[next].nlit = pinball.rollover[i].lit
+            end
+        end
+        for i=1,#pinball.rollover do
+            pinball.rollover[i].lit = pinball.rollover[i].nlit
         end
     end
 end
@@ -471,14 +510,24 @@ function render_ball(b)
         gfx.blit(288,225,12,12,b.pos.x-BALL_RADIUS,y)
     end
 end
-function add_round_collider(name,x,y,r,bounce)
+function add_rollover_detector(x,y,sx,sy,sw,sh,px,py)
+    local col=add_round_collider("rollover",x,y,1,0)
+    col.disabled=true
+    col.cbk=nil
+    col.sprite={x=sx,y=sy,w=sw,h=sh}
+    col.sprite_pos={x=px,y=py}
+    col.lit=false
+    col.is_colliding=false
+    table.insert(pinball.rollover,col)
+end
+function add_round_collider(name,x,y,r,bounce,cbk)
     local col={
         p=v2d(x,y),
         r=r,
         bounce=bounce,
-        bounce_coef=1,
+        bounce_coef=WALL_BOUNCE,
         collide=collide_rbumper,
-        cbk=cbk_round_bumper
+        cbk=cbk
     }
     table.insert(pinball.colliders,col)
     return col
