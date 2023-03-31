@@ -17,7 +17,7 @@ local BUMPER_BOUNCE <const> = 1.5
 local TIME_COEF <const> = 0.8
 local RBUMPER_RADIUS <const> = 17
 local RBUMPER_BASE_SCORE <const> = 130
-debug_colliders=false
+debug_colliders=true
 pause=false
 
 function v2d(x,y)
@@ -267,16 +267,25 @@ function init_pinball()
     }, { name="island 3",
         56,22,49,27,35,36,24,54,23,79,28,102,45,142,62,183,64,185,70,183,71,180,58,83,54,33,59,23,56,22
     }, { name="island 4",
-        100,0,113,8,117,20,113,28,103,33,79,44,74,49,77,68,104,174,153,191,155,187,145,177,144,171,144,107,150,94,160,61,
-        160,23,155,18,141,19,140,38,122,38,122,20,128,8,135,2,145,0
+        100,0,113,8,117,20,113,28,103,33,79,44,74,49,77,68,
+        -- tower exit
+        90,119,92,121,137,108,141,122,96,135,95,138,
+        104,174,153,191,155,187,145,177,144,171,144,107,150,94,160,61,
+        160,23,155,18,141,19,140,82,134,92,122,100,111,102
+    }, { name="island 4.1",
+           111,83,116,83,121,79,122,75,122,20,128,8,135,2,145,0
     }, { name="tower door",
         160,22,160,1
-    }}
+    }, { name="tower ramp",level=2,
+        111,102,98,100,86,91,81,79,82,67,89,53,102,46,116,45,125,49,135,59,140,73,
+        140,116,136,124,128,124,123,119,123,70,116,63,109,63,103,67,101,74,106,81,111,83,
+    }
+    }
     for i=1,#walls do
         local w=walls[i]
         for j=0,#w/2-2 do
             local p=j*2+1
-            add_wall_collider(w.name, w[p],w[p+1],w[p+2],w[p+3],WALL_BOUNCE,w.bounce or 0,w.callback)
+            add_wall_collider(w.name, w[p],w[p+1],w[p+2],w[p+3],WALL_BOUNCE,w.bounce or 0,w.callback,w.level)
         end
     end
     pinball.rbumpers={}
@@ -409,6 +418,7 @@ function update_pinball()
 end
 function render_pinball()
     gfx.set_sprite_layer(LAYER_PINBALL_L1)
+    -- level 1
     gfx.blit(0,cam,gfx.SCREEN_WIDTH-96,gfx.SCREEN_HEIGHT,0,0)
     render_flipper(pinball.lflipper)
     render_flipper(pinball.rflipper)
@@ -426,9 +436,21 @@ function render_pinball()
             gfx.blit(355,295+(i-1)*14,14,14,t.sprite_pos.x,t.sprite_pos.y-cam)
         end
     end
+    -- level 1 balls
     for i=1,#pinball.balls do
-        render_ball(pinball.balls[i])
+        if pinball.balls[i].level==1 then
+            render_ball(pinball.balls[i])
+        end
     end
+    -- tower ramp
+    gfx.blit(337,342,18,79,122,47-cam)
+    -- level 2 balls
+    for i=1,#pinball.balls do
+        if pinball.balls[i].level==2 then
+            render_ball(pinball.balls[i])
+        end
+    end
+    -- level 2
     for i=1,#pinball.rbumpers do
         local b=pinball.rbumpers[i]
         if b.timer then
@@ -445,7 +467,7 @@ function render_pinball()
     end
     if not pinball.tower_open then
         -- tower door
-        gfx.blit(332,420,7,18,154,3-cam)
+        gfx.blit(288,353,7,18,154,3-cam)
     end
     gfx.set_sprite_layer(LAYER_FONTS)
     if debug_colliders then
@@ -553,27 +575,29 @@ function add_round_collider(name,x,y,r,bounce,cbk)
         bounce=bounce,
         bounce_coef=WALL_BOUNCE,
         collide=collide_rbumper,
-        cbk=cbk
+        cbk=cbk,
+        level=1
     }
     table.insert(pinball.colliders,col)
     return col
 end
-function add_wall_collider(name, x1,y1,x2,y2,bounce_coef, bounce, cbk)
-    return add_collider(name, {v2d(x1,y1),v2d(x2,y2)},bounce_coef,bounce,collide_polygon,cbk)
+function add_wall_collider(name, x1,y1,x2,y2,bounce_coef, bounce, cbk,level)
+    return add_collider(name, {v2d(x1,y1),v2d(x2,y2)},bounce_coef,bounce,collide_polygon,cbk,level)
 end
-function add_collider(name,points,bounce_coef, bounce, collide_fn, cbk)
+function add_collider(name,points,bounce_coef, bounce, collide_fn, cbk, level)
     local col=points
     col.name=name
     col.collide=collide_fn
     col.bounce_coef=bounce_coef
     col.bounce = bounce or 0
     col.cbk=cbk
+    col.level = level or 1
     table.insert(pinball.colliders,col)
     return col
 end
 function add_ball(x,y)
     local pos=v2d(x,y)
-    table.insert(pinball.balls,{pos=pos,old_pos=v2d_clone(pos),spd=v2d(0,0),spd_mag=0})
+    table.insert(pinball.balls,{pos=pos,old_pos=v2d_clone(pos),spd=v2d(0,0),spd_mag=0,level=1})
     if #pinball.balls == 1 then
         pinball.ready_ball=pinball.balls[1]
     end
@@ -598,7 +622,7 @@ function update_ball(b)
         spd=math.min(2,rem_spd)
         for i=1,#pinball.colliders do
             local c=pinball.colliders[i]
-            if not c.disabled then
+            if not c.disabled and c.level == b.level then
                 local idx,inter,n,spd=c.collide(b,c)
                 if inter then
                     if idx==1 and c.cbk then
