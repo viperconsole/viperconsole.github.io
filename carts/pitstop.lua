@@ -1278,7 +1278,7 @@ function update()
     flipflop = not flipflop
     -- do not lose press events
     mlb_pressed = (flipflop and mlb_pressed) or inp.mouse_button_pressed(inp.MOUSE_LEFT)
-    if flipflop then
+    if flipflop or game_mode.race_mode == nil then
         game_mode:update()
         mlb_pressed = false
     end
@@ -1369,7 +1369,7 @@ end
 
 difficulty_names = {
     [0] = "Manzana",
-    "Vancouver",
+    "Interlakes",
     "Melbourne",
     "Detroit",
     "Jakarta",
@@ -1394,7 +1394,7 @@ function intro:draw()
         printr("Level", 202, 22, 6)
         printr(CARS[self.car].name, 304, 22, self.option == 3 and c or 9)
     end
-    if self.game_mode == 1 then
+    if self.game_mode == MODE_RACE then
         printr("Laps", 202, 32, 6)
         printr("" .. LAP_COUNTS[self.lap_count], 304, 32, self.option == 4 and c or 9)
     end
@@ -1449,7 +1449,7 @@ function map_menu(game)
                 end
                 print("0,0,0,0,0,0,0")
                 local race = race()
-                race:init(difficulty, 2)
+                race:init(difficulty, 2, 1)
                 gfx.show_mouse_cursor(false)
                 set_game_mode(race)
                 return
@@ -1516,18 +1516,18 @@ function mapeditor:update()
             -- change left object type
             local lobj = cs[4] // 8
             lobj = (lobj + 1) % OBJ_COUNT
-            while lobj >= OBJ_PIT_LINE_START do
-                lobj = (lobj + 1) % OBJ_COUNT
-            end
+            -- while lobj >= OBJ_PIT_LINE_START do
+            --     lobj = (lobj + 1) % OBJ_COUNT
+            -- end
             cs[4] = (cs[4] & 7) + lobj * 8
             self.race:generate_track()
         elseif inside_rect(mx, my, gfx.SCREEN_WIDTH - 150, 28, 32, 8) then
             -- change right object type
             local robj = cs[5] // 8
             robj = (robj + 1) % OBJ_COUNT
-            while robj >= OBJ_PIT_LINE_START or robj == OBJ_BRIDGE or robj == OBJ_BRIDGE2 do
-                robj = (robj + 1) % OBJ_COUNT
-            end
+            -- while robj >= OBJ_PIT_LINE_START or robj == OBJ_BRIDGE or robj == OBJ_BRIDGE2 do
+            --     robj = (robj + 1) % OBJ_COUNT
+            -- end
             cs[5] = (cs[5] & 7) + robj * 8
             self.race:generate_track()
         end
@@ -1718,7 +1718,7 @@ function mapeditor:draw()
     local robj = sec[5] // 8
     local lrail = sec[6]
     local rrail = sec[7]
-    local objs = { [0] = "", "tribune1", "tribune2", "tree", "bridge", "bridge2", "pit", "pit line" }
+    local objs = { [0] = "", "tribune1", "tribune2", "tree", "bridge", "bridge2", "pit", "pit line", "pit start", "pit end", "pit ent1", "pit ent2", "pit ent3", "pit ex1", "pit ex2", "pit ex3" }
     printc("len " .. sec_len .. " dir " .. sec_dir .. " w " .. sec_width, gfx.SCREEN_WIDTH / 2, 10, 7)
     printr("rail l " .. lrail .. " r " .. rrail, gfx.SCREEN_WIDTH - 1, 10, 7)
     local mx, my = inp.mouse_pos()
@@ -3690,6 +3690,7 @@ function lerpv(a, b, t)
 end
 
 TRACKS = {
+    -- manzana
     [0] = { 1337, 4, 128, 32, 25, 48, 0, 0, 2, 128, 32, 9, 48, 0, 0, 6, 128, 32, 9, 56, 0, 0, 4, 128, 32, 1, 1, 0, 0, 4, 128, 32, 17, 25, 0, 0, 2, 128, 32, 25, 25, 0, 0, 2, 128, 32, 1, 1, 0, -1,
         -- prima variante
         3, 120, 32, 1, 1, -1, 3, 3, 140, 32, 1, 17, 3, 0,
@@ -3711,10 +3712,35 @@ TRACKS = {
         -- curva parabolica
         5, 121.1, 32, 27, 0, 0, 0, 7, 127.1, 32, 27, 0, 0, 0, 6, 126.8, 32, 26, 24, 0, 0, 2, 126.8, 32, 10, 24, 0, 0,
         6, 128.0, 32, 10, 24, 0, 0, 5, 128.0, 32, 9, 56, 0, 0, 1, 128.0, 32, 41, 56, 0, 0, 10, 128, 32, 9, 48, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-    { 10, 128, 32, 10, 125, 32, 10, 127, 32, 6, 127, 32, 6, 121, 32, 6, 120, 32, 6, 120, 32, 6, 120, 32, 6, 125, 32, 6,
-        135, 32, 6, 131, 32, 6, 129, 32, 6, 130, 32, 6, 131, 32, 6, 130, 32, 6, 129, 32, 6, 128, 32, 6, 125, 32, 6, 125,
-        32, 6, 124, 32, 6, 124, 32, 6, 123, 32, 6, 121, 32, 6, 127, 32, 6, 136, 32, 6, 128, 32, 6, 128, 32, 6, 126, 32, 6,
-        125, 32, 6, 125, 32, 6, 125, 32, 6, 129, 32, 6, 131, 32, 3, 129, 32, 3, 125, 32, 3, 127, 32, 0, 0, 0 },
+    -- Interlakes
+    {1337,
+    12,128,28,48,8,0,0,
+    1,128,28,32,0,0,0,
+    -- S Do Senna
+    4,130,28,0,3,0,0, 3,137.4,28,0,3,0,0, 2,126,28,0,3,0,0, 2,118.6,28,0,3,0,0, 4,129.5,28,0,0,0,0,
+    -- curva do sol
+    8,130.9,28,0,1,0,0,
+    -- reta oposta
+    25,128.0,28,24,1,0,0,
+    -- subida do lago
+    4,135.0,28,24,3,0,0, 3,128.0,28,24,3,0,0, 6,130.6,28,1,3,0,0, 12,128.0,28,1,3,0,0,
+    -- ferradura
+    4,125.0,28,3,1,0,0, 4,122.0,28,3,1,0,0, 3,128.0,28,3,1,0,0, 3,126.0,28,3,1,0,0,
+    -- laranja
+    2,115.9,28,3,1,0,0, 3,126.5,28,1,1,0,0,
+    -- pinheirinho
+    7,134.6,28,1,1,0,0, 4,128.0,28,1,1,0,0, 4,124.6,28,1,1,0,0,
+    -- cotovelo
+    3,115.4,28,1,1,0,0, 4,128.0,28,1,1,0,0,
+    -- mergulho
+    7,131.8,28,1,3,0,0, 7,127.8,28,1,1,0,0,
+    -- juncao
+    3,138.1,28,1,3,0,0, 4,128.0,28,1,1,0,0, 2,132.7,28,1,1,0,0, 6,128.0,28,1,1,0,0,
+    -- subida do boxes
+    7,130.3,28,1,16,0,0, 7,128.0,28,24,16,0,0,
+    -- arquibancadas
+    6,129.3,28,1,16,0,0, 10,128.0,28,0,16,0,0,
+    0,0,0,0,0,0,0},
     { 10, 128, 32, 10, 129, 32, 10, 129, 32, 10, 138, 32, 10, 138, 32, 10, 124, 32, 10, 125, 32, 10, 127, 32, 10, 129,
         32, 10, 129, 32, 10, 128, 32, 10, 130, 32, 10, 129, 32, 10, 128, 32, 10, 122, 32, 10, 122, 32, 10, 123, 32, 10,
         127, 32, 10, 131, 32, 10, 131, 32, 10, 128, 32, 10, 126, 32, 10, 126, 32, 10, 128, 32, 10, 128, 32, 10, 127, 32,
