@@ -55,6 +55,28 @@ local TYRE_LIFE <const> = { 250*10, 250*15, 250*20, 250*20, 250*25}
 -- base impact on speed,acceleration,steering
 local TYRE_PERF <const> = { 1.1, 1.0, 0.9, 0.8, 0.7}
 local TYRE_COL <const> = { 8, 10, 7, 11, 28 }
+local COUNTRY_BRASIL <const> = 0
+local COUNTRY_SOUTH_AFRICA <const> = 1
+local COUNTRY_ITALY <const> = 2
+local COUNTRY_SPAIN <const> = 3
+local COUNTRY_CANADA <const> = 4
+local COUNTRY_FRANCE <const> = 5
+local COUNTRY_HUNGARY <const> = 6
+local COUNTRY_PORTUGAL <const> = 7
+local COUNTRY_JAPAN <const> = 8
+local COUNTRY_AUSTRALIA <const> = 9
+local COUNTRY_UK <const> = 10
+local COUNTRY_US <const> = 11
+local COUNTRY_AUSTRIA <const> = 12
+local COUNTRY_FINLAND <const> = 13
+local COUNTRY_BELGIUM <const> = 14
+local COUNTRY_IRELAND <const> = 15
+local COUNTRY_SWITZERLAND <const> = 16
+local COUNTRY_NETHERLAND <const> = 17
+local COUNTRY_MONACO <const> = 18
+local COUNTRY_NORWAY <const> = 19
+local COUNTRY_SWEDEN <const> = 20
+local COUNTRY_SCOTLAND <const> = 21
 local CARS <const> = { {
     name = "Easy",
     maxacc = 0.2,
@@ -74,6 +96,31 @@ local CARS <const> = { {
     accsqr = 0.05,
     player_adv = 0
 } }
+local TRACK_DATA = {
+    -- Kyalami
+    {
+        name="Interlochs", -- Interlagos
+        country = COUNTRY_SCOTLAND
+    },
+    -- Donington
+    -- Imola
+    -- Barcelona
+    -- Monaco
+    -- Montreal
+    -- Magny-Cours
+    -- Silverstone
+    -- Hockeheim
+    -- Hungaroring
+    -- Spa-Francorchamps
+    {
+        name="Manzana", -- Monza
+        country = COUNTRY_SPAIN
+    }
+    -- Estoril
+    -- Suzuka
+    -- Adelaide
+}
+
 local PANEL_CAR_STATUS <const> = 1
 panels={nil,PANEL_CAR_STATUS}
 panel=0
@@ -328,7 +375,8 @@ local TEAMS <const> = {
         color2 = 10,
         perf = 5,
         short_name = "WIL",
-        pit=1
+        pit=1,
+        country = COUNTRY_UK
     },
     {
         name="MacLoran",
@@ -336,7 +384,8 @@ local TEAMS <const> = {
         color2 = 8,
         perf = 4,
         short_name = "MCL",
-        pit=2
+        pit=2,
+        country = COUNTRY_UK
     },
     {
         name = "Benettson",
@@ -344,7 +393,8 @@ local TEAMS <const> = {
         color2 = 26,
         perf = 4,
         short_name = "BEN",
-        pit=3
+        pit=3,
+        country = COUNTRY_UK
     },
     {
         name = "Ferrero",
@@ -352,7 +402,8 @@ local TEAMS <const> = {
         color2 = 24,
         perf = 3,
         short_name = "FER",
-        pit=4
+        pit=4,
+        country = COUNTRY_ITALY
     },
     {
         name="Leger",
@@ -360,7 +411,8 @@ local TEAMS <const> = {
         color2 = 7,
         perf = 2,
         short_name = "LEG",
-        pit=5
+        pit=5,
+        country = COUNTRY_FRANCE
     },
     {
         name="Lotusi",
@@ -368,7 +420,8 @@ local TEAMS <const> = {
         color2 = 7,
         perf = 0,
         short_name = "LOT",
-        pit=6
+        pit=6,
+        country = COUNTRY_ITALY
     },
     {
         name = "Soober",
@@ -376,7 +429,8 @@ local TEAMS <const> = {
         color2 = 16,
         perf = 0,
         short_name = "SOO",
-        pit=7
+        pit=7,
+        country = COUNTRY_SWITZERLAND
     },
     {
         name="Jardon",
@@ -384,7 +438,8 @@ local TEAMS <const> = {
         color2 = 8,
         perf = 0,
         short_name = "JAR",
-        pit=8
+        pit=8,
+        country = COUNTRY_IRELAND
     }
 }
 
@@ -401,91 +456,106 @@ local DRIVERS <const> = { {
     short_name = "ASA",
     skill = 8,
     team = find_team_id("MacLoran"),
-    helmet = 10
+    helmet = 10,
+    country = COUNTRY_AUSTRIA
 }, {
     name = "Alan Presto",
     short_name = "APR",
     skill = 7,
     team = find_team_id("Williamson"),
-    helmet = 11
+    helmet = 11,
+    country = COUNTRY_ITALY
 }, {
-    name = "Nygel Mansale",
+    name = "Naijeru Manseru",
     short_name = "NMA",
     skill = 5,
     team = find_team_id("Jardon"),
-    helmet = 12
+    helmet = 12,
+    country = COUNTRY_JAPAN
 }, {
     name = "Gege Leyton",
     short_name = "GLE",
     skill = 6,
     team = find_team_id("Soober"),
-    helmet = 13
+    helmet = 13,
+    country = COUNTRY_UK
 }, {
     name = "Mike Shoemaker",
     short_name = "MSH",
     skill = 6,
     team = find_team_id("Benettson"),
-    helmet = 14
+    helmet = 14,
+    country = COUNTRY_US
 }, {
     name = "Pierre Lami",
     short_name = "PLA",
     skill = 5,
     team = find_team_id("Jardon"),
-    helmet = 15
+    helmet = 15,
+    country = COUNTRY_FRANCE
 }, {
     name = "Richard Petrez",
     short_name = "RPE",
     skill = 5,
     team = find_team_id("Benettson"),
-    helmet = 22
+    helmet = 22,
+    country = COUNTRY_IRELAND
 }, {
     name = "John HeartBerth",
     short_name = "JHE",
     skill = 4,
     team = find_team_id("Lotusi"),
-    helmet = 23
+    helmet = 23,
+    country=COUNTRY_UK
 }, {
     name = "Devon Hell",
     short_name = "DHE",
     skill = 6,
     team = find_team_id("Williamson"),
-    helmet = 24
+    helmet = 24,
+    country = COUNTRY_UK
 }, {
-    name = "Martin Blundle",
+    name = "Markus Blunberg",
     short_name = "MBL",
     skill = 5,
     team = find_team_id("Leger"),
-    helmet = 25
+    helmet = 25,
+    country=COUNTRY_FINLAND
 }, {
-    name = "Gerard Bergler",
+    name = "Gerardo Bergini",
     short_name = "GBE",
     skill = 5,
     team = find_team_id("Ferrero"),
-    helmet = 26
+    helmet = 26,
+    country = COUNTRY_ITALY
 }, {
     name = "Mike Andrett",
     short_name = "MAN",
     skill = 4,
     team = find_team_id("MacLoran"),
-    helmet = 27
+    helmet = 27,
+    country = COUNTRY_UK
 }, {
-    name = "Carl Wandling",
+    name = "Carlos Wandling",
     short_name = "CWA",
     skill = 4,
     team = find_team_id("Soober"),
-    helmet = 28
+    helmet = 28,
+    country = COUNTRY_BRASIL
 }, {
-    name = "Marco Blundelli",
+    name = "Marco Brundli",
     short_name = "MBL",
     skill = 4,
     team = find_team_id("Leger"),
-    helmet = 29
+    helmet = 29,
+    country = COUNTRY_ITALY
 }, {
-    name = "Mickael Hakinon",
+    name = "Michael Hakenberg",
     short_name = "MHA",
     skill = 5,
     team = find_team_id("Lotusi"),
-    helmet = 30
+    helmet = 30,
+    country=COUNTRY_AUSTRIA
 } }
 
 local DT <const> = 0.033333 -- 1/30th of a second
@@ -1233,6 +1303,11 @@ function init()
         car_verts[i].x = car_verts[i].x*0.8
         car_verts[i] = scalev(car_verts[i],0.8)
     end
+    -- compute tracks length in km
+    for i=1,#TRACK_DATA do
+        TRACK_DATA[i].length = #TRACKS[i-1] * 15.8
+        print("track "..TRACK_DATA[i].name.." : "..TRACK_DATA[i].length)
+    end
     for _, sfx in ipairs(SFX) do
         snd.new_pattern(sfx)
     end
@@ -1367,25 +1442,6 @@ function intro:update()
     self.lap_count = mid(1, self.lap_count, #LAP_COUNTS)
 end
 
-track_names = {
-    -- Kyalami
-    [0] =     "Interlakes", -- Interlagos
-    -- Donington
-    -- Imola
-    -- Barcelona
-    -- Monaco
-    -- Montreal
-    -- Magny-Cours
-    -- Silverstone
-    -- Hockeheim
-    -- Hungaroring
-    -- Spa-Francorchamps
-    "Manzana" -- Monza
-    -- Estoril
-    -- Suzuka
-    -- Adelaide
-}
-
 function intro:draw()
     cls()
     gfx.blit(0, 20, 224, 86, 80, 10)
@@ -1397,7 +1453,7 @@ function intro:draw()
     printr("Mode", 202, 2, 6)
     printr(game_modes[self.game_mode], 303, 2, self.option == 1 and c or 9)
     printr("Track", 202, 12, 6)
-    printr(track_names[track_num], 304, 12, self.option == 2 and c or 9)
+    printr(TRACK_DATA[track_num+1].name, 304, 12, self.option == 2 and c or 9)
     if self.game_mode < 3 then
         printr("Level", 202, 22, 6)
         printr(CARS[self.car].name, 304, 22, self.option == 3 and c or 9)
@@ -3700,7 +3756,7 @@ end
 TRACKS = {
     [0] =
     ------------------------
-    -- Interlakes
+    -- Interlochs
     ------------------------
     {1337,
     12,128,28,48,8,0,0,
