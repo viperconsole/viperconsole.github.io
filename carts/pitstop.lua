@@ -358,7 +358,37 @@ end
 
 function gprint(msg, px, py, col)
     local c = math.floor(col)
-    gfx.print(gfx.FONT_8X8, msg, math.floor(px), math.floor(py), PAL[c].r, PAL[c].g, PAL[c].b)
+    gfx.print(gfx.FONT_8X8, msg, flr(px), flr(py), PAL[c].r, PAL[c].g, PAL[c].b)
+end
+
+function geoff_print(msg,x,y,selected)
+    gfx.print(gfx.FONT_8X8, msg, flr(x)-1, flr(y)-1, selected and 147 or 42, selected and 14 or 78, selected and 1 or 112)
+    gfx.print(gfx.FONT_8X8, msg, flr(x)+1, flr(y)+1, selected and 254 or 131, selected and 25 or 147, selected and 0 or 162)
+    gfx.print(gfx.FONT_8X8, msg, flr(x), flr(y), 255,255,255)
+end
+
+local G_MENU_W <const> = 176
+local G_MENU_X <const> = (gfx.SCREEN_WIDTH-G_MENU_W)/2
+local G_MENU_H <const> = 14
+function geoff_menu_item(msg, y, selected)
+    gfx.rectangle(G_MENU_X,y,G_MENU_W,G_MENU_H, selected and 212 or 96,selected and 19 or 113,selected and 0 or 132)
+    gfx.line(G_MENU_X,y+G_MENU_H,G_MENU_X+G_MENU_W,y+G_MENU_H, 47,80,112)
+    gfx.line(G_MENU_X+G_MENU_W,y,G_MENU_X+G_MENU_W,y+G_MENU_H, 47,80,112)
+    gfx.line(G_MENU_X,y,G_MENU_X+G_MENU_W,y, 129,146,160)
+    gfx.line(G_MENU_X,y,G_MENU_X,y+G_MENU_H, 129,146,160)
+    geoff_print(msg,G_MENU_X + G_MENU_W/2 - #msg * 4, y+3, selected)
+end
+
+function geoff_frame(x,y,w,h)
+    gfx.rectangle(x,y,w,h, 28,63,98)
+    for fy=1,h//8 do
+        gfx.blit(155,0,4,8,x,y+fy*8-8)
+        gfx.blit(155,0,4,8,x+w-4,y+fy*8-8,nil,nil,nil,nil,nil,nil,true, true)
+    end
+    for fx=1,w//8 do
+        gfx.blit(159,0,8,4, x+fx*8-8,y)
+        gfx.blit(159,0,8,4, x+fx*8-8,y+h-4,nil,nil,nil,nil,nil,nil,false,true)
+    end
 end
 
 local SFX_BOOST_COOLDOWN <const> = 33
@@ -1444,24 +1474,36 @@ end
 
 function intro:draw()
     cls()
-    gfx.blit(0, 20, 224, 86, 80, 10)
-    gfx.blit(0, 106, 224, 118, 80, 100)
-    draw_intro_minimap( -95, -62, 0.015, 6)
-    printr("x/c/arrows/esc", 300, 45, 6)
+    gfx.blit(0, 106, 224, 118, 0, 0, nil,nil,nil,nil, gfx.SCREEN_WIDTH,gfx.SCREEN_HEIGHT)
+    gfx.blit(0, 62, 224, 44, 80, 10)
+    if false then
+        draw_intro_minimap( -95, -62, 0.015, 6)
+        printr("x/c/arrows/esc", 300, 45, 6)
 
-    local c = frame % 16 < 8 and 8 or 9
-    printr("Mode", 202, 2, 6)
-    printr(game_modes[self.game_mode], 303, 2, self.option == 1 and c or 9)
-    printr("Track", 202, 12, 6)
-    printr(TRACK_DATA[track_num+1].name, 304, 12, self.option == 2 and c or 9)
-    if self.game_mode < 3 then
-        printr("Level", 202, 22, 6)
-        printr(CARS[self.car].name, 304, 22, self.option == 3 and c or 9)
+        local c = frame % 16 < 8 and 8 or 9
+        printr("Mode", 202, 2, 6)
+        printr(game_modes[self.game_mode], 303, 2, self.option == 1 and c or 9)
+        printr("Track", 202, 12, 6)
+        printr(TRACK_DATA[track_num+1].name, 304, 12, self.option == 2 and c or 9)
+        if self.game_mode < 3 then
+            printr("Level", 202, 22, 6)
+            printr(CARS[self.car].name, 304, 22, self.option == 3 and c or 9)
+        end
+        if self.game_mode == MODE_RACE then
+            printr("Laps", 202, 32, 6)
+            printr("" .. LAP_COUNTS[self.lap_count], 304, 32, self.option == 4 and c or 9)
+        end
     end
-    if self.game_mode == MODE_RACE then
-        printr("Laps", 202, 32, 6)
-        printr("" .. LAP_COUNTS[self.lap_count], 304, 32, self.option == 4 and c or 9)
-    end
+    local y=74
+    geoff_frame(G_MENU_X-8,y,G_MENU_W+16,124)
+    y=y+7
+    geoff_menu_item("Quick Race", y, true)
+    geoff_menu_item("Practise any Circuit", y+16, false)
+    geoff_menu_item("Non-Championship Race", y+32, false)
+    geoff_menu_item("Championship Season", y+48, false)
+    geoff_menu_item("Game Option Menu", y+64, false)
+    geoff_menu_item("Track Editor", y+80, false)
+    geoff_menu_item("Driver/Team Selection", y+96, false)
 end
 
 mapeditor = {
