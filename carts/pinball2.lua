@@ -17,7 +17,7 @@ local BUMPER_BOUNCE <const> = 1.5
 local TIME_COEF <const> = 0.8
 local RBUMPER_RADIUS <const> = 17
 local RBUMPER_BASE_SCORE <const> = 130
-debug_colliders=true
+debug_colliders=false
 pause=false
 
 function v2d(x,y)
@@ -97,6 +97,7 @@ function init_title()
 end
 
 function update_title()
+    update_msg()
     cam = cam + mode.cam_spd
     if mode.cam_spd == 1 and cam == MAX_CAM then
         mode.cam_spd = -1
@@ -109,7 +110,9 @@ function update_title()
         mode.blink = (mode.blink + 0.2)%2
     elseif t < 10 then
         mode.blink=0
-        mode.msg={{msg="PRESS",font=fonts.big},{msg="START",font=fonts.big}}
+        if not mode.msg[1].scroll_end then
+            mode.msg={{msg="PRESS",font=fonts.big,scroll=96,scroll_end=18},{msg="START",font=fonts.big,scroll=96,scroll_end=18}}
+        end
     elseif t < 13 then
         mode.blink = (mode.blink + 0.2)%2
     elseif t < 17 then
@@ -123,7 +126,7 @@ function update_title()
         mode.msg[1].msg=string.format("%d %s",i,scores[i].name)
         mode.msg[2].msg=tostring(scores[i].score)
     end
-    if t > 3 then
+    if t > 1.5 then
         if inp_lflip_pressed() or inp_rflip_pressed() or inp.pad_button_pressed(1,inp.XBOX360_START) then
             mode=modes.ready
         end
@@ -133,6 +136,7 @@ end
 function render_title()
     render_msg()
     render_pinball()
+    gfx.print(gfx.FONT_5X7,string.format("%.0f %.0f",t,mode.msg[1].scroll or 0),5,5)
 end
 
 function init_ready()
@@ -144,6 +148,7 @@ function init_ready()
 end
 
 function update_ready()
+    update_msg()
     if t < 1 then
         mode.blink = (mode.blink + 0.2)%2
     else
@@ -183,14 +188,18 @@ function init_game()
 end
 
 function update_game()
+    update_msg()
     if player.score ~= mode.old_score then
         mode.msg[1].msg=string.format("%8.0f",player.score)
+        mode.msg[1].scroll=nil
     end
     if player.num ~= mode.old_pnum then
         mode.msg[2].msg=string.format("PLAYER %.0f",player.num)
+        mode.msg[2].scroll=nil
     end
     if player.rem_balls ~= mode.old_balls then
         mode.msg[3].msg=string.format("BALLS  %.0f",player.rem_balls)
+        mode.msg[3].scroll=nil
     end
     mode.old_score=player.score
     mode.old_pnum=player.num
@@ -202,7 +211,21 @@ function render_game()
     render_msg()
     render_pinball()
 end
-
+function msg_scroll(msg)
+    mode.msg[1].msg=msg
+    mode.msg[1].scroll=96
+end
+function update_msg()
+    for i=1,#mode.msg do
+        local m=mode.msg[i]
+        if m.scroll then
+            m.scroll = m.scroll-2
+            if m.scroll == m.scroll_end then
+                m.scroll=nil
+            end
+        end
+    end
+end
 function render_msg()
     gfx.set_sprite_layer(LAYER_PINBALL_L1)
     gfx.blit(gfx.SCREEN_WIDTH-96,0,96,224,gfx.SCREEN_WIDTH-96,0)
@@ -214,24 +237,27 @@ function render_msg()
         for i=1,#mode.msg do
             local m=mode.msg[i]
             if m and m.msg then
-                local dx=(96-12*#m.msg)/2
+                local dx=m.scroll and m.scroll or (96-12*#m.msg)/2
                 gfx.print(m.font.id, m.msg, gfx.SCREEN_WIDTH-96+dx,y)
                 y=y+m.font.h
             end
         end
     end
 end
-function cbk_rbumper(c)
+function cbk_level_switch(c,b)
+    b.level=c.level_to
+end
+function cbk_rbumper(c,b)
     pinball.rbump_timer=15
 end
-function cbk_lbumper(c)
+function cbk_lbumper(c,b)
     pinball.lbump_timer=15
 end
-function cbk_round_bumper(c)
+function cbk_round_bumper(c,b)
     c.timer=15
     player.score = player.score + RBUMPER_BASE_SCORE
 end
-function cbk_target(c)
+function cbk_target(c,b)
     c.lit=true
 end
 function init_pinball()
@@ -240,9 +266,13 @@ function init_pinball()
         spring=0,
         spring_col=nil,
         balls={},
+        tower_open=false,
         ready_ball=nil,
         lflipper=nil,
         rflipper=nil,
+        rbumpers={}, -- round bumpers
+        rollover={}, -- tower K,E,Y rollovers
+        targets={} -- N,I,G,H,T,M,A,R,E targets
     }
     pinball.spring_col=add_wall_collider("spring",285,SPRING_POS,272,SPRING_POS,SPRING_BOUNCE)
     add_ball(279,SPRING_POS-BALL_RADIUS)
@@ -288,17 +318,17 @@ function init_pinball()
             add_wall_collider(w.name, w[p],w[p+1],w[p+2],w[p+3],WALL_BOUNCE,w.bounce or 0,w.callback,w.level)
         end
     end
-    pinball.rbumpers={}
     table.insert(pinball.rbumpers,add_round_collider("round bumper 1",157,79,RBUMPER_RADIUS,BUMPER_BOUNCE,cbk_round_bumper))
     table.insert(pinball.rbumpers,add_round_collider("round bumper 2",179,114,RBUMPER_RADIUS,BUMPER_BOUNCE,cbk_round_bumper))
     table.insert(pinball.rbumpers,add_round_collider("round bumper 3",219,83,RBUMPER_RADIUS,BUMPER_BOUNCE,cbk_round_bumper))
+    -- tower ramp level switch
+    add_level_switcher(111,102,111,83,1,2)
     -- tower key pins
     add_round_collider("key_pin1.1",178,38,2.5,0)
     add_round_collider("key_pin1.2",178,46,2.5,0)
     add_round_collider("key_pin2.1",197,38,2.5,0)
     add_round_collider("key_pin2.2",197,46,2.5,0)
     -- nightmare targets
-    pinball.targets={}
     add_target("N",{15,256,19,247},17,250)
     add_target("I",{21,242,26,233},24,236)
     add_target("G",{29,229,34,220},32,222)
@@ -309,7 +339,7 @@ function init_pinball()
     add_target("R",{244,240,249,250},234,244)
     add_target("E",{250,258,255,268},238,260)
     add_round_collider("central pin",134,443,2.5,0)
-    pinball.rollover={}
+    -- tower KEY detectors
     add_rollover_detector(169,42,369,296,14,14,163,47)
     add_rollover_detector(188,42,369,312,14,14,183,47)
     add_rollover_detector(206,45,369,328,14,14,202,51)
@@ -380,6 +410,7 @@ function update_pinball()
     for i=1,#pinball.balls do
         local b=pinball.balls[i]
         update_ball(b)
+        local lit_roll=0
         for i=1,#pinball.rollover do
             local c=pinball.rollover[i]
             local collide=c.collide(b,c)
@@ -387,6 +418,14 @@ function update_pinball()
                 c.lit=true
             end
             c.collides=collide
+            if c.lit then
+                lit_roll=lit_roll+1
+            end
+        end
+        if lit_roll == 3 then
+            -- open tower
+            pinball.tower_open=true
+            msg_scroll("THE TOWER IS OPEN")
         end
         if pinball.ready_ball == nil and b.pos.y > TABLE_HEIGHT + BALL_RADIUS then
             -- ball is lost
@@ -558,6 +597,10 @@ function add_target(name,wall,sx,sy)
     col.lit=false
     table.insert(pinball.targets,col)
 end
+function add_level_switcher(x1,y1,x2,y2,level_from,level_to)
+    local col=add_collider("level switcher",{v2d(x1,y1),v2d(x2,y2)},0,0,collide_polygon,cbk_level_switch,level_from)
+    col.level_to=level_to
+end
 function add_rollover_detector(x,y,sx,sy,sw,sh,px,py)
     local col=add_round_collider("rollover",x,y,1,0)
     col.disabled=true
@@ -626,7 +669,7 @@ function update_ball(b)
                 local idx,inter,n,spd=c.collide(b,c)
                 if inter then
                     if idx==1 and c.cbk then
-                        c.cbk(c)
+                        c.cbk(c,b)
                     end
                     collides=true
                     -- bounce
