@@ -22,7 +22,6 @@ local MINIMAP_END <const> = 20
 local SMOKE_LIFE <const> = 80
 local DATA_PER_SEGMENT <const> = 8
 local DATA_PER_SECTION <const> = 7
-local LAP_COUNTS <const> = { 1, 3, 5, 15 }
 local LAYER_SMOKE <const> = 3
 local LAYER_SHADOW <const> = 4
 local LAYER_CARS <const> = 5
@@ -738,7 +737,7 @@ function ai_controls(car)
 end
 
 function create_car(race)
-    c = CARS[intro.car]
+    c = CARS[race.difficulty]
     local tyre_type = math.random(1,2)
     local tyre_heat=race.mode == MODE_RACE and TYRE_HEAT[tyre_type] or 0
     local car = {
@@ -1141,7 +1140,7 @@ function create_car(race)
         if abs(current_segment - cam_car.current_segment) < 10 then
             local spawn_pos = vecsub(self.pos, scalev(self.vel, 0.5))
             if not self.pit then
-                local caccel = accel / CARS[intro.car].maxacc
+                local caccel = accel / CARS[self.race.difficulty].maxacc
                 if (self.ccut_timer < 0 and speed > 1 and caccel / speed > 0.07) or (controls.brake and speed < 9 and speed > 2) then
                     local col = ground_type == 1 and 3 or (ground_type == 2 and 4 or 22)
                     create_smoke(current_segment, spawn_pos, self.vel, col)
@@ -1336,7 +1335,6 @@ function init()
     -- compute tracks length in km
     for i=1,#TRACK_DATA do
         TRACK_DATA[i].length = #TRACKS[i-1] * 15.8
-        print("track "..TRACK_DATA[i].name.." : "..TRACK_DATA[i].length)
     end
     for _, sfx in ipairs(SFX) do
         snd.new_pattern(sfx)
@@ -1400,110 +1398,70 @@ MODE_EDITOR = 3
 
 game_modes = { "Race vs AI", "Time Attack", "Track Editor" }
 
+
+local MAIN_MENU <const> = {
+    {name="Quick Race", mode=MODE_RACE},
+    {name="Practise any Circuit", mode=MODE_TIME_ATTACK},
+    {name="Non-Championship Race", mode=MODE_RACE},
+    {name="Championship Season",mode=MODE_RACE},
+    {name="Game Option Menu"},
+    {name="Track Editor",mode=MODE_EDITOR},
+    {name="Driver/Team Selection"},
+}
+local cur_menu=MAIN_MENU
+local cur_menu_item=1
+
+function draw_menu(menu)
+    local y=74
+    geoff_frame(G_MENU_X-8,y,G_MENU_W+16,12+16*#menu)
+    y=y+7
+    for i=1,#menu do
+        geoff_menu_item(menu[i].name, y, i == cur_menu_item)
+        y=y+16
+    end
+end
+
+function update_menu()
+    if inp.down_pressed() then
+        cur_menu_item = (cur_menu_item % #cur_menu) + 1
+    elseif inp.up_pressed() then
+        cur_menu_item = (cur_menu_item -1) % #cur_menu
+        if cur_menu_item == 0 then
+            cur_menu_item = #cur_menu
+        end
+    end
+    if inp.action1_pressed() then
+        local mode=cur_menu[cur_menu_item].mode
+        local track_num=1
+        local lap_count=5
+        local difficulty=2
+        if mode == MODE_EDITOR then
+            mapeditor:init(track_num)
+            set_game_mode(mapeditor)
+        elseif mode == MODE_RACE or mode == MODE_TIME_ATTACK then
+            local race = race()
+            race:init(track_num, mode, lap_count, difficulty)
+            set_game_mode(race)
+        end
+    end
+end
+
 function intro:init()
     -- music(0)
-    track_num = 0
     camera_angle = 0.25
-    load_map()
-    self.game_mode = 1
-    self.car = 1
-    self.option = 1
-    self.lap_count = 1
 end
 
 function intro:update()
     frame = frame + 1
 
-    if not inp.action1() then
-        self.ready = true
-    end
-
-    if self.ready and inp.action1_pressed() then
-        if self.game_mode == MODE_EDITOR then
-            mapeditor:init()
-            set_game_mode(mapeditor)
-        else
-            local race = race()
-            race:init(track_num, self.game_mode, self.lap_count)
-            set_game_mode(race)
-        end
-    end
-
-    if self.option == 1 then
-        if inp.left_pressed() then
-            self.game_mode = self.game_mode - 1
-        end
-        if inp.right_pressed() then
-            self.game_mode = self.game_mode + 1
-        end
-    elseif self.option == 2 then
-        if inp.left_pressed() then
-            track_num = mid(0, track_num - 1, 7)
-            load_map()
-        end
-        if inp.right_pressed() then
-            track_num = mid(0, track_num + 1, 7)
-            load_map()
-        end
-    elseif self.option == 3 then
-        if inp.left_pressed() then
-            self.car = self.car - 1
-        end
-        if inp.right_pressed() then
-            self.car = self.car + 1
-        end
-    elseif self.option == 4 then
-        if inp.left_pressed() then
-            self.lap_count = self.lap_count - 1
-        end
-        if inp.right_pressed() then
-            self.lap_count = self.lap_count + 1
-        end
-    end
-    if inp.up_pressed() then
-        self.option = self.option - 1
-    end
-    if inp.down_pressed() then
-        self.option = self.option + 1
-    end
-    self.game_mode = mid(1, self.game_mode, 3)
-    self.option = mid(1, self.option, 5 - self.game_mode)
-    self.car = mid(1, self.car, 3)
-    self.lap_count = mid(1, self.lap_count, #LAP_COUNTS)
+    update_menu()
 end
 
 function intro:draw()
     cls()
     gfx.blit(0, 106, 224, 118, 0, 0, nil,nil,nil,nil, gfx.SCREEN_WIDTH,gfx.SCREEN_HEIGHT)
     gfx.blit(0, 62, 224, 44, 80, 10)
-    if false then
-        draw_intro_minimap( -95, -62, 0.015, 6)
-        printr("x/c/arrows/esc", 300, 45, 6)
-
-        local c = frame % 16 < 8 and 8 or 9
-        printr("Mode", 202, 2, 6)
-        printr(game_modes[self.game_mode], 303, 2, self.option == 1 and c or 9)
-        printr("Track", 202, 12, 6)
-        printr(TRACK_DATA[track_num+1].name, 304, 12, self.option == 2 and c or 9)
-        if self.game_mode < 3 then
-            printr("Level", 202, 22, 6)
-            printr(CARS[self.car].name, 304, 22, self.option == 3 and c or 9)
-        end
-        if self.game_mode == MODE_RACE then
-            printr("Laps", 202, 32, 6)
-            printr("" .. LAP_COUNTS[self.lap_count], 304, 32, self.option == 4 and c or 9)
-        end
-    end
-    local y=74
-    geoff_frame(G_MENU_X-8,y,G_MENU_W+16,124)
-    y=y+7
-    geoff_menu_item("Quick Race", y, true)
-    geoff_menu_item("Practise any Circuit", y+16, false)
-    geoff_menu_item("Non-Championship Race", y+32, false)
-    geoff_menu_item("Championship Season", y+48, false)
-    geoff_menu_item("Game Option Menu", y+64, false)
-    geoff_menu_item("Track Editor", y+80, false)
-    geoff_menu_item("Driver/Team Selection", y+96, false)
+    draw_menu(cur_menu)
 end
 
 mapeditor = {
@@ -1518,15 +1476,17 @@ mapeditor = {
     mdragx = 0,
     mdragy = 0
 }
-function mapeditor:init()
+function mapeditor:init(track_num)
     scale = 0.05
     camera()
     self.sec = #mapsections
     gfx.show_mouse_cursor(true)
     self.race = race()
-    self.race:init(1, MODE_EDITOR, 1)
+    self.race:init(1, MODE_EDITOR, 1, 1)
     camera_angle = 0.25
     self.display = 0
+    self.track_num = track_num
+    load_map(track_num)
 end
 
 function map_menu(game)
@@ -1555,7 +1515,7 @@ function map_menu(game)
                 end
                 print("0,0,0,0,0,0,0")
                 local race = race()
-                race:init(track_num, 2, 1)
+                race:init(game.track_num, 2, 1, 1)
                 gfx.show_mouse_cursor(false)
                 set_game_mode(race)
                 return
@@ -1868,7 +1828,7 @@ function mapeditor:draw()
     gprint("  display", 17, y + 2, 7)
 end
 
-function load_map()
+function load_map(track_num)
     local newfmt = TRACKS[track_num][1] == 1337
     local start = newfmt and 2 or 1
     mapsections = {}
@@ -2177,16 +2137,17 @@ function race()
         end
     end
 
-    function race:init(difficulty, race_mode, lap_count)
+    function race:init(track_num, race_mode, lap_count, difficulty)
         self.race_mode = race_mode
-        self.lap_count = LAP_COUNTS[lap_count]
+        self.lap_count = lap_count
         self.live_cars = 16
         self.is_finished = false
         self.panel_timer = -1
         self.best_lap_timer = -1
+        self.difficulty = difficulty
         sc1timer = 0
         camera_angle = 0
-
+        load_map(track_num)
         self:generate_track()
         self:restart()
     end
@@ -2247,7 +2208,7 @@ function race()
         if self.race_mode == MODE_RACE then
             for i = 1, #DRIVERS do
                 local ai_car = create_car(self)
-                ai_car.maxacc = ai_car.maxacc - CARS[intro.car].player_adv
+                ai_car.maxacc = ai_car.maxacc - CARS[self.difficulty].player_adv
                 ai_car.mass = ai_car.mass + FUEL_MASS_PER_KM * self.lap_count
                 ai_car.current_segment = -1 - i // 2
                 ai_car.driver = DRIVERS[i]
