@@ -54,6 +54,11 @@ local TYRE_LIFE <const> = { 250*10, 250*15, 250*20, 250*20, 250*25}
 -- base impact on speed,acceleration,steering
 local TYRE_PERF <const> = { 1.1, 1.0, 0.9, 0.8, 0.7}
 local TYRE_COL <const> = { 8, 10, 7, 11, 28 }
+local DEFAULT_QUICK_RACE_CONF <const> = {
+    track = 1,
+    lap_count = 5,
+    difficulty = 2
+}
 local COUNTRY_BRASIL <const> = 0
 local COUNTRY_SOUTH_AFRICA <const> = 1
 local COUNTRY_ITALY <const> = 2
@@ -1368,6 +1373,14 @@ function init()
     trail_offset = vec( -6, 0)
     intro:init()
     set_game_mode(intro)
+    quick_race_conf=load_table("pitstop/pitstop.db","quick_race_conf")
+    if quick_race_conf == nil then
+        print("NO QUICK RACE CONF")
+        quick_race_conf = DEFAULT_QUICK_RACE_CONF
+        save_table("pitstop/pitstop.db","quick_race_conf", quick_race_conf)
+    else
+        print("QUICK RACE CONF : "..quick_race_conf.lap_count)
+    end
 end
 
 function render()
@@ -1395,12 +1408,13 @@ frame = 0
 MODE_RACE = 1
 MODE_TIME_ATTACK = 2
 MODE_EDITOR = 3
+MODE_QUICK_RACE = 4
 
 game_modes = { "Race vs AI", "Time Attack", "Track Editor" }
 
 
 local MAIN_MENU <const> = {
-    {name="Quick Race", mode=MODE_RACE},
+    {name="Quick Race", mode=MODE_QUICK_RACE},
     {name="Practise any Circuit", mode=MODE_TIME_ATTACK},
     {name="Non-Championship Race", mode=MODE_RACE},
     {name="Championship Season",mode=MODE_RACE},
@@ -1438,8 +1452,14 @@ function update_menu()
         if mode == MODE_EDITOR then
             mapeditor:init(track_num)
             set_game_mode(mapeditor)
-        elseif mode == MODE_RACE or mode == MODE_TIME_ATTACK then
+        elseif mode == MODE_RACE or mode == MODE_TIME_ATTACK or mode == MODE_QUICK_RACE then
             local race = race()
+            if mode == MODE_QUICK_RACE then
+                track_num = quick_race_conf.track
+                lap_count = quick_race_conf.lap_count
+                difficulty = quick_race_conf.difficulty
+                mode = MODE_RACE
+            end
             race:init(track_num, mode, lap_count, difficulty)
             set_game_mode(race)
         end
