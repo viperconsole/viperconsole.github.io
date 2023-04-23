@@ -46,6 +46,10 @@ Those functions are available globally:
 * `print(message)` : display a debug screen on stdout(native) or js console (web)
 * `elapsed()` : floating point number of seconds elapsed since the game started
 * `lerp_angle(from,to,amount)` : linearly interpolates between two angles (in radians) by a normalized value.
+* `save(dbpath,key,value)` : save the a sqlite file `dbpath`. `key` and `value` are strings
+* `load(dbpath,key)` : return the value for given key in the `dbpath` sqlite file.
+* `save_table(dbpath,key,t)` : serialize a lua table `t` into sqlite file `dbpath` with name `key`. `t` should be a flat table containing only string and number fields.
+* `load_table(dbpath,key)` : deserialize a lua table previously saved with `save_table`.
 
 Three interfaces are exposed by the viper console :
 
