@@ -1,0 +1,44 @@
+{
+  "config": {
+    "cartpath": "carts"
+  },
+  "carts": [
+    {
+      "name": "celeste",
+      "icon": "celeste.png",
+      "source": "celeste.gd",
+      "tags": [
+        "platform",
+        "pico8",
+        "beta"
+      ]
+    },
+    {
+      "name": "Super pitstop'93",
+      "icon": "pitstop.png",
+      "source": "pitstop.gd",
+      "tags": [
+        "racing",
+        "alpha"
+      ]
+    },
+    {
+      "name": "Second Reality",
+      "icon": "demo.png",
+      "source": "demo.gd",
+      "tags": [
+        "demoscene",
+        "alpha"
+      ]
+    },
+    {
+      "name": "Horror Mansion",
+      "icon": "pinball.png",
+      "source": "pinball.gd",
+      "tags": [
+        "pinball",
+        "alpha"
+      ]
+    }
+  ]
+}
