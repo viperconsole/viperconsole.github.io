@@ -1110,11 +1110,15 @@ func begin_game():
 	start_game = false
 	load_room(0, 0)
 
+var action_pressed=false
+
 func update():
 	flipflop = not flipflop
-	var action_pressed=inp.action1_pressed() or inp.action2_pressed()
 	if not flipflop :
+		action_pressed=inp.action1_pressed() or inp.action2_pressed()
 		return
+	else:
+		action_pressed=action_pressed or inp.action1_pressed() or inp.action2_pressed()
 	# clouds
 	if not is_title() :
 		for cloud in clouds:
