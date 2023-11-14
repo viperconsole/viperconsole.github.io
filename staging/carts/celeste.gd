@@ -81,9 +81,9 @@ func spr(n:float, x:float, y:float, w:int, h:int, hflip:bool, vflip:bool) -> voi
 		spritey,
 		w * SPRITE_SIZE,
 		h * SPRITE_SIZE,
-		255, 255, 255, 0,
-		null,
-		null,
+		Color8(255, 255, 255), 0.0,
+		0.0,
+		0.0,
 		hflip,
 		vflip
 	)
