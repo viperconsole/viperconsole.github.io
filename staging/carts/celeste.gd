@@ -308,7 +308,7 @@ var PlayerSpawn = {
 		obj.state = 0
 		obj.delay = 0
 		create_hair(obj)
-		snd.play_pattern(4),
+		snd.play_pattern(4,4),
 	update = func(obj):
 		update_hair(obj, -1 if obj.hflip else 1, false)
 		if obj.state == 0 :
