@@ -81,9 +81,9 @@ func spr(n:float, x:float, y:float, w:int, h:int, hflip:bool, vflip:bool) -> voi
 		spritey,
 		w * SPRITE_SIZE,
 		h * SPRITE_SIZE,
-		255, 255, 255, 0,
-		null,
-		null,
+		Color8(255, 255, 255), 0.0,
+		0.0,
+		0.0,
 		hflip,
 		vflip
 	)
@@ -308,7 +308,7 @@ var PlayerSpawn = {
 		obj.state = 0
 		obj.delay = 0
 		create_hair(obj)
-		snd.play_pattern(4),
+		snd.play_pattern(4,4),
 	update = func(obj):
 		update_hair(obj, -1 if obj.hflip else 1, false)
 		if obj.state == 0 :
@@ -1014,8 +1014,6 @@ func init_music():
 	snd.new_instrument(INST_PHASER)
 	snd.new_instrument(INST_SNARE)
 	snd.new_instrument(INST_KICK)
-	if OS.get_name() == "HTML5":
-		snd.bounce_patterns()
 	snd.play_music(0, 7)
 
 func init():
@@ -1112,11 +1110,15 @@ func begin_game():
 	start_game = false
 	load_room(0, 0)
 
+var action_pressed=false
+
 func update():
 	flipflop = not flipflop
-	var action_pressed=inp.action1_pressed() or inp.action2_pressed()
 	if not flipflop :
+		action_pressed=inp.action1_pressed() or inp.action2_pressed()
 		return
+	else:
+		action_pressed=action_pressed or inp.action1_pressed() or inp.action2_pressed()
 	# clouds
 	if not is_title() :
 		for cloud in clouds:
