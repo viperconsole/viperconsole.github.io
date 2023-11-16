@@ -74,7 +74,7 @@ func spr(n:float, x:float, y:float, w:int, h:int, hflip:bool, vflip:bool) -> voi
 	var int_spr:int = int(n)
 	var spritex:int = (int_spr % SPRITE_PER_ROW) * SPRITE_SIZE
 	var spritey:int = int_spr / SPRITE_PER_ROW * SPRITE_SIZE
-	gfx.blit(
+	V.gfx.blit(
 		floor(x + X_OFFSET),
 		floor(y + Y_OFFSET),
 		spritex,
@@ -89,9 +89,9 @@ func spr(n:float, x:float, y:float, w:int, h:int, hflip:bool, vflip:bool) -> voi
 	)
 
 func line(x1, y1, x2, y2, col):
-	gfx.line(x1 + X_OFFSET, y1 + Y_OFFSET,
+	V.gfx.line(x1 + X_OFFSET, y1 + Y_OFFSET,
 		x2 + X_OFFSET, y2 + Y_OFFSET,
-		PAL[col].r, PAL[col].g, PAL[col].b
+		PAL[col]
 	)
 
 func get_sprite_offset(djump):
@@ -126,10 +126,10 @@ func rect_fill(x1, y1, x2, y2, col):
 	var h = y2 - y1 + 1
 	var x = x1 + X_OFFSET
 	var y = y1 + Y_OFFSET
-	gfx.rectangle(x, y, w, h, PAL[col].r, PAL[col].g, PAL[col].b)
+	V.gfx.rectangle(x, y, w, h, PAL[col])
 
 func circ_fill(x, y, r, col):
-	gfx.disk(x + X_OFFSET, y + Y_OFFSET, r, null, PAL[col].r, PAL[col].g, PAL[col].b)
+	V.gfx.disk(x + X_OFFSET, y + Y_OFFSET, r, 0.0, PAL[col])
 
 func create_hair(objz):
 	objz.hair = []
@@ -221,7 +221,7 @@ func restart_room():
 func kill_player(obj):
 	deaths = deaths + 1
 	shake = 10
-	snd.play_pattern(0)
+	V.snd.play_pattern(0)
 	dead_particles = []
 	for dir in range (0, 8) :
 		var angle = dir / 8 * PI * 2
@@ -268,13 +268,13 @@ var Smoke = {
 
 func next_room():
 	if roomx == 2 and roomy == 1 :
-		snd.play_music(2, 7)
+		V.snd.play_music(2, 7)
 	elif roomx == 4 and roomy == 2 :
-		snd.play_music(2, 7)
+		V.snd.play_music(2, 7)
 	elif roomx == 5 and roomy == 3 :
-		snd.play_music(2, 7)
+		V.snd.play_music(2, 7)
 	elif roomx == 3 and roomy == 1 :
-		snd.play_music(3, 7)
+		V.snd.play_music(3, 7)
 	if roomx == 7 :
 		if roomy == 3 :
 			load_room(0, 0)
@@ -285,7 +285,7 @@ func next_room():
 
 func cel_print(msg, px, py, col):
 	col = col + 1
-	gfx.print(gfx.FONT_8X8, msg, floor(px + X_OFFSET), floor(py + Y_OFFSET), PAL[col].r, PAL[col].g, PAL[col].b)
+	V.gfx.print(V.gfx.FONT_8X8, msg, floor(px + X_OFFSET), floor(py + Y_OFFSET), PAL[col])
 
 func break_fall_floor(obj):
 	if obj.state == 0 :
@@ -308,7 +308,7 @@ var PlayerSpawn = {
 		obj.state = 0
 		obj.delay = 0
 		create_hair(obj)
-		snd.play_pattern(4,4),
+		V.snd.play_pattern(4,4),
 	update = func(obj):
 		update_hair(obj, -1 if obj.hflip else 1, false)
 		if obj.state == 0 :
@@ -331,7 +331,7 @@ var PlayerSpawn = {
 				# smoke
 				create_object(Smoke, obj.x, obj.y + SPRITE_SIZE / 2)
 				shake = 5
-				snd.play_pattern(5)
+				V.snd.play_pattern(5)
 		elif obj.state == 2 :
 			# landing
 			obj.delay = obj.delay - 1
@@ -366,8 +366,8 @@ var Player = {
 	update = func(obj):
 		if pause_player :
 			return
-		var right = inp.right()
-		var left = inp.left()
+		var right = V.inp.right()
+		var left = V.inp.left()
 		if right > 0.6 :
 			right = 1
 		if left > 0.6 :
@@ -376,7 +376,7 @@ var Player = {
 		if spike_at(obj.x + obj.hitbox.x, obj.y + obj.hitbox.y, obj.hitbox.w, obj.hitbox.h, obj.speed.x, obj.speed.y) :
 			obj.to_remove = true
 			kill_player(obj)
-		obj.down = inp.down() > 0.1
+		obj.down = V.inp.down() > 0.1
 		update_hair(obj, -1 if obj.hflip else 1, obj.down)
 		# bottom death
 		if obj.y > SCREEN_SIZE :
@@ -388,7 +388,7 @@ var Player = {
 		if on_ground and not obj.was_on_ground :
 			create_object(Smoke, obj.x, obj.y + SPRITE_SIZE / 2)
 		# jump
-		var key_jump = inp.action1()
+		var key_jump = V.inp.action1()
 		var jump = key_jump and not obj.p_jump
 		obj.p_jump = key_jump
 		if jump :
@@ -396,14 +396,14 @@ var Player = {
 		elif obj.jbuffer > 0 :
 			obj.jbuffer = obj.jbuffer - 1
 		# dash
-		var key_dash = inp.action2()
+		var key_dash = V.inp.action2()
 		var dash = key_dash and not obj.p_dash
 		obj.p_dash = key_dash
 		if on_ground :
 			obj.grace = 6
 			if obj.djump < max_djump :
 				obj.djump = max_djump
-				snd.play_pattern(54)
+				V.snd.play_pattern(54)
 		elif obj.grace > 0 :
 			obj.grace = obj.grace - 1
 		obj.dash_effect_time = obj.dash_effect_time - 1
@@ -439,14 +439,14 @@ var Player = {
 			if obj.jbuffer > 0 :
 				if obj.grace > 0 :
 					# normal jump
-					snd.play_pattern(1)
+					V.snd.play_pattern(1)
 					obj.jbuffer = 0
 					obj.grace = 0
 					obj.speed.y = -2 * SPEED_COEF
 					create_object(Smoke, obj.x, obj.y + SPRITE_SIZE / 2)
 				else:
 					# wall jump
-					snd.play_pattern(2)
+					V.snd.play_pattern(2)
 					var wall_dir = -1 if obj_is_solid(obj, -3, 0) else 1 if obj_is_solid(obj, 3, 0) else 0
 					if wall_dir != 0 :
 						obj.jbuffer = 0
@@ -463,7 +463,7 @@ var Player = {
 				obj.dash_time = 4
 				has_dashed = true
 				obj.dash_effect_time = 10
-				var up = inp.up()
+				var up = V.inp.up()
 				if up > 0.6 :
 					up = 1
 				var v_input = -up if up > 0.0 else 1 if obj.down else 0
@@ -480,7 +480,7 @@ var Player = {
 				else:
 					obj.speed.x = (-1 if obj.hflip else 1) * SPEED_COEF
 					obj.speed.y = 0
-				snd.play_pattern(3)
+				V.snd.play_pattern(3)
 				freeze = 2
 				shake = 6
 				obj.dash_target.x = 2 * sign(obj.speed.x) * SPEED_COEF
@@ -494,7 +494,7 @@ var Player = {
 				if obj.speed.x != 0 :
 					obj.dash_accel.y = obj.dash_accel.y * 0.70710678118
 			elif dash and obj.djump <= 0 :
-				snd.play_pattern(9)
+				V.snd.play_pattern(9)
 				create_object(Smoke, obj.x, obj.y)
 		# animation
 		obj.spr_off = obj.spr_off + 0.25
@@ -502,7 +502,7 @@ var Player = {
 			obj.sprite = 5 if obj_is_solid(obj, input, 0) else 3
 		elif obj.down :
 			obj.sprite = 6
-		elif inp.up() > 0.9 :
+		elif V.inp.up() > 0.9 :
 			obj.sprite = 7
 		elif obj.speed.x == 0 or input == 0 :
 			obj.sprite = 1
@@ -530,7 +530,7 @@ var FakeWall = {
 		obj.hitbox = { x = -1, y = -1, w = SPRITE_SIZE * 2 + 2, h = SPRITE_SIZE * 2 + 2 }
 		var hit = obj_collide(obj, "Player", 0, 0)
 		if hit and hit.dash_effect_time > 0 :
-			snd.play_pattern(16)
+			V.snd.play_pattern(16)
 			hit.speed.x = -sign(hit.speed.x) * 1.5
 			hit.speed.y = -1.5
 			hit.dash_time = -1
@@ -565,7 +565,7 @@ var Fruit = {
 				score = score + 1
 			create_object(LifeUp, obj.x, obj.y)
 			obj.to_remove = true
-			snd.play_pattern(13)
+			V.snd.play_pattern(13)
 		obj.off = obj.off + 1
 		obj.y = obj.start + sin(obj.off / 40 * 2.0 * PI) * 2.5
 }
@@ -615,9 +615,9 @@ var Spring = {
 				var below = obj_collide(obj, "FallFloor", 0, 1)
 				if below :
 					if below.state == 0 :
-						snd.play_pattern(15)
+						V.snd.play_pattern(15)
 					break_fall_floor(below)
-				snd.play_pattern(8)
+				V.snd.play_pattern(8)
 		elif obj.delay > 0 :
 			obj.delay = obj.delay - 1
 			if obj.delay <= 0 :
@@ -646,7 +646,7 @@ var FlyFruit = {
 				obj.sfx_delay = obj.sfx_delay - 1
 				if obj.sfx_delay <= 0 :
 					sfx_timer = 20
-					snd.play_pattern(14)
+					V.snd.play_pattern(14)
 			obj.speed.y = appr(obj.speed.y, -3.5, 0.25)
 			if obj.y < -SPRITE_SIZE * 2 :
 				obj.to_remove = true
@@ -661,7 +661,7 @@ var FlyFruit = {
 		if hit :
 			hit.djump = max_djump
 			sfx_timer = 20
-			snd.play_pattern(13)
+			V.snd.play_pattern(13)
 			var idx = level_index()
 			if not got_fruit[idx] :
 				got_fruit[idx] = true
@@ -693,7 +693,7 @@ var FallFloor = {
 		if obj.state == 0 :
 			if obj_check(obj, "Player", 0, -1) or obj_check(obj, "Player", -1, 0) or obj_check(obj, "Player", 1, 0) :
 				break_fall_floor(obj)
-				snd.play_pattern(15)
+				V.snd.play_pattern(15)
 		elif obj.state == 1 :
 			obj.delay = obj.delay - 1
 			if obj.delay <= 0 :
@@ -705,7 +705,7 @@ var FallFloor = {
 			if obj.delay <= 0 and not obj_check(obj, "Player", 0, 0) :
 				obj.state = 0
 				obj.collideable = true
-				snd.play_pattern(7)
+				V.snd.play_pattern(7)
 				create_object(Smoke, obj.x, obj.y),
 	draw = func(obj):
 		if obj.state != 2 :
@@ -728,7 +728,7 @@ var Key = {
 			obj.hflip = not obj.hflip
 		if obj_check(obj, "Player", 0, 0) :
 			sfx_timer = 10
-			snd.play_pattern(23)
+			V.snd.play_pattern(23)
 			obj.to_remove = true
 			has_key = true
 }
@@ -746,7 +746,7 @@ var Chest = {
 			obj.timer = obj.timer - 1
 			obj.x = obj.start - 1 + randf() * 3
 			if obj.timer <= 0 :
-				snd.play_pattern(16)
+				V.snd.play_pattern(16)
 				sfx_timer = 20
 				create_object(Fruit, obj.x, obj.y - 4)
 				obj.to_remove = true
@@ -771,13 +771,13 @@ var Balloon = {
 				hit.djump = max_djump
 				obj.sprite = 0
 				obj.timer = 60
-				snd.play_pattern(6)
+				V.snd.play_pattern(6)
 		elif obj.timer > 0 :
 			obj.timer = obj.timer - 1
 		else:
 			create_object(Smoke, obj.x, obj.y)
 			obj.sprite = 22
-			snd.play_pattern(7),
+			V.snd.play_pattern(7),
 	draw = func(obj):
 		if obj.sprite == 22 :
 			spr(13 + fmod(obj.offset * 8, 3.0), obj.x, obj.y + 6, 1, 1, false, false)
@@ -855,7 +855,7 @@ var BigChest = {
 				hit.speed.x = 0
 				hit.speed.y = 0
 				obj.state = 1
-				snd.play_pattern(37)
+				V.snd.play_pattern(37)
 				create_object(Smoke, obj.x, obj.y)
 				create_object(Smoke, obj.x + SPRITE_SIZE, obj.y)
 				obj.timer = 60
@@ -906,8 +906,8 @@ var Orb = {
 			music_timer = 45
 			freeze = 10
 			shake = 10
-			snd.play_music(4, 7)
-			snd.play_pattern(51)
+			V.snd.play_music(4, 7)
+			V.snd.play_pattern(51)
 			obj.to_remove = true
 			max_djump = 2
 			hit.djump = 2,
@@ -932,7 +932,7 @@ var Flag = {
 		if not obj.show and obj_check(obj, "Player", 0, 0) :
 			obj.show = true
 			sfx_timer = 30
-			snd.play_pattern(55),
+			V.snd.play_pattern(55),
 	draw = func(obj):
 		spr(obj.sprite, obj.x, obj.y, 1, 1, false, false)
 		if obj.show :
@@ -955,7 +955,7 @@ var Message = {
 				obj.dir = obj.dir + 0.5
 				if obj.dir >= obj.last + 1 :
 					obj.last = obj.last + 1
-					snd.play_pattern(35)
+					V.snd.play_pattern(35)
 		else:
 			obj.sprite = 0
 			obj.last = 0
@@ -998,23 +998,23 @@ func title_screen():
 
 func init_music():
 	for sfx in SFX :
-		snd.new_pattern(sfx)
-	snd.new_music(MUSIC_TITLE)
-	snd.new_music(MUSIC_FIRST_LEVELS)
-	snd.new_music(MUSIC_WIND)
-	snd.new_music(MUSIC_SECOND_PART)
-	snd.new_music(MUSIC_LAST_PART)
-	snd.new_instrument(INST_TRIANGLE)
-	snd.new_instrument(INST_TILTED)
-	snd.new_instrument(INST_SAW)
-	snd.new_instrument(INST_SQUARE)
-	snd.new_instrument(INST_PULSE)
-	snd.new_instrument(INST_ORGAN)
-	snd.new_instrument(INST_NOISE)
-	snd.new_instrument(INST_PHASER)
-	snd.new_instrument(INST_SNARE)
-	snd.new_instrument(INST_KICK)
-	snd.play_music(0, 7)
+		V.snd.new_pattern(sfx)
+	V.snd.new_music(MUSIC_TITLE)
+	V.snd.new_music(MUSIC_FIRST_LEVELS)
+	V.snd.new_music(MUSIC_WIND)
+	V.snd.new_music(MUSIC_SECOND_PART)
+	V.snd.new_music(MUSIC_LAST_PART)
+	V.snd.new_instrument(INST_TRIANGLE)
+	V.snd.new_instrument(INST_TILTED)
+	V.snd.new_instrument(INST_SAW)
+	V.snd.new_instrument(INST_SQUARE)
+	V.snd.new_instrument(INST_PULSE)
+	V.snd.new_instrument(INST_ORGAN)
+	V.snd.new_instrument(INST_NOISE)
+	V.snd.new_instrument(INST_PHASER)
+	V.snd.new_instrument(INST_SNARE)
+	V.snd.new_instrument(INST_KICK)
+	V.snd.play_music(0, 7)
 
 func init():
 	TILE_2_OBJ[1] = PlayerSpawn
@@ -1032,7 +1032,7 @@ func init():
 	TILE_2_OBJ[96] = BigChest
 	TILE_2_OBJ[118] = Flag
 	init_music()
-	inp.set_ls_neutral_zone(0.2)
+	V.inp.set_ls_neutral_zone(0.2)
 	for i in range  (0, CLOUD_COUNT) :
 		clouds.append({
 			x = randf() * SCREEN_SIZE,
@@ -1050,22 +1050,22 @@ func init():
 			off = randf(),
 			c = 6 + floor(0.5 + randf()),
 		})
-	gfx.set_layer_offset(0, 0.0, 10.0)
-	gfx.set_layer_offset(1, 0.0, 10.0)
-	gfx.set_layer_offset(2, 0.0, 10.0)
-	gfx.set_layer_offset(3, 0.0, 10.0)
-	gfx.set_layer_offset(7, 0.0, 10.0)
-	gfx.show_layer(1); # background
-	gfx.show_layer(2); # main game
-	gfx.show_layer(3); # fade to black layer
-	gfx.show_layer(7); # ui layer
-	gfx.set_layer_operation(3, gfx.LAYEROP_MULTIPLY)
-	gfx.set_active_layer(3)
-	#gfx.set_layer_blur(0, 4)
-	#gfx.set_layer_blur(1, 1)
-	gfx.clear(255, 255, 255)
-	gfx.set_spritesheet(gfx.load_img("celeste/celeste14.png"))
-	gfx.set_active_layer(2)
+	V.gfx.set_layer_offset(0, 0.0, 10.0)
+	V.gfx.set_layer_offset(1, 0.0, 10.0)
+	V.gfx.set_layer_offset(2, 0.0, 10.0)
+	V.gfx.set_layer_offset(3, 0.0, 10.0)
+	V.gfx.set_layer_offset(7, 0.0, 10.0)
+	V.gfx.show_layer(1); # background
+	V.gfx.show_layer(2); # main game
+	V.gfx.show_layer(3); # fade to black layer
+	V.gfx.show_layer(7); # ui layer
+	V.gfx.set_layer_operation(3, V.gfx.LAYEROP_MULTIPLY)
+	V.gfx.set_active_layer(3)
+	#V.gfx.set_layer_blur(0, 4)
+	#V.gfx.set_layer_blur(1, 1)
+	V.gfx.clear(Color.WHITE)
+	V.gfx.set_spritesheet(V.gfx.load_img("celeste/celeste14.png"))
+	V.gfx.set_active_layer(2)
 	title_screen()
 
 func map(cx, cy, sx, sy, cw, ch, layer):
@@ -1075,7 +1075,7 @@ func map(cx, cy, sx, sy, cw, ch, layer):
 			if SPRITE_FLAGS[v] & layer != 0 :
 				var spritex = (v % SPRITE_PER_ROW) * SPRITE_SIZE
 				var spritey = floor(v / SPRITE_PER_ROW) * SPRITE_SIZE
-				gfx.blit(sx + X_OFFSET + (x - cx) * SPRITE_SIZE,
+				V.gfx.blit(sx + X_OFFSET + (x - cx) * SPRITE_SIZE,
 					sy + Y_OFFSET + (y - cy) * SPRITE_SIZE, spritex, spritey, SPRITE_SIZE, SPRITE_SIZE)
 
 func obj_move_y(obj, amount):
@@ -1115,10 +1115,10 @@ var action_pressed=false
 func update():
 	flipflop = not flipflop
 	if not flipflop :
-		action_pressed=inp.action1_pressed() or inp.action2_pressed()
+		action_pressed=V.inp.action1_pressed() or V.inp.action2_pressed()
 		return
 	else:
-		action_pressed=action_pressed or inp.action1_pressed() or inp.action2_pressed()
+		action_pressed=action_pressed or V.inp.action1_pressed() or V.inp.action2_pressed()
 	# clouds
 	if not is_title() :
 		for cloud in clouds:
@@ -1186,13 +1186,13 @@ func update():
 			if action_pressed :
 				start_game_flash = 50
 				start_game = true
-				snd.stop_music()
-				snd.play_pattern(38)
+				V.snd.stop_music()
+				V.snd.play_pattern(38)
 		if start_game :
 			start_game_flash = start_game_flash - 1
 			if start_game_flash <= -30 :
 				begin_game()
-				snd.play_music(1, 7)
+				V.snd.play_music(1, 7)
 
 func draw_level(x, y, col):
 	rect_fill( -X_OFFSET, 0, 0, SCREEN_SIZE, 0)
@@ -1220,7 +1220,7 @@ func draw_level(x, y, col):
 		)
 
 func draw_time(x, y, col):
-	gfx.rectangle(x, y, x + 64, y + 8, 0, 0, 0)
+	V.gfx.rectangle(x, y, x + 64, y + 8, Color.BLACK)
 	var ss = "0%d" % seconds if seconds < 10 else "%s" % seconds
 	var m = minutes % 60
 	var sm = "0%d" % m if m < 10 else "%s" % m
@@ -1254,19 +1254,19 @@ func draw():
 	var y = roomy * 16
 	if start_game :
 		var l = (start_game_flash + 30) / 80
-		gfx.set_active_layer(3)
-		gfx.clear(l, l, l)
+		V.gfx.set_active_layer(3)
+		V.gfx.clear(Color(l, l, l))
 	elif not is_title() :
-		gfx.hide_layer(3)
-	gfx.set_active_layer(0)
+		V.gfx.hide_layer(3)
+	V.gfx.set_active_layer(0)
 
 	# screen shake
-	gfx.set_layer_offset(0, cam_offset_x, cam_offset_y)
-	gfx.set_layer_offset(1, cam_offset_x, cam_offset_y)
-	gfx.set_layer_offset(2, cam_offset_x, cam_offset_y)
+	V.gfx.set_layer_offset(0, cam_offset_x, cam_offset_y)
+	V.gfx.set_layer_offset(1, cam_offset_x, cam_offset_y)
+	V.gfx.set_layer_offset(2, cam_offset_x, cam_offset_y)
 	# clear screen
 	var bg_col = floor(frames/5) if flash_bg or start_game else 2 if new_bg else 0
-	gfx.clear(PAL[bg_col].r,PAL[bg_col].g,PAL[bg_col].b)
+	V.gfx.clear(PAL[bg_col])
 
 	# clouds
 	if not is_title() :
@@ -1280,11 +1280,11 @@ func draw():
 				bg
 			)
 
-	gfx.set_active_layer(1)
-	gfx.clear(0,0,0,0)
+	V.gfx.set_active_layer(1)
+	V.gfx.clear(Color.TRANSPARENT)
 	map(x, y, 0, 0, 16, 16, 4)
-	gfx.set_active_layer(2)
-	gfx.clear(0,0,0,0)
+	V.gfx.set_active_layer(2)
+	V.gfx.clear(Color.TRANSPARENT)
 
 	# platforms / big chests
 	for obj in objects:
@@ -1338,8 +1338,8 @@ func draw():
 		cel_print("viper port", SCREEN_SIZE / 2 - 28, SCREEN_SIZE * 105 / 128, 5)
 		cel_print("jice", SCREEN_SIZE / 2 - 4, SCREEN_SIZE * 115 / 128, 5)
 	else:
-		gfx.set_active_layer(7)
-		gfx.clear(0,0,0,0)
+		V.gfx.set_active_layer(7)
+		V.gfx.clear(Color.TRANSPARENT)
 		draw_ui()
 
 var TILE_MAP = [
