@@ -39,6 +39,13 @@
         "pinball",
         "alpha"
       ]
+    },
+    {
+      "name": "Tutorial 01",
+      "source": "tuto01.gd",
+      "tags": [
+        "tutorial"
+      ]
     }
   ]
 }

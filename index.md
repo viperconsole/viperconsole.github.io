@@ -7,7 +7,6 @@
 * [1. Language](#h1)
     * [1.1. Cartridge entry point](#h1.1)
     * [1.2. Acces to the Viper API](#h1.2)
-    * [1.3. Utilities](#h1.3)
 * [2. Graphics API (V.gfx)](#h2)
     * [2.1. Architecture](#h2.1)
     * [2.2. Drawing API](#h2.2)
