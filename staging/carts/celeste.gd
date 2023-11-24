@@ -75,22 +75,18 @@ func spr(n:float, x:float, y:float, w:int, h:int, hflip:bool, vflip:bool) -> voi
 	var spritex:int = (int_spr % SPRITE_PER_ROW) * SPRITE_SIZE
 	var spritey:int = int_spr / SPRITE_PER_ROW * SPRITE_SIZE
 	V.gfx.blit(
-		floor(x + X_OFFSET),
-		floor(y + Y_OFFSET),
-		spritex,
-		spritey,
-		w * SPRITE_SIZE,
-		h * SPRITE_SIZE,
+		Vector2(floor(x + X_OFFSET),floor(y + Y_OFFSET)),
+		Vector2(spritex,spritey),
+		Vector2(w * SPRITE_SIZE,h * SPRITE_SIZE),
 		Color8(255, 255, 255), 0.0,
-		0.0,
-		0.0,
+		Vector2.ZERO,
 		hflip,
 		vflip
 	)
 
 func line(x1, y1, x2, y2, col):
-	V.gfx.line(x1 + X_OFFSET, y1 + Y_OFFSET,
-		x2 + X_OFFSET, y2 + Y_OFFSET,
+	V.gfx.line(Vector2(x1 + X_OFFSET, y1 + Y_OFFSET),
+		Vector2(x2 + X_OFFSET, y2 + Y_OFFSET),
 		PAL[col]
 	)
 
@@ -126,10 +122,10 @@ func rect_fill(x1, y1, x2, y2, col):
 	var h = y2 - y1 + 1
 	var x = x1 + X_OFFSET
 	var y = y1 + Y_OFFSET
-	V.gfx.rectangle(x, y, w, h, PAL[col])
+	V.gfx.rectangle(Rect2(x, y, w, h), PAL[col])
 
 func circ_fill(x, y, r, col):
-	V.gfx.disk(x + X_OFFSET, y + Y_OFFSET, r, 0.0, PAL[col])
+	V.gfx.disk(Vector2(x + X_OFFSET, y + Y_OFFSET), r, 0.0, PAL[col])
 
 func create_hair(objz):
 	objz.hair = []
@@ -285,7 +281,7 @@ func next_room():
 
 func cel_print(msg, px, py, col):
 	col = col + 1
-	V.gfx.print(V.gfx.FONT_8X8, msg, floor(px + X_OFFSET), floor(py + Y_OFFSET), PAL[col])
+	V.gfx.print(V.gfx.FONT_8X8, msg, Vector2(floor(px + X_OFFSET), floor(py + Y_OFFSET)), PAL[col])
 
 func break_fall_floor(obj):
 	if obj.state == 0 :
@@ -1075,8 +1071,10 @@ func map(cx, cy, sx, sy, cw, ch, layer):
 			if SPRITE_FLAGS[v] & layer != 0 :
 				var spritex = (v % SPRITE_PER_ROW) * SPRITE_SIZE
 				var spritey = floor(v / SPRITE_PER_ROW) * SPRITE_SIZE
-				V.gfx.blit(sx + X_OFFSET + (x - cx) * SPRITE_SIZE,
-					sy + Y_OFFSET + (y - cy) * SPRITE_SIZE, spritex, spritey, SPRITE_SIZE, SPRITE_SIZE)
+				V.gfx.blit(
+					Vector2(sx + X_OFFSET + (x - cx) * SPRITE_SIZE, sy + Y_OFFSET + (y - cy) * SPRITE_SIZE), 
+					Vector2(spritex, spritey), 
+					Vector2(SPRITE_SIZE, SPRITE_SIZE))
 
 func obj_move_y(obj, amount):
 	if obj.solids :
@@ -1220,7 +1218,7 @@ func draw_level(x, y, col):
 		)
 
 func draw_time(x, y, col):
-	V.gfx.rectangle(x, y, x + 64, y + 8, Color.BLACK)
+	V.gfx.rectangle(Rect2(x, y, x + 64, y + 8), Color.BLACK)
 	var ss = "0%d" % seconds if seconds < 10 else "%s" % seconds
 	var m = minutes % 60
 	var sm = "0%d" % m if m < 10 else "%s" % m
