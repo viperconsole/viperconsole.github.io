@@ -46,6 +46,20 @@
       "tags": [
         "tutorial"
       ]
+    },
+    {
+      "name": "Tutorial 02",
+      "source": "tuto02.gd",
+      "tags": [
+        "tutorial"
+      ]
+    },
+    {
+      "name": "Tutorial 03",
+      "source": "tuto03.gd",
+      "tags": [
+        "tutorial"
+      ]
     }
   ]
 }
