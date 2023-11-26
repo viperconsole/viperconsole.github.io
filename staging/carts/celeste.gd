@@ -1060,7 +1060,7 @@ func init():
 	#V.gfx.set_layer_blur(0, 4)
 	#V.gfx.set_layer_blur(1, 1)
 	V.gfx.clear(Color.WHITE)
-	V.gfx.set_spritesheet(V.gfx.load_img("celeste/celeste14.png"))
+	V.gfx.set_spritesheet(await V.gfx.load_img("celeste/celeste14.png"))
 	V.gfx.set_active_layer(2)
 	title_screen()
 
