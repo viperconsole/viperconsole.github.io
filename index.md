@@ -4,34 +4,181 @@
 
 ## Summary
 
-* [1. Language](#h1)
-    * [1.1. Cartridge entry point](#h1.1)
-    * [1.2. Acces to the Viper API](#h1.2)
-* [2. Graphics API (V.gfx)](#h2)
-    * [2.1. Architecture](#h2.1)
-    * [2.2. Drawing API](#h2.2)
-    * [2.3. Font API](#h2.3)
-    * [2.4. Sprite API](#h2.4)
-    * [2.5. Spritesheets](#h2.5)
-* [3. Sound API (V.snd)](#h3)
-    * [3.1. Instrument API](#h3.1)
-    * [3.2. Pattern API](#h3.2)
-    * [3.3. Song API](#h3.3)
-    * [3.4. Midi API](#h3.4)
-* [4. Input API (V.inp)](#h4)
-    * [4.1. Keyboard API](#h4.1)
-    * [4.2. Mouse API](#h4.2)
-    * [4.3. Gamepad API](#h4.3)
-    * [4.4. Generic V.input API](#h4.4)
-* [5. FAQ](#h5)
+* [1. Getting started](#h1)
+  * [1.1. Presentation](#h1.1)
+  * [1.2. Specifications](#h1.2)
+  * [1.3. Hello world](#h1.3)
+  * [1.4. Tutorials](#h1.4)
+  * [1.5. Filesystem](#h1.5)
+  * [1.6. Command line / URL arguments](#h1.6)
+* [2. Viper's BIOS](#h2)
+* [3. API Reference](#h3)
+  * [3.1. Language](#h3.1)
+    * [3.1.1. Cartridge entry point](#h3.1.1)
+    * [3.1.2. Acces to the Viper API](#h3.1.2)
+  * [3.2. Graphics API (V.gfx)](#h3.2)
+    * [3.2.1. Architecture](#h3.2.1)
+    * [3.2.2. Drawing API](#h3.2.2)
+    * [3.2.3. Font API](#h3.2.3)
+    * [3.2.4. Sprite API](#h3.2.4)
+    * [3.2.5. Spritesheets](#h3.2.5)
+  * [3.3. Sound API (V.snd)](#h3.3)
+    * [3.3.1. Instrument API](#h3.3.1)
+    * [3.3.2. Pattern API](#h3.3.2)
+    * [3.3.3. Song API](#h3.3.3)
+    * [3.3.4. Midi API](#h3.3.4)
+  * [3.4. Input API (V.inp)](#h3.4)
+    * [3.4.1. Keyboard API](#h3.4.1)
+    * [3.4.2. Mouse API](#h3.4.2)
+    * [3.4.3. Gamepad API](#h3.4.3)
+    * [3.4.4. Generic V.input API](#h3.4.4)
+* [4. FAQ](#h4)
 
-## <a name="h1"></a>1. Language
+## <a name="h1"></a>1. Getting started
+
+### <a name="h1.1"></a>1.1. Presentation
+
+Viper is a virtual console inspired by the early 90s hardware : NEC/PCEngine, Amiga 500, Neo-Geo. It's mainly focused on 2D, pixel-art based videogames though it's always possible to write a 3D engine with it.
+
+Some 90s limitations have been lifted. For example, Viper uses 32bits colors instead of indexed palettes but the spirit is to stick with early 90s look and avoid using alpha channel except for layer compositing and parallax effects.
+
+### <a name="h1.2"></a>1.2. Specifications
+
+```
+Graphics :  384x224 screen resolution
+            32 bits colors with alpha channel support
+            display based on a set of transparent layers
+            layers can be moved, resized
+            layer operations supported (mix, mul, add, sub, ...)
+            any number of offscreen spritesheets
+            row/colscroll parameters for smooth parallax effects
+```
+
+---
+
+```
+Sound :     6 channels 44100Hz (native) or 16000Hz (web)
+            oscillator based synthetizers
+            saw, triangle, square, noise generators
+            samples support (.wav)
+            midi controller input support
+```
+
+---
+
+```
+Input :     support mouse, keyboard and controller
+```
+
+---
+
+```
+Resources : can load images (.png) and samples (.wav)
+            support for local filesystem and web through https
+```
+
+---
+
+```
+Code :      uses GDScript
+            full support of Godot API including coroutines
+```
+
+### <a name="h1.3"></a>1.3. Hello world
+
+From the console main menu, open the code editor ![](assets/tex/doc_icon_code.png) and paste the code below :
+
+```
+var x = 10
+func draw() :
+   V.gfx.clear()
+   V.gfx.print(V.gfx.FONT_8X8, "Hello world!", Vector2(x,10))
+```
+
+Then press the Start button from the main menu to run the code.
+
+The `draw()` function is called every frame. This is where all the rendering methods from `V.gfx` should be called. The framerate is not guaranteed as it might vary from one target system to another.
+
+You can use the `update()` function to update time dependant variables. This function is called at a fixed rate of 60 times per second. This ensures the game speed will be the same on all systems. This is also where you should handle any user input using the `V.inp` API.
+
+```
+func update() :
+   x = 10 + V.elapsed()*50 # move at 50 pixels / second
+```
+
+There's a third function that you can use to setup things before your game starts :
+
+```
+func init() :
+   # do some initialization stuff
+   pass
+```
+
+This is where you should load images and samples because calling the loading functions in the middle of the game would result in pauses, especially when loading resources from https. This function can call rendering functions as it is called during the rendering phase of the first frame.
+
+### <a name="h1.4"></a>1.4. Tutorials
+
+Start the store from the main menu ![](assets/tex/doc_icon_store.png) and enter "tuto" in the filter field. You will find several commented tutorials showcasing the different features of the console.
+
+* tuto01 : drawing basic shapes
+* tuto02 : drawing from a spritesheet
+* tuto03 : using a custom bitmap font
+* tuto04 : parallax scrolling using layers
+* tuto05 : advanced parallax scrolling using rowscroll
+
+### <a name="h1.5"></a>1.5. Filesystem
+
+The console has its own inner filesystem where you can copy files by drag'n dropping them on the console window. For example you can drag a "spritesheet.png" image on the console window and then access it from the code as simply "spritesheet.png".
+
+This can also be used to easily replace a resource (a sample or an image) from any game you're running as long as you know the resource filename. Just drop a replacement with the same name on the window and this file will be used instead of the original resource.
+
+You can also access files from outside the console using "file://\<path\>" syntax (only on native version of the console) or "https://\<url\>" to access online resources.
+
+You don't have to edit the code from the console editor, you can use an external editor and simply put the address of the file in the internal code editor :
+
+Type `file://C:/mygame.gd` to load the code from the `C:\mygame.gd` file.
+
+Type `https://mysite.com/mygame.gd` to load the code from the given URL using an HTTP request.
+
+### <a name="h1.6"></a>1.6. Command line / URL arguments
+
+You can use those arguments to control the way the console runs. For example to enable fullscreen at launch :
+
+Use `viper.exe --fullscreen` in native mode.
+
+Use `https://jice-nospam.itch.io/viper-console/?fullscreen=1` in web mode
+
+| Parameter | Description |
+| ----- | ----- |
+| **Bios** | _ |
+| `cart=<path>` | Start a cartridge at launch. `path` = the .gd script to run |
+| `no_deepswitch` | Disable deepswitch menu (ctrl-shift-\`) |
+| `no_docker` | Disable docker menu |
+| **Graphics** | _ |
+| `no_crt` | Disable all CRT effects |
+| `no_crt_warp` | Disable screen warping effect |
+| `no_crt_scan` | Disable scanline effect |
+| `no_crt_mask` | Disable shadow mask effect |
+| `fullscreen` | Start in fullscreen mode |
+| `no_splash` | Disable splash screen (only on native mode) |
+| `no_vsync` | Disable vertical sync (only on native mode) |
+| **Audio** | _ |
+| `no_audio` | Start with sound disabled |
+| `audio_rate=<rate>` | Change the audio sample rate (value in Hz) |
+| **Input** | _ |
+| `neutral_zone=<value>` | Change the controllers default neutral zone (value between 0.0 and 1.0) |
+
+## <a name="h2"></a>2. Viper's BIOS
+
+## <a name="h3"></a>3. API Reference
+
+### <a name="h3.1"></a>3.1. Language
 
 Viper uses GDScript as scripting language.
 
 See <https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/index.html> for more information
 
-### <a name="h1.1"></a>1.1 Cartridge entry point
+#### <a name="h3.1.1"></a>3.1.1 Cartridge entry point
 
 The following functions are called by the console :
 
@@ -39,8 +186,8 @@ The following functions are called by the console :
 
  This is where external resources should be loaded with
 
- * `V.gfx.load_img` for images
- * `V.snd.new_instrument` for sound samples
+* `V.gfx.load_img` for images
+* `V.snd.new_instrument` for sound samples
 
 * `func update()` : called 60 times per second
 
@@ -50,17 +197,23 @@ The following functions are called by the console :
 
  Render one game frame. Framerate might vary from one computer to another. Use `V.gfx.clear()` to erase the previous frame.
 
-### <a name="h1.2"></a>1.2 access to the Viper API
+#### <a name="h3.1.2"></a>3.1.2 access to the Viper API
 
 All the Viper API can be found under the V singleton :
 
-* V.gfx : the graphics API
-* V.snd : the audio API
-* V.inp : the V.input API
+* `V.gfx` : the graphics API
+* `V.snd` : the audio API
+* `V.inp` : the V.input API
 
-## <a name="h2"></a>2. Graphics (V.gfx)
+It also contains a few utilities :
 
-### <a name="h2.1"></a>2.1. Architecture
+* `V.elapsed() -> float`
+
+This function returns the time elapsed since the game started in seconds.
+
+### <a name="h3.2"></a>3.2. Graphics (V.gfx)
+
+#### <a name="h3.2.1"></a>3.2.1. Architecture
 
 The viper screen size is 384x224 pixels. You can get those values with `V.gfx.SCREEN_WIDTH` and `V.gfx.SCREEN_HEIGHT`. The graphics engine can display on screen any number of transparent layers. Viper doesn't use alpha blending, but a transparent key color that can be changed with `V.gfx.set_transparent_color` (default is pure black).
 
@@ -90,31 +243,31 @@ You can draw on any layer by activating it with `V.gfx.set_active_layer(id)`.
 You can get the number of frames rendered during the last second with :
 `V.gfx.fps()`
 
-### <a name="h2.2"></a>2.2. Drawing
+#### <a name="h3.2.2"></a>3.2.2. Drawing
 
 * `set_active_layer(id)`
- * set current drawing layer.
- * id is an arbitrary integer value. Visible layers are rendered in ascending id order.
+* set current drawing layer.
+* id is an arbitrary integer value. Visible layers are rendered in ascending id order.
 
 * `load_img(layer, filepath, [resource_name])`
- * load an image in a layer.
- * warning ! the layer is resized to match the image size.
+* load an image in a layer.
+* warning ! the layer is resized to match the image size.
 
  filepath is an URL :
 
- * local file : `'myimage.png'`
- * remote file : `'http://someserver.com/myimage.png'`
- * TODO data URL : `'data:image/png; ...'`
+* local file : `'myimage.png'`
+* remote file : `'https://someserver.com/myimage.png'`
+* TODO data URL : `'data:image/png; ...'`
 
  TODO To convert an image into data url, simply drag and drop it on the console screen.
 
  If resource_name is defined and not empty, this image can be overriden by the player by running the console with res parameters. This makes it easy for users to mod the game graphics by replacing a named resource with another image.
 
 * `set_layer_size(id, w, h)`
- * resize a layer (w,h in pixels).
+* resize a layer (w,h in pixels).
 
 * `get_layer_size(id)`
- * return the layer size in pixels
+* return the layer size in pixels
 
 Example :
 
@@ -123,23 +276,23 @@ Example :
 ```
 
 * `set_layer_offset(id, x, y)`
- * set a layer scrolling offset.
+* set a layer scrolling offset.
  TODO use id -1 to scroll all visible layers (screen shake effect)
 
 * `set_rowscroll(id,[start_row],[end_row],[start_value],[end_value])`
- * apply an horizontal skew effect to the layer, moving each row by a specific offset.
- * `id` : id of the layer. if no other parameter is set, the rowscroll is disabled for this layer
- * `start_row,end_row` : range of row where we want to change the offsets
- * `start_value,end_value` : offset value is interpolated between these values (or constant if end_value is nil)
+* apply an horizontal skew effect to the layer, moving each row by a specific offset.
+* `id` : id of the layer. if no other parameter is set, the rowscroll is disabled for this layer
+* `start_row,end_row` : range of row where we want to change the offsets
+* `start_value,end_value` : offset value is interpolated between these values (or constant if end_value is nil)
 
 * `set_colscroll(id,[start_col],[end_col],[start_value],[end_value])`
- * apply a vertical skew effect to the layer, moving each column by a specific offset.
- * `id` : id of the layer. if no other parameter is set, the colscroll is disabled for this layer
- * `start_col,end_col` : range of columns where we want to change the offsets
- * `start_value,end_value` : offset value is interpolated between these values (or constant if end_value is nil)
+* apply a vertical skew effect to the layer, moving each column by a specific offset.
+* `id` : id of the layer. if no other parameter is set, the colscroll is disabled for this layer
+* `start_col,end_col` : range of columns where we want to change the offsets
+* `start_value,end_value` : offset value is interpolated between these values (or constant if end_value is nil)
 
 * `clear_scroll(id)`
- * disable all rows/columns scroll for this layer
+* disable all rows/columns scroll for this layer
 
 Example :
 
@@ -150,17 +303,17 @@ gfx.set_rowscroll(0,180,223,0,40)
 Sets a rowscroll offset for rows 180 to 223. The offset ranges from 0 for row 180 to 40 for row 223
 
 * `set_layer_operation(id, layer_op)`
- * set the layer color operation.
- * layer_op values : `V.gfx.LAYEROP_SET`/`V.gfx.LAYEROP_ADD`/`V.gfx.LAYEROP_AVERAGE`/`V.gfx.LAYEROP_SUBTRACT`/`V.gfx.LAYEROP_MULTIPLY`.
+* set the layer color operation.
+* layer_op values : `V.gfx.LAYEROP_SET`/`V.gfx.LAYEROP_ADD`/`V.gfx.LAYEROP_AVERAGE`/`V.gfx.LAYEROP_SUBTRACT`/`V.gfx.LAYEROP_MULTIPLY`.
 
 * `clear([r,g,b])`
- * fill the active layer with the color `r,g,b`. If the color is not defined, use the transparent color (default black).
+* fill the active layer with the color `r,g,b`. If the color is not defined, use the transparent color (default black).
 
 * `blit_pixels(x,y, width, rgb)`
- * set pixel colors on current layer.
- * x,y is the position on the layer
- * width is the width of the sprite
- * rgb is an array of colors with format rgb24 (0xRRGGBB). You can use `V.gfx.to_rgb24(r,g,b)` to get this value
+* set pixel colors on current layer.
+* x,y is the position on the layer
+* width is the width of the sprite
+* rgb is an array of colors with format rgb24 (0xRRGGBB). You can use `V.gfx.to_rgb24(r,g,b)` to get this value
 
  Example :
 
@@ -173,100 +326,100 @@ Sets a rowscroll offset for rows 180 to 223. The offset ranges from 0 for row 18
  Note that this function is far slower than the `V.gfx.blit` function which is fully running on the GPU.
 
 * `line(x1,y1, x2,y2, r,g,b)`
- * draw a line
+* draw a line
 
 * `triangle(x1,y1, x2,y2, x3,y3, r,g,b)`
- * fill a triangle
+* fill a triangle
 
 * `rectangle(x,y, w,h, r,g,b)`
- * fill a rectangle
+* fill a rectangle
 
 * `circle(x,y, radius_x, [radius_y], r,g,b)`
- * draw a circle/ellipse
+* draw a circle/ellipse
 
 * `disk(x,y, radius_x, [radius_y], r,g,b)`
- * fill a circle/ellipse
+* fill a circle/ellipse
 
-### <a name="h2.3"></a>2.3. Font
+#### <a name="h3.2.3"></a>3.2.3. Font
 
 * You define a bitmap font with `set_font` by defining a rectangular zone inside a layer, and the character size :
 * `set_font(id, x,y,w,h, char_width,char_height, [charset], [spacing_h],[spacing_v], [chars_width])`
- * `id` id of the layer containing the characters sprites
- * `x,y,w,h` define a region of a layer as a bitmap font to use with `V.gfx.print`
- * `char_width,char_height` if the size of a character in this bitmap (in case of non-monotype font, use the chars_width parameter)
- * `charset` is a string representing the characters in the bitmap font.
- * if `charset` is not set, the ascii table order is expected.
- * `spacing_h,spacing_v` additional horizontal and vertical spacing between characters when drawing text (default 0,0)
- * `chars_width` is an array containing the width of each character.
- * if `chars_width` is not set, this is a mono font and every character's width is `char_width`
- * The function returns a number representing this font. You can use this number to print text.
- * The console is preloaded with three fonts :
-  * `V.gfx.FONT_8X8` : the default mono font that contains the complete 128 ascii table characters.
-  * `V.gfx.FONT_5X7` : a smaller non-mono font that contains the 93 ascii characters from `!` to `~`.
-  * `V.gfx.FONT_4X6` : a very small mono font that contains the 93 ascii characters from `!` to `~`.
+* `id` id of the layer containing the characters sprites
+* `x,y,w,h` define a region of a layer as a bitmap font to use with `V.gfx.print`
+* `char_width,char_height` if the size of a character in this bitmap (in case of non-monotype font, use the chars_width parameter)
+* `charset` is a string representing the characters in the bitmap font.
+* if `charset` is not set, the ascii table order is expected.
+* `spacing_h,spacing_v` additional horizontal and vertical spacing between characters when drawing text (default 0,0)
+* `chars_width` is an array containing the width of each character.
+* if `chars_width` is not set, this is a mono font and every character's width is `char_width`
+* The function returns a number representing this font. You can use this number to print text.
+* The console is preloaded with three fonts :
+* `V.gfx.FONT_8X8` : the default mono font that contains the complete 128 ascii table characters.
+* `V.gfx.FONT_5X7` : a smaller non-mono font that contains the 93 ascii characters from `!` to `~`.
+* `V.gfx.FONT_4X6` : a very small mono font that contains the 93 ascii characters from `!` to `~`.
 
 * `print(font, text, x,y, [r],[g],[b])`
- * print the text at position `x,y` using a specific font
- * `r,g,b` : multiply the font's character sprites with this color (default white)
+* print the text at position `x,y` using a specific font
+* `r,g,b` : multiply the font's character sprites with this color (default white)
 
  Example : print hello at position 0,0 in white
 
  `V.gfx.print(V.gfx.FONT_8X8, "hello", 0,0)`
 
-### <a name="h2.4"></a>2.4. Sprite
+#### <a name="h3.2.4"></a>3.2.4. Sprite
 
 You select a spritesheet with `set_sprite_layer` (default is `V.gfx.SYSTEM_LAYER`). `V.gfx.blit` uses it as a source. The destination is the current active layer.
 Source and destination cannot be the same layer.
 
 * `set_sprite_layer(id)`
- * define the current source for sprite blitting operations
+* define the current source for sprite blitting operations
 
 * `blit(sx,sy,sw,sh, dx,dy, [r,g,b], [angle], [dw],[dh], [hflip],[vflip])`
- * blit a rectangular zone from the current sprite layer to the active layer
- * warning : using angle = 0 or angle = nil does not produce the same result. See dx,dy description below
- * `sx,sy` : top left pixel position in the spritesheet
- * `sw,sh` : rectangular zone size in the spritesheet in pixels
- * `dx,dy` : destination on active pixel buffer (top left position if angle==nil, else center position)
- * `r,g,b` : multiply the sprite colors with this color (default white)
- * `angle` : an optional rotation angle in radians
- * `dw,dh` : destination size in pixel (if 0,0, or nil,nil, uses the source size). The sprite will be stretched to fill dw,dh
- * `hflip, vflip` : whether to flip the sprite horizontally or vertically (default false)
+* blit a rectangular zone from the current sprite layer to the active layer
+* warning : using angle = 0 or angle = nil does not produce the same result. See dx,dy description below
+* `sx,sy` : top left pixel position in the spritesheet
+* `sw,sh` : rectangular zone size in the spritesheet in pixels
+* `dx,dy` : destination on active pixel buffer (top left position if angle==nil, else center position)
+* `r,g,b` : multiply the sprite colors with this color (default white)
+* `angle` : an optional rotation angle in radians
+* `dw,dh` : destination size in pixel (if 0,0, or nil,nil, uses the source size). The sprite will be stretched to fill dw,dh
+* `hflip, vflip` : whether to flip the sprite horizontally or vertically (default false)
 
 * `blit_col(sx,sy,sw,sh, dx,dy, [r,g,b], [angle], [dw],[dh], [hflip],[vflip])`
- * blit a rectangular zone from the current sprite layer to the active layer replacing all non transparent pixels with r,g,b.
- * warning : using angle = 0 or angle = nil does not produce the same result. See dx,dy description below
- * This function is useful for example if you want to blit a sprite with all white pixels for a hit effect, or to black for drop shadow effects.
- * `sx,sy` : top left pixel position in the spritesheet
- * `sw,sh` : rectangular zone size in the spritesheet in pixels
- * `dx,dy` : destination on active pixel buffer (top left position if angle==nil, else center position)
- * `r,g,b` : replace all sprite's pixels with this color (default white)
- * `angle` : an optional rotation angle in radians
- * `dw,dh` : destination size in pixel (if 0,0, or nil,nil, uses the source size). The sprite will be stretched to fill dw,dh
- * `hflip, vflip` : whether to flip the sprite horizontally or vertically (default false)
+* blit a rectangular zone from the current sprite layer to the active layer replacing all non transparent pixels with r,g,b.
+* warning : using angle = 0 or angle = nil does not produce the same result. See dx,dy description below
+* This function is useful for example if you want to blit a sprite with all white pixels for a hit effect, or to black for drop shadow effects.
+* `sx,sy` : top left pixel position in the spritesheet
+* `sw,sh` : rectangular zone size in the spritesheet in pixels
+* `dx,dy` : destination on active pixel buffer (top left position if angle==nil, else center position)
+* `r,g,b` : replace all sprite's pixels with this color (default white)
+* `angle` : an optional rotation angle in radians
+* `dw,dh` : destination size in pixel (if 0,0, or nil,nil, uses the source size). The sprite will be stretched to fill dw,dh
+* `hflip, vflip` : whether to flip the sprite horizontally or vertically (default false)
 
-### <a name="h2.5"></a>2.5. Spritesheets
+#### <a name="h3.2.5"></a>3.2.5. Spritesheets
 
 You can define a spritesheet on any layer using the `V.gfx.set_spritesheet` function.
 
 * `set_spritesheet(layer, sprite_w, sprite_h, [off_x], [off_y], [grid_width])`
- * return the id of a spritesheet that can be used to easily blit sprites
- * `layer` the layer containing the sprites
- * `sprite_w, sprite_h` : the size of a sprite in pixels
- * `off_x, off_y` : the top-left position of the sprite grid in the layer (default 0,0)
- * `grid_width` : in case the spritesheet doesn't use all the layer width, how many sprites are in a row
+* return the id of a spritesheet that can be used to easily blit sprites
+* `layer` the layer containing the sprites
+* `sprite_w, sprite_h` : the size of a sprite in pixels
+* `off_x, off_y` : the top-left position of the sprite grid in the layer (default 0,0)
+* `grid_width` : in case the spritesheet doesn't use all the layer width, how many sprites are in a row
 
 You can then blit a sprite from this layer using `V.gfx.blit_sprite` :
 
 * `blit_sprite(spritesheet_id, sprite_num, dx, dy, [r,g,b], [angle], [dw],[dh], [hflip],[vflip])`
- * blit a sprite from a predefined spritesheet to the active layer.
- * warning : using angle = 0 or angle = nil does not produce the same result. See dx,dy description below
- * `spritesheet_id` : id returned by the `set_spritesheet` function
- * `sprite_num` : number of the sprite in the grid (0 = top-left, row-first order)
- * `dx,dy` : destination on active pixel buffer (the sprite's top left position if angle==nil, else center position)
- * `r,g,b` : multiply the sprite colors with this color (default white)
- * `angle` : an optional rotation angle in radians
- * `dw,dh` : destination size in pixel (if 0,0, or nil,nil, uses the sprite size). The sprite will be stretched to fill dw,dh
- * `hflip, vflip` : whether to flip the sprite horizontally or vertically (default false)
+* blit a sprite from a predefined spritesheet to the active layer.
+* warning : using angle = 0 or angle = nil does not produce the same result. See dx,dy description below
+* `spritesheet_id` : id returned by the `set_spritesheet` function
+* `sprite_num` : number of the sprite in the grid (0 = top-left, row-first order)
+* `dx,dy` : destination on active pixel buffer (the sprite's top left position if angle==nil, else center position)
+* `r,g,b` : multiply the sprite colors with this color (default white)
+* `angle` : an optional rotation angle in radians
+* `dw,dh` : destination size in pixel (if 0,0, or nil,nil, uses the sprite size). The sprite will be stretched to fill dw,dh
+* `hflip, vflip` : whether to flip the sprite horizontally or vertically (default false)
 
 Example :
 
@@ -277,11 +430,11 @@ spritesheet_id = V.gfx.set_spritesheet(1, 32, 32)
 gfx.blit_sprite(spritesheet_id, 0, 10, 10)
 ```
 
-## <a name="h3"></a>3. Sound (V.snd)
+### <a name="h3.3"></a>3.3. Sound (V.snd)
 
 The viper has 6 channels that each can play stereo sound at 48kHz with float32 samples.
 
-### <a name="h3.1"></a>3.1. Instrument
+#### <a name="h3.3.1"></a>3.3.1. Instrument
 
 You can create any number of instruments that produce sound.
 Instrument can either use additive synthesis by using various oscillators or read samples from .wav files.
@@ -290,68 +443,68 @@ Oscillator instrument properties:
 
 * oscillator parameters
 
- * `OVERTONE` : amount of overtone
- * `OVERTONE_RATIO` : 0 = octave below, 1 = fifth above
- * `SAW` : amount of sawtooth waveform (0.0-1.0)
- * `ULTRASAW` : amount of ultrasaw in the saw waveform (0.0-1.0)
- * `SQUARE` : amount of square waveform (0.0-1.0)
- * `PULSE` : width of the square pulse should be in `]0..1[` interval
- * `TRIANGLE` : amount of triangle waveform (0.0-1.0)
- * `METALIZER` : amount of metalizer in the triangle waveform (0.0-1.0)
- * `NOISE` : amount of noise (0.0-1.0)
- * `NOISE_COLOR` : from white (0.0) to pink (1.0) noise
+* `OVERTONE` : amount of overtone
+* `OVERTONE_RATIO` : 0 = octave below, 1 = fifth above
+* `SAW` : amount of sawtooth waveform (0.0-1.0)
+* `ULTRASAW` : amount of ultrasaw in the saw waveform (0.0-1.0)
+* `SQUARE` : amount of square waveform (0.0-1.0)
+* `PULSE` : width of the square pulse should be in `]0..1[` interval
+* `TRIANGLE` : amount of triangle waveform (0.0-1.0)
+* `METALIZER` : amount of metalizer in the triangle waveform (0.0-1.0)
+* `NOISE` : amount of noise (0.0-1.0)
+* `NOISE_COLOR` : from white (0.0) to pink (1.0) noise
 
 * filter parameters
 
- * `FILTER_BAND` : type of filter (`LOWPASS`, `BANDPASS`, `HIGHPASS`, `NOTCH`)
- * `FILTER_DISTO` : amount of distortion (0-200)
- * `FILTER_GAIN`: lowshelf filter boost in Db (-40, 40)
- * `FILTER_CUTOFF`: upper limit of frequencies getting a boost (0-8000)
+* `FILTER_BAND` : type of filter (`LOWPASS`, `BANDPASS`, `HIGHPASS`, `NOTCH`)
+* `FILTER_DISTO` : amount of distortion (0-200)
+* `FILTER_GAIN`: lowshelf filter boost in Db (-40, 40)
+* `FILTER_CUTOFF`: upper limit of frequencies getting a boost (0-8000)
 
 * lfo parameters
 
- * `LFO_AMOUNT` : amplitude of the lfo waveform (0-1)
- * `LFO_RATE` : frequency of the lfo waveform (0-8000)
- * `LFO_SHAPE`: type of waveform (`SAW`, `SQUARE`, `TRIANGLE`)
- * `LFO_PITCH` : whether the lfo affects the notes pitch (0 or 1)
- * `LFO_FILTER`: whether the lfo affects the filter cutoff (0 or 1)
- * `LFO_PULSE`: whether the lfo affects the pulse width (0 or 1)
- * `LFO_METALIZER`: whether the lfo affects the metalizer amount (0 or 1)
- * `LFO_OVERTONE`: whether the lfo affects the overtone amount (0 or 1)
- * `LFO_ULTRASAW`: whether the lfo affects the ultrasaw amount (0 or 1)
+* `LFO_AMOUNT` : amplitude of the lfo waveform (0-1)
+* `LFO_RATE` : frequency of the lfo waveform (0-8000)
+* `LFO_SHAPE`: type of waveform (`SAW`, `SQUARE`, `TRIANGLE`)
+* `LFO_PITCH` : whether the lfo affects the notes pitch (0 or 1)
+* `LFO_FILTER`: whether the lfo affects the filter cutoff (0 or 1)
+* `LFO_PULSE`: whether the lfo affects the pulse width (0 or 1)
+* `LFO_METALIZER`: whether the lfo affects the metalizer amount (0 or 1)
+* `LFO_OVERTONE`: whether the lfo affects the overtone amount (0 or 1)
+* `LFO_ULTRASAW`: whether the lfo affects the ultrasaw amount (0 or 1)
 
 * envelop parameters
 
- * `ATTACK` : duration of attack phase
- * `DECAY` : duration of decay phase
- * `SUSTAIN` : duration of sustain phase
- * `RELEASE` : duration of release phase
+* `ATTACK` : duration of attack phase
+* `DECAY` : duration of decay phase
+* `SUSTAIN` : duration of sustain phase
+* `RELEASE` : duration of release phase
 
    By default, envelop is altering the note volume. But it can also be used to alter other parameters :
 
- * `ENV_AMOUNT` : scale the effect of the envelop on the parameter
- * `ENV_PITCH` : amount of envelop altering the note pitch
- * `ENV_FILTER` : amount of envelop altering the note pitch
- * `ENV_METALIZER` : amount of envelop altering the metalizer parameter of the oscillator
- * `ENV_OVERTONE` : amount of envelop altering the overtone parameter of the oscillator
- * `ENV_PULSE` : amount of envelop altering the pulse width of the oscillator
- * `ENV_ULTRASAW` : amount of envelop altering the utrasaw parameter of the oscillator
+* `ENV_AMOUNT` : scale the effect of the envelop on the parameter
+* `ENV_PITCH` : amount of envelop altering the note pitch
+* `ENV_FILTER` : amount of envelop altering the note pitch
+* `ENV_METALIZER` : amount of envelop altering the metalizer parameter of the oscillator
+* `ENV_OVERTONE` : amount of envelop altering the overtone parameter of the oscillator
+* `ENV_PULSE` : amount of envelop altering the pulse width of the oscillator
+* `ENV_ULTRASAW` : amount of envelop altering the utrasaw parameter of the oscillator
 
 Sample instrument properties :
 
 * base parameters
-   * `FILE` : path to the .wav file
-   * `FREQ` : base frequency of the sound in the file
+  * `FILE` : path to the .wav file
+  * `FREQ` : base frequency of the sound in the file
 
 * looping
-   * `LOOP_START` : sample index where to start the loop
-   * `LOOP_END` : sample index where to end the loop
+  * `LOOP_START` : sample index where to start the loop
+  * `LOOP_END` : sample index where to end the loop
 
 * envelop
-   * `ATTACK` : duration of attack phase
-   * `DECAY` : duration of decay phase
-   * `SUSTAIN` : duration of sustain phase
-   * `RELEASE` : duration of release phase
+  * `ATTACK` : duration of attack phase
+  * `DECAY` : duration of decay phase
+  * `SUSTAIN` : duration of sustain phase
+  * `RELEASE` : duration of release phase
 
 * `new_instrument(description)` : create a new instrument, return a numerical id for the instrument that can be used in the song patterns (the first is 0 then it is incremented for each new instrument).
 
@@ -379,7 +532,7 @@ snare_id = V.snd.new_instrument("SAMPLE FILE musics/samples/snare.wav FREQ 17000
 * `reserve_channel(channel)` : mark a channel so that it's not used except if explicitely adressed in play_note, play_pattern or play_music
 * `release_channel(channel)` : release a channel so that it can be used by play_note, play_pattern or play_music when the channel are not specified
 
-### <a name="h3.2"></a>3.2. Pattern
+#### <a name="h3.3.2"></a>3.3.2. Pattern
 
 A pattern is a list of notes that plays at a specific rate.
 
@@ -404,12 +557,12 @@ The note format is [note] [octave] [instrument_id] [volume] [fx] with :
 * octave : between 0 and 8
 * volume : hexadecimal between 1 (lowest) and F (highest)
 * fx : special sound effect between 0 and 5 :
-   * 0 : no effect
-   * 1 : slide
-   * 2 : vibrato
-   * 3 : drop
-   * 4 : fade in
-   * 5 : fade out
+  * 0 : no effect
+  * 1 : slide
+  * 2 : vibrato
+  * 3 : drop
+  * 4 : fade in
+  * 5 : fade out
 
 You can add a silence by filling the note format with 6 dots : `......`
 Example :
@@ -421,7 +574,7 @@ new_pattern("PAT 16 C#3915 ...... ...... C#3915 D#3835")
 * `set_pattern(id, new_description)` : update a pattern
 * `play_pattern(id, [channel])` : play the pattern on a channel. If channel is not defined, any free channel will be used.
 
-### <a name="h3.3"></a>3.3. Song
+#### <a name="h3.3.3"></a>3.3.3. Song
 
 A song is an ordered list of patterns to play on one or several of the 6 available channels.
 
@@ -458,13 +611,13 @@ SEQ2 000204...... 010304......
 
 For example with the previous song, which requires 3 channels, you can use the binary mask 111 = 7. This would result in the song using the channels 0,1,2.
 
-### <a name="h3.4"></a>3.4. Midi
+#### <a name="h3.3.4"></a>3.3.4. Midi
 
 TODO
 
-## <a name="h4"></a>4. Input (V.inp)
+### <a name="h3.4"></a>3.4. Input (V.inp)
 
-### <a name="h4.1"></a>4.1. Keyboard
+#### <a name="h3.4.1"></a>3.4.1. Keyboard
 
 * `key(key)` : return true if key is pressed.
 * `key_pressed(key)` : return true if key was pressed during last frame
@@ -504,7 +657,7 @@ Special keys :
 * `V.inp.KEY_RALT`
 * `V.inp.KEY_RSHIFT`
 
-### <a name="h4.2"></a>4.2. Mouse
+#### <a name="h3.4.2"></a>3.4.2. Mouse
 
 List of button values :
 
@@ -520,9 +673,9 @@ Functions :
 
  You can use any button number or the predefined constants :
 
- * `V.inp.MOUSE_LEFT`
- * `V.inp.MOUSE_MIDDLE`
- * `V.inp.MOUSE_RIGHT`
+* `V.inp.MOUSE_LEFT`
+* `V.inp.MOUSE_MIDDLE`
+* `V.inp.MOUSE_RIGHT`
 
 * `mouse_button_pressed(num)` : return true if mouse button num was pressed since the last game tick
 * `mouse_button_released(num)` : return true if mouse button num was released since the last game tick
@@ -544,7 +697,7 @@ Example :
 V.gfx.show_mouse_cursor(false)
 ```
 
-### <a name="h4.3"></a>4.3. Gamepad
+#### <a name="h3.4.3"></a>3.4.3. Gamepad
 
 ***in beta***
 
@@ -562,16 +715,16 @@ Functions :
 
  You can use these constants for the num value :
 
- * `V.inp.XBOX360_A`
- * `V.inp.XBOX360_B`
- * `V.inp.XBOX360_X`
- * `V.inp.XBOX360_Y`
- * `V.inp.XBOX360_LB`
- * `V.inp.XBOX360_RB`
- * `V.inp.XBOX360_SELECT`
- * `V.inp.XBOX360_START`
- * `V.inp.XBOX360_LS`
- * `V.inp.XBOX360_RS`
+* `V.inp.XBOX360_A`
+* `V.inp.XBOX360_B`
+* `V.inp.XBOX360_X`
+* `V.inp.XBOX360_Y`
+* `V.inp.XBOX360_LB`
+* `V.inp.XBOX360_RB`
+* `V.inp.XBOX360_SELECT`
+* `V.inp.XBOX360_START`
+* `V.inp.XBOX360_LS`
+* `V.inp.XBOX360_RS`
 * `pad_ls(player_num)` : return the left analog stick axis values (between -1 and 1) for player player_num
 
  Example :
@@ -583,7 +736,7 @@ Functions :
 * `pad_lt(player_num)` : return the left trigger value (between -1 and 1) for player player_num
 * `pad_rt(player_num)` : return the right trigger value (between -1 and 1) for player player_num
 
-### <a name="h4.4"></a>4.4. Generic V.input
+#### <a name="h3.4.4"></a>3.4.4. Generic V.input
 
 If you want to support both keyboard and controller at the same time in a single player game, you can use these generic functions instead :
 
@@ -610,16 +763,20 @@ Those last function will check controller #1 and keyboard if the player is not d
 * `V.inp.left_pressed([player])`
 * `V.inp.right_pressed([player])`
 
-## <a name="h5"></a>5. FAQ
+## <a name="h4"></a>4. FAQ
 
 **How can I generate 1D/2D/3D noise ?**
 
-> Check <https://docs.godotengine.org/en/stable/classes/class_noise.html>
+> See <https://docs.godotengine.org/en/stable/classes/class_noise.html>
 
 **Are there tweening utilities ?**
 
-> Check <https://docs.godotengine.org/en/stable/classes/class_tween.html>
+You can use the `Tween` class. Example :
+
+`var value = Tween.interpolate_value(start_value, delta_value, t, duration, Tween.TRANS_CUBIC, Tween.EASE_IN_OUT)`
+
+> See <https://docs.godotengine.org/en/stable/classes/class_tween.html>
 
 **How can I save data locally ?**
 
-> Check <https://docs.godotengine.org/en/stable/tutorials/io/saving_games.html>
+> See <https://docs.godotengine.org/en/stable/tutorials/io/saving_games.html>
