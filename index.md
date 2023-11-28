@@ -124,7 +124,7 @@ Start the store from the main menu ![](assets/tex/doc_icon_store.png) and enter 
 * tuto02 : drawing from a spritesheet
 * tuto03 : using a custom bitmap font
 * tuto04 : parallax scrolling using layers
-* tuto05 : advanced parallax scrolling using rowscroll
+* tuto05 : single layer parallax scrolling using rowscroll
 
 ### <a name="h1.5"></a>1.5. Filesystem
 

@@ -1,40 +1,49 @@
 {
   "config": {
-    "cartpath": "carts"
+    "cartpath": "carts",
+    "store_version": "1.0.1"
   },
   "carts": [
     {
       "name": "celeste",
+      "description": "This is a Viper port of the famous PICO-8 Celeste game by Maddy Thorson and Noel Berry",
       "icon": "celeste.png",
       "source": "celeste.gd",
+      "viper_version": "3.0.1a",
       "tags": [
         "platform",
-        "pico8",
-        "beta"
+        "pico8"
       ]
     },
     {
       "name": "Super pitstop'93",
+      "description": "Top down Formula One racing game inspired by the F1 Circus '92 videogame on the NEC/PCEngine along with Geoff Crammond's Formula One Grand Prix from 1991",
       "icon": "pitstop.png",
       "source": "pitstop.gd",
+      "cart_version": "0.1",
+      "viper_version": "3.0.1a",
       "tags": [
         "racing",
         "alpha"
       ]
     },
     {
-      "name": "Second Reality",
+      "name": "Reality 2.5",
+      "description": "Assembly '93 Second Reality, by Future Crew, revisited for the Viper console",
       "icon": "demo.png",
       "source": "demo.gd",
+      "viper_version": "3.0.1a",
       "tags": [
         "demoscene",
         "alpha"
       ]
     },
     {
-      "name": "Horror Mansion",
+      "name": "Horror Mansion Pinball",
+      "description": "Recreation of Stones N Bones pinball from the '92 Pinball Fantasies game by Digital Illusions",
       "icon": "pinball.png",
       "source": "pinball.gd",
+      "viper_version": "3.0.1a",
       "tags": [
         "pinball",
         "alpha"
@@ -42,28 +51,45 @@
     },
     {
       "name": "Tutorial 01",
+      "description": "Draw basic shapes",
       "source": "tuto01.gd",
+      "viper_version": "3.0.1a",
       "tags": [
         "tutorial"
       ]
     },
     {
       "name": "Tutorial 02",
+      "description": "Draw animated sprites",
       "source": "tuto02.gd",
+      "viper_version": "3.0.1a",
       "tags": [
         "tutorial"
       ]
     },
     {
       "name": "Tutorial 03",
+      "description": "Custom bitmap font",
       "source": "tuto03.gd",
+      "viper_version": "3.0.1a",
       "tags": [
         "tutorial"
       ]
     },
     {
       "name": "Tutorial 04",
+      "description": "Multi-layer parallax",
       "source": "tuto04.gd",
+      "viper_version": "3.0.1a",
+      "tags": [
+        "tutorial"
+      ]
+    },
+    {
+      "name": "Tutorial 05",
+      "description": "Single layer parallax",
+      "source": "tuto05.gd",
+      "viper_version": "3.0.1a",
       "tags": [
         "tutorial"
       ]
