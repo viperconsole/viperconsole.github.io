@@ -148,27 +148,54 @@ Use `viper.exe --fullscreen` in native mode.
 
 Use `https://jice-nospam.itch.io/viper-console/?fullscreen=1` in web mode
 
-| Parameter | Description |
-| ----- | ----- |
-| **Bios** | _ |
-| `cart=<path>` | Start a cartridge at launch. `path` = the .gd script to run |
-| `no_deepswitch` | Disable deepswitch menu (ctrl-shift-\`) |
-| `no_docker` | Disable docker menu |
-| **Graphics** | _ |
-| `no_crt` | Disable all CRT effects |
-| `no_crt_warp` | Disable screen warping effect |
-| `no_crt_scan` | Disable scanline effect |
-| `no_crt_mask` | Disable shadow mask effect |
-| `fullscreen` | Start in fullscreen mode |
-| `no_splash` | Disable splash screen (only on native mode) |
-| `no_vsync` | Disable vertical sync (only on native mode) |
-| **Audio** | _ |
-| `no_audio` | Start with sound disabled |
-| `audio_rate=<rate>` | Change the audio sample rate (value in Hz) |
-| **Input** | _ |
+| Parameter              | Description                                                             |
+|------------------------|-------------------------------------------------------------------------|
+| **Bios**               |                                                                         |
+| `cart=<path>`          | Start a cartridge at launch. `path` = the .gd script to run             |
+| `no_deepswitch`        | Disable deepswitch menu (ctrl-shift-\`)                                 |
+| `no_docker`            | Disable docker menu                                                     |
+
+| Parameter              | Description                                                             |
+|------------------------|-------------------------------------------------------------------------|
+| **Graphics**           |                                                                         |
+| `no_crt`               | Disable all CRT effects                                                 |
+| `no_crt_warp`          | Disable screen warping effect                                           |
+| `no_crt_scan`          | Disable scanline effect                                                 |
+| `no_crt_mask`          | Disable shadow mask effect                                              |
+| `fullscreen`           | Start in fullscreen mode                                                |
+| `no_splash`            | Disable splash screen (only on native mode)                             |
+| `no_vsync`             | Disable vertical sync (only on native mode)                             |
+
+| Parameter              | Description                                                             |
+|------------------------|-------------------------------------------------------------------------|
+| **Audio**              |                                                                         |
+| `no_audio`             | Start with sound disabled                                               |
+| `audio_rate=<rate>`    | Change the audio sample rate (value in Hz)                              |
+
+| Parameter              | Description                                                             |
+|------------------------|-------------------------------------------------------------------------|
+| **Input**              |                                                                         |
 | `neutral_zone=<value>` | Change the controllers default neutral zone (value between 0.0 and 1.0) |
 
 ## <a name="h2"></a>2. Viper's BIOS
+
+### <a name="h2.1"></a>2.1. Keyboard shortcuts
+
+| Key              | Command                                                             |
+|------------------|---------------------------------------------------------------------|
+| Escape<br>Joypad 6*            | Toggle docker menu                                    |
+| F12              | Save a screenshot in `%USERPROFILE%\Pictures\Viper`                 |
+| Ctrl-Shift-`     | Toggle deepswitch menu                                              |
+| X<br>LMB<br>Joypad 0*          | Action1                                               |
+| C<br>RMB<br>Joypad 1*          | Action2                                               |
+
+\* : Joypad buttons correspondance
+
+| Button | Sony | XBox | Nintendo |
+| ------ | ---- | ---- | -------- |
+| 0 | cross | A | B |
+| 1 | square | X | Y |
+| 6 | start | menu | + |
 
 ## <a name="h3"></a>3. API Reference
 
