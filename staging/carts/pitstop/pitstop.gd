@@ -1281,7 +1281,7 @@ static func init() :
 	V.snd.new_instrument(INST_TRIBUNE)
 	V.snd.new_instrument(INST_TYRE)
 	V.snd.new_instrument(INST_PIT)
-	V.gfx.set_spritesheet(await V.gfx.load_img("pitstop/pitstop.png"))
+	V.gfx.set_spritesheet(await V.gfx.load_img("pitstop_spr.png"))
 	V.gfx.show_layer(LAYER_SMOKE) # smoke fx
 	V.gfx.set_layer_operation(LAYER_SMOKE, V.gfx.LAYEROP_ADD)
 	V.gfx.show_layer(LAYER_SHADOW) # shadow
@@ -1294,11 +1294,11 @@ static func init() :
 	intro.init.call()
 	set_game_mode(intro)
 	# TODO db API
-#	quick_race_conf=load_table("pitstop/pitstop.db","quick_race_conf")
+#	quick_race_conf=load_table("pitstop.db","quick_race_conf")
 #	if quick_race_conf == null :
 #		print("NO QUICK RACE CONF")
 #		quick_race_conf = DEFAULT_QUICK_RACE_CONF
-#		save_table("pitstop/pitstop.db","quick_race_conf", quick_race_conf)
+#		save_table("pitstop.db","quick_race_conf", quick_race_conf)
 #	else :
 	print("QUICK RACE CONF : %d" % quick_race_conf.lap_count)
 
@@ -3491,7 +3491,7 @@ const INST_ORGAN ={TYPE="Oscillator",OVERTONE=0.5,TRIANGLE=0.75,NAME="organ"}
 const INST_NOISE ={TYPE="Oscillator", NOISE=1.0,NOISE_COLOR=0.2,NAME="noise"}
 const INST_PHASER ={TYPE="Oscillator",OVERTONE=0.5,METALIZER=1.0,TRIANGLE=0.7,NAME="phaser"}
 # samples
-const INST_ENGINE = {TYPE="Sample",ID=1,FILE="pitstop/high_rpm16.wav", FREQ=554, LOOP_START=0}
-const INST_TRIBUNE = {TYPE="Sample",ID=2,FILE="pitstop/tribune.wav", FREQ=440, LOOP_START=0}
-const INST_TYRE = {TYPE="Sample",ID=3,FILE="pitstop/screech.wav", FREQ= 440, LOOP_START= 0}
-const INST_PIT = {TYPE="Sample",ID=4,FILE="pitstop/pit.wav", FREQ= 440}
+const INST_ENGINE = {TYPE="Sample",ID=1,FILE="high_rpm16.wav", FREQ=554, LOOP_START=0}
+const INST_TRIBUNE = {TYPE="Sample",ID=2,FILE="tribune.wav", FREQ=440, LOOP_START=0}
+const INST_TYRE = {TYPE="Sample",ID=3,FILE="screech.wav", FREQ= 440, LOOP_START= 0}
+const INST_PIT = {TYPE="Sample",ID=4,FILE="pit.wav", FREQ= 440}

@@ -1060,7 +1060,7 @@ func init():
 	#V.gfx.set_layer_blur(0, 4)
 	#V.gfx.set_layer_blur(1, 1)
 	V.gfx.clear(Color.WHITE)
-	V.gfx.set_spritesheet(await V.gfx.load_img("celeste/celeste14.png"))
+	V.gfx.set_spritesheet(await V.gfx.load_img("celeste14.png"))
 	V.gfx.set_active_layer(2)
 	title_screen()
 
@@ -1730,5 +1730,5 @@ const INST_PULSE ={TYPE="Oscillator",OVERTONE=1.0,SQUARE=0.5,PULSE=0.5,TRIANGLE=
 const INST_ORGAN ={TYPE="Oscillator",OVERTONE=0.5,TRIANGLE=0.75,NAME="organ"}
 const INST_NOISE ={TYPE="Oscillator", NOISE=1.0,NOISE_COLOR=0.2,NAME="noise"}
 const INST_PHASER ={TYPE="Oscillator",OVERTONE=0.5,METALIZER=1.0,TRIANGLE=0.7,NAME="phaser"}
-const INST_SNARE ={TYPE="Sample",ID=1,FILE="celeste/11_ZN.wav",FREQ=440}
-const INST_KICK ={TYPE="Sample",ID=2,FILE="celeste/10_HALLBD1.wav",FREQ=440}
+const INST_SNARE ={TYPE="Sample",ID=1,FILE="11_ZN.wav",FREQ=440}
+const INST_KICK ={TYPE="Sample",ID=2,FILE="10_HALLBD1.wav",FREQ=440}

@@ -1,6 +1,6 @@
 var my_font
 func init() :
-	V.gfx.set_spritesheet(await V.gfx.load_img("tutos/tuto03.png"))
+	V.gfx.set_spritesheet(await V.gfx.load_img("tuto03.png"))
 	V.gfx.set_spritesheet_layout(Vector2i(75,70))
 	my_font=V.gfx.set_font(
 		Vector2i(16, 16),

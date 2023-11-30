@@ -1,6 +1,6 @@
 func init():
 	# load an image and blit it on default layer
-	var img = await V.gfx.load_img("tutos/tuto05.png")
+	var img = await V.gfx.load_img("tuto05.png")
 	V.gfx.set_spritesheet(img) # background from high seas havoc
 	# the image is bigger than the screen so resize the layer so it fits
 	V.gfx.set_layer_size_v(1, V.gfx.get_image_size(img))

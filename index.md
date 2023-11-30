@@ -58,7 +58,7 @@ Graphics :  384x224 screen resolution
 
 ```
 Sound :     6 channels 44100Hz (native) or 16000Hz (web)
-            oscillator based synthetizers
+            subtractive synthetizer
             saw, triangle, square, noise generators
             samples support (.wav)
             midi controller input support
@@ -475,10 +475,10 @@ Oscillator instrument properties:
 
 * envelop parameters
 
-* `ATTACK` : duration of attack phase
-* `DECAY` : duration of decay phase
-* `SUSTAIN` : duration of sustain phase
-* `RELEASE` : duration of release phase
+* `ATTACK` : duration of attack phase in seconds
+* `DECAY` : duration of decay phase in seconds
+* `SUSTAIN` : level of sustain phase between 0.0 and 1.0
+* `RELEASE` : duration of release phase in seconds
 
    By default, envelop is altering the note volume. But it can also be used to alter other parameters :
 

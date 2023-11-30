@@ -6,6 +6,7 @@
   "carts": [
     {
       "name": "celeste",
+      "dir": "celeste",
       "description": "This is a Viper port of the famous PICO-8 Celeste game by Maddy Thorson and Noel Berry",
       "icon": "celeste.png",
       "source": "celeste.gd",
@@ -17,6 +18,7 @@
     },
     {
       "name": "Super pitstop'93",
+      "dir": "pitstop",
       "description": "Top down Formula One racing game inspired by the F1 Circus '92 videogame on the NEC/PCEngine along with Geoff Crammond's Formula One Grand Prix from 1991",
       "icon": "pitstop.png",
       "source": "pitstop.gd",
@@ -29,6 +31,7 @@
     },
     {
       "name": "Reality 2.5",
+      "dir": "demo",
       "description": "Assembly '93 Second Reality, by Future Crew, revisited for the Viper console",
       "icon": "demo.png",
       "source": "demo.gd",
@@ -40,6 +43,7 @@
     },
     {
       "name": "Horror Mansion Pinball",
+      "dir": "pinball",
       "description": "Recreation of Stones N Bones pinball from the '92 Pinball Fantasies game by Digital Illusions",
       "icon": "pinball.png",
       "source": "pinball.gd",
@@ -51,6 +55,7 @@
     },
     {
       "name": "Tutorial 01",
+      "dir": "tutos",
       "description": "Draw basic shapes",
       "source": "tuto01.gd",
       "viper_version": "3.0.1a",
@@ -60,6 +65,7 @@
     },
     {
       "name": "Tutorial 02",
+      "dir": "tutos",
       "description": "Draw animated sprites",
       "source": "tuto02.gd",
       "viper_version": "3.0.1a",
@@ -69,6 +75,7 @@
     },
     {
       "name": "Tutorial 03",
+      "dir": "tutos",
       "description": "Custom bitmap font",
       "source": "tuto03.gd",
       "viper_version": "3.0.1a",
@@ -78,6 +85,7 @@
     },
     {
       "name": "Tutorial 04",
+      "dir": "tutos",
       "description": "Multi-layer parallax",
       "source": "tuto04.gd",
       "viper_version": "3.0.1a",
@@ -87,6 +95,7 @@
     },
     {
       "name": "Tutorial 05",
+      "dir": "tutos",
       "description": "Single layer parallax",
       "source": "tuto05.gd",
       "viper_version": "3.0.1a",

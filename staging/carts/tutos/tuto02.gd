@@ -1,5 +1,5 @@
 func init() :
-	V.gfx.set_spritesheet(await V.gfx.load_img("tutos/tuto02.png"))
+	V.gfx.set_spritesheet(await V.gfx.load_img("tuto02.png"))
 	V.gfx.set_spritesheet_layout(Vector2i(75,70))
 
 var t : float = 0.0

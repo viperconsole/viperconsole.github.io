@@ -2,7 +2,7 @@ func init() :
     # oaks woods assets by Brullov
     for i in range(1,5) :
         # load each layer image
-        var img_id=await V.gfx.load_img("tutos/tuto4_%d.png" % i)
+        var img_id=await V.gfx.load_img("tuto4_%d.png" % i)
         # set it as current spritesheet
         V.gfx.set_spritesheet(img_id) 
         # resize the layer to fit the image. The layer will wrap around to fill the screen
