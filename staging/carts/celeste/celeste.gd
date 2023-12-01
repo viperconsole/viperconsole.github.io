@@ -442,9 +442,9 @@ var Player = {
 					create_object(Smoke, obj.x, obj.y + SPRITE_SIZE / 2)
 				else:
 					# wall jump
-					V.snd.play_pattern(2)
 					var wall_dir = -1 if obj_is_solid(obj, -3, 0) else 1 if obj_is_solid(obj, 3, 0) else 0
 					if wall_dir != 0 :
+						V.snd.play_pattern(2)
 						obj.jbuffer = 0
 						obj.speed.y = -2 * SPEED_COEF
 						obj.speed.x = -wall_dir * (maxrun + SPEED_COEF)
