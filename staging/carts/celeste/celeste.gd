@@ -11,6 +11,13 @@ const Y_OFFSET:int = 0
 const SPEED_COEF:float = SPRITE_SIZE / 8.0 + 0.5
 const CLOUD_COUNT:int = 16
 const PARTICLE_COUNT:int = 24
+
+const LAYER_CLOUD=1
+const LAYER_BACKGROUND=2
+const LAYER_LEVEL=3
+const LAYER_FADE=4
+const LAYER_UI=5
+
 var TILE_2_OBJ = {}
 
 var got_fruit:Array[bool] = []
@@ -1010,6 +1017,7 @@ func init_music():
 	V.snd.new_instrument(INST_PHASER)
 	V.snd.new_instrument(INST_SNARE)
 	V.snd.new_instrument(INST_KICK)
+#	V.snd.bounce_patterns()
 	V.snd.play_music(0, 7)
 
 func init():
@@ -1046,22 +1054,20 @@ func init():
 			off = randf(),
 			c = 6 + floor(0.5 + randf()),
 		})
-	V.gfx.set_layer_offset(0, 0.0, 10.0)
-	V.gfx.set_layer_offset(1, 0.0, 10.0)
-	V.gfx.set_layer_offset(2, 0.0, 10.0)
-	V.gfx.set_layer_offset(3, 0.0, 10.0)
-	V.gfx.set_layer_offset(7, 0.0, 10.0)
-	V.gfx.show_layer(1); # background
-	V.gfx.show_layer(2); # main game
-	V.gfx.show_layer(3); # fade to black layer
-	V.gfx.show_layer(7); # ui layer
-	V.gfx.set_layer_operation(3, V.gfx.LAYEROP_MULTIPLY)
-	V.gfx.set_active_layer(3)
-	#V.gfx.set_layer_blur(0, 4)
-	#V.gfx.set_layer_blur(1, 1)
-	V.gfx.clear(Color.WHITE)
-	V.gfx.set_spritesheet(await V.gfx.load_img("celeste14.png"))
-	V.gfx.set_active_layer(2)
+	V.gfx.set_layer_offset(LAYER_CLOUD, 0.0, 10.0)
+	V.gfx.set_layer_offset(LAYER_BACKGROUND, 0.0, 10.0)
+	V.gfx.set_layer_offset(LAYER_LEVEL, 0.0, 10.0)
+	V.gfx.set_layer_offset(LAYER_FADE, 0.0, 10.0)
+	V.gfx.set_layer_offset(LAYER_UI, 0.0, 10.0)
+	V.gfx.show_layer(LAYER_BACKGROUND); # background
+	V.gfx.show_layer(LAYER_LEVEL); # main game
+	V.gfx.show_layer(LAYER_FADE); # fade to black layer
+	V.gfx.show_layer(LAYER_UI); # ui layer
+	#V.gfx.set_layer_operation(LAYER_FADE, V.gfx.LAYEROP_MULTIPLY)
+	V.gfx.set_active_layer(LAYER_FADE)
+	V.gfx.clear(Color(0,0,0,1))
+	V.gfx.set_spritesheet(await V.gfx.load_img("celeste/celeste14.png"))
+	V.gfx.set_active_layer(LAYER_LEVEL)
 	title_screen()
 
 func map(cx, cy, sx, sy, cw, ch, layer):
@@ -1252,16 +1258,29 @@ func draw():
 	var y = roomy * 16
 	if start_game :
 		var l = (start_game_flash + 30) / 80
-		V.gfx.set_active_layer(3)
-		V.gfx.clear(Color(l, l, l))
-	elif not is_title() :
-		V.gfx.hide_layer(3)
-	V.gfx.set_active_layer(0)
+		V.gfx.set_active_layer(LAYER_FADE)
+		V.gfx.clear(Color(0,0,0,l)) # fade out
+		V.gfx.set_active_layer(LAYER_UI)
+		rect_fill( -X_OFFSET, 0, 0, SCREEN_SIZE, 0)
+		rect_fill(
+			SCREEN_SIZE,
+			0,
+			SCREEN_SIZE + X_OFFSET,
+			SCREEN_SIZE,
+			0
+		)
+	elif is_title() :
+		var alpha=max(0.0, 1.0-V.elapsed())
+		V.gfx.set_active_layer(LAYER_FADE)
+		V.gfx.clear(Color(0,0,0,alpha)) # fade in
+	else :
+		V.gfx.hide_layer(LAYER_FADE)
+	V.gfx.set_active_layer(LAYER_CLOUD)
 
 	# screen shake
-	V.gfx.set_layer_offset(0, cam_offset_x, cam_offset_y)
-	V.gfx.set_layer_offset(1, cam_offset_x, cam_offset_y)
-	V.gfx.set_layer_offset(2, cam_offset_x, cam_offset_y)
+	V.gfx.set_layer_offset(LAYER_CLOUD, cam_offset_x, cam_offset_y)
+	V.gfx.set_layer_offset(LAYER_BACKGROUND, cam_offset_x, cam_offset_y)
+	V.gfx.set_layer_offset(LAYER_LEVEL, cam_offset_x, cam_offset_y)
 	# clear screen
 	var bg_col = floor(frames/5) if flash_bg or start_game else 2 if new_bg else 0
 	V.gfx.clear(PAL[bg_col])
@@ -1278,10 +1297,10 @@ func draw():
 				bg
 			)
 
-	V.gfx.set_active_layer(1)
+	V.gfx.set_active_layer(LAYER_BACKGROUND)
 	V.gfx.clear(Color.TRANSPARENT)
 	map(x, y, 0, 0, 16, 16, 4)
-	V.gfx.set_active_layer(2)
+	V.gfx.set_active_layer(LAYER_LEVEL)
 	V.gfx.clear(Color.TRANSPARENT)
 
 	# platforms / big chests
@@ -1336,7 +1355,7 @@ func draw():
 		cel_print("viper port", SCREEN_SIZE / 2 - 28, SCREEN_SIZE * 105 / 128, 5)
 		cel_print("jice", SCREEN_SIZE / 2 - 4, SCREEN_SIZE * 115 / 128, 5)
 	else:
-		V.gfx.set_active_layer(7)
+		V.gfx.set_active_layer(LAYER_UI)
 		V.gfx.clear(Color.TRANSPARENT)
 		draw_ui()
 
@@ -1730,5 +1749,5 @@ const INST_PULSE ={TYPE="Oscillator",OVERTONE=1.0,SQUARE=0.5,PULSE=0.5,TRIANGLE=
 const INST_ORGAN ={TYPE="Oscillator",OVERTONE=0.5,TRIANGLE=0.75,NAME="organ"}
 const INST_NOISE ={TYPE="Oscillator", NOISE=1.0,NOISE_COLOR=0.2,NAME="noise"}
 const INST_PHASER ={TYPE="Oscillator",OVERTONE=0.5,METALIZER=1.0,TRIANGLE=0.7,NAME="phaser"}
-const INST_SNARE ={TYPE="Sample",ID=1,FILE="11_ZN.wav",FREQ=440}
-const INST_KICK ={TYPE="Sample",ID=2,FILE="10_HALLBD1.wav",FREQ=440}
+const INST_SNARE ={TYPE="Sample",ID=1,FILE="celeste/11_ZN.wav",FREQ=440}
+const INST_KICK ={TYPE="Sample",ID=2,FILE="celeste/10_HALLBD1.wav",FREQ=440}

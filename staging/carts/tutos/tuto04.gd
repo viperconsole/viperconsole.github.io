@@ -5,11 +5,10 @@ func init() :
         var img_id=await V.gfx.load_img("tuto4_%d.png" % i)
         # set it as current spritesheet
         V.gfx.set_spritesheet(img_id) 
-        # resize the layer to fit the image. The layer will wrap around to fill the screen
+        # resize the layer to fit the image. 
+        # If the image is smaller than the screen, the layer will wrap around to fill the screen
         var img_size = V.gfx.get_image_size(img_id)
         V.gfx.set_layer_size_v(i,img_size)
-        # enable the layer
-        V.gfx.show_layer(i)
         # blit the image on the layer
         V.gfx.set_active_layer(i)
         V.gfx.blit()

@@ -102,6 +102,16 @@
       "tags": [
         "tutorial"
       ]
+    },
+    {
+      "name": "Tutorial 06",
+      "dir": "tutos",
+      "description": "Sprite shadows using a shadow layer",
+      "source": "tuto06.gd",
+      "viper_version": "3.0.1a",
+      "tags": [
+        "tutorial"
+      ]
     }
   ]
 }
