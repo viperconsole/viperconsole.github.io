@@ -138,6 +138,7 @@ Open the store from the main menu by clicking on ![](assets/tex/doc_icon_store.p
 * tuto04 : parallax scrolling using layers
 * tuto05 : single layer parallax scrolling using rowscroll
 * tuto06 : sprite shadow using a shadow layer
+* tuto07 : CPU generated image
 
 ### <a name="h1.5"></a>1.5. Filesystem
 
@@ -656,6 +657,7 @@ Those last function will check controller #1 and keyboard if the player is not d
 |`circle(center: Vector2,radius_x: float,radius_y=0.0,col:Color=Color.WHITE)`|fill a circle|
 |`blit_region(dest_pos: Vector2 = Vector2.ZERO, source_pos: Vector2 = Vector2.ZERO, source_size : Vector2 = Vector2.ZERO, col: Color=Color.WHITE, _angle : float = 0.0, dest_size: Vector2 = Vector2.ZERO, hflip : bool = false, vflip : bool = false)`|blit a region of current spritesheet on current layer|
 |`blit_sprite(sprite_num: int, dest_pos: Vector2, col: Color = Color.WHITE, _angle: float = 0.0, dest_size: Vector2 = Vector2.ZERO, hflip: bool = false, vflip: bool = false)`|blit a sprite on current layer. See `set_spritesheet_layout`|
+|`blit_pixels(pos: Vector2, sprite_width: int, pixel_data:PackedByteArray, size: Vector2=Vector2.ZERO)`|blit a sprite defined by an array of 8bit RGB values. Use `size` to scale it|
 |`print(font_id : int, text: String, pos:Vector2, col: Color = Color.WHITE)`|draw some text|
 |**<a name="h4.4"></a>4.4 Graphics - image operations**|`V.gfx`|
 |`await load_img(filepath: String) -> int`|load an image, return its id|

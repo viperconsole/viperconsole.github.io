@@ -112,6 +112,16 @@
       "tags": [
         "tutorial"
       ]
+    },
+    {
+      "name": "Tutorial 07",
+      "dir": "tutos",
+      "description": "CPU generated image",
+      "source": "tuto07.gd",
+      "viper_version": "3.0.2a",
+      "tags": [
+        "tutorial"
+      ]
     }
   ]
 }
