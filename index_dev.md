@@ -6,6 +6,8 @@
 
 *This is the 3.0.2a development version manual. You can browse the stable version (the one published at <https://jice-nospam.itch.io/viper-console>) at <https://viperconsole.github.io>*
 
+![](assets/tex/godot_logo.png) ![](assets/tex/splash_viper_480.png)
+
 ## Summary
 
 * [1. Getting started](#h1)
