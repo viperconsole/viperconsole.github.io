@@ -8,7 +8,7 @@
 
 ![](assets/tex/godot_logo.png) ![](assets/tex/splash_viper_480.png)
 
-## Summary
+## Content
 
 * [1. Getting started](#h1)
   * [1.1. Presentation](#h1.1)
@@ -18,7 +18,7 @@
   * [1.5. Filesystem](#h1.5)
   * [1.6. Command line / URL arguments](#h1.6)
 * [2. Viper's BIOS](#h2)
-* [3. API Reference](#h3)
+* [3. API Overview](#h3)
   * [3.1. Language](#h3.1)
     * [3.1.1. Cartridge entry point](#h3.1.1)
     * [3.1.2. Acces to the Viper API](#h3.1.2)
@@ -46,7 +46,8 @@
   * [4.7. Audio - channel operations](#h4.7)
   * [4.8. Audio - music operations](#h4.8)
   * [4.9. Input - generic operations](#h4.9)
-  * [4.10. Input - mouse operations](#h4.10)
+  * [4.10. Input - keyboard operations](#h4.10)
+  * [4.11. Input - mouse operations](#h4.10)
 * [5. FAQ](#h5)
 
 ## <a name="h1"></a>1. Getting started
@@ -201,14 +202,18 @@ Use `https://html.itch.zone/html/9217920/index.html/?fullscreen=1` in web mode
 | F12              | Save a screenshot in `%USERPROFILE%\Pictures\Viper`                 |
 | Ctrl-Shift-`     | Toggle deepswitch menu                                              |
 | X<br>LMB<br>Joypad 0*          | Action1                                               |
-| C<br>RMB<br>Joypad 1*          | Action2                                               |
+| C<br>RMB<br>Joypad 2*          | Action2                                               |
+| V<br>Mouse thumb 1<br>Joypad 1*| Action3                                               |
+| W<br>Mouse thumb 2<br>Joypad 3*| Action4                                               |
 
 \* : Joypad buttons correspondance
 
 | Button | Sony | XBox | Nintendo |
 | ------ | ---- | ---- | -------- |
 | 0 | cross | A | B |
-| 1 | square | X | Y |
+| 1 | circle | B | A |
+| 2 | square | X | Y |
+| 3 | triangle | Y | X |
 | 6 | start | menu | + |
 
 ## <a name="h3"></a>3. API Overview
@@ -487,7 +492,7 @@ TODO
 
 #### <a name="h3.4.1"></a>3.4.1. Keyboard (TODO)
 
-* `key(key)` : return true if key is pressed.
+* `key(key)` : return true if key is pressed. key is a value from Godot's [Key enum](https://docs.godotengine.org/en/stable/classes/class_%40globalscope.html#enum-globalscope-key)
 * `key_pressed(key)` : return true if key was pressed during last frame
 * `key_released(key)` : return true if key was released during last frame
 
@@ -610,6 +615,7 @@ If you want to support both keyboard and controller at the same time in a single
 * `V.inp.action2()` returns true if the controller X button or keyboard C key are pressed
 * `V.inp.action3()` returns true if the controller B button or keyboard V key are pressed
 * `V.inp.action4()` returns true if the controller Y button or keyboard Z key are pressed
+* `V.inp.menu()` returns true if the controller menu button or keyboard ESC key are pressed
 
 The same functions with the _pressed suffix exist to check if the button was pressed since the last game tick. They all return a boolean.
 
@@ -617,6 +623,7 @@ The same functions with the _pressed suffix exist to check if the button was pre
 * `V.inp.action2_pressed()`
 * `V.inp.action3_pressed()`
 * `V.inp.action4_pressed()`
+* `V.inp.menu_pressed()`
 
 Those last function will check controller #1 and keyboard if the player is not defined, else only the controller #player (0=keyboard, 1-8=controller)
 
@@ -692,8 +699,14 @@ Those last function will check controller #1 and keyboard if the player is not d
 |**<a name="h4.9"></a>4.9 Input - generic operations**|`V.inp`|
 |`action1() -> bool`|wether action1 is currently pressed|
 |`action2() -> bool`|wether action2 is currently pressed|
+|`action3() -> bool`|wether action3 is currently pressed|
+|`action4() -> bool`|wether action4 is currently pressed|
+|`menu() -> bool`|wether menu is currently pressed|
 |`action1_pressed() -> bool`|wether action1 was pressed since last update|
 |`action2_pressed() -> bool`|wether action2 was pressed since last update|
+|`action3_pressed() -> bool`|wether action3 was pressed since last update|
+|`action4_pressed() -> bool`|wether action4 was pressed since last update|
+|`menu_pressed() -> bool`|wether menu was pressed since last update|
 |`right(player=null) -> float`|amount of right movement between 0.0 and 1.0|
 |`left(player=null) -> float`|amount of left movement between 0.0 and 1.0|
 |`up(player=null) -> float`|amount of up movement between 0.0 and 1.0|
@@ -702,7 +715,9 @@ Those last function will check controller #1 and keyboard if the player is not d
 |`left_pressed(player=null) -> bool`|wether left was pressed since last update|
 |`up_pressed(player=null) -> bool`|wether up was pressed since last update|
 |`down_pressed(player=null) -> bool`|wether down was pressed since last update|
-|**<a name="h4.10"></a>4.10 Input - mouse operations**|`V.inp`|
+|**<a name="h4.10"></a>4.10 Input - keyboard operations**|`V.inp`|
+|`key(keycode : Key) -> bool`|wether a physical key is pressed on the keyboard|
+|**<a name="h4.11"></a>4.11 Input - mouse operations**|`V.inp`|
 |`mouse_button(button: int) -> bool`|wether a mouse button is currently pressed|
 
 ## <a name="h5"></a>5. FAQ
