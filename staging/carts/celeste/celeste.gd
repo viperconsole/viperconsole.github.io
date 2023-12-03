@@ -81,7 +81,7 @@ func spr(n:float, x:float, y:float, w:int, h:int, hflip:bool, vflip:bool) -> voi
 	var int_spr:int = int(n)
 	var spritex:int = (int_spr % SPRITE_PER_ROW) * SPRITE_SIZE
 	var spritey:int = int_spr / SPRITE_PER_ROW * SPRITE_SIZE
-	V.gfx.blit(
+	V.gfx.blit_region(
 		Vector2(floor(x + X_OFFSET),floor(y + Y_OFFSET)),
 		Vector2(spritex,spritey),
 		Vector2(w * SPRITE_SIZE,h * SPRITE_SIZE),
@@ -132,7 +132,7 @@ func rect_fill(x1, y1, x2, y2, col):
 	V.gfx.rectangle(Rect2(x, y, w, h), PAL[col])
 
 func circ_fill(x, y, r, col):
-	V.gfx.disk(Vector2(x + X_OFFSET, y + Y_OFFSET), r, 0.0, PAL[col])
+	V.gfx.circle(Vector2(x + X_OFFSET, y + Y_OFFSET), r, 0.0, PAL[col])
 
 func create_hair(objz):
 	objz.hair = []
@@ -1066,7 +1066,7 @@ func init():
 	#V.gfx.set_layer_operation(LAYER_FADE, V.gfx.LAYEROP_MULTIPLY)
 	V.gfx.set_active_layer(LAYER_FADE)
 	V.gfx.clear(Color(0,0,0,1))
-	V.gfx.set_spritesheet(await V.gfx.load_img("celeste/celeste14.png"))
+	V.gfx.set_spritesheet(await V.gfx.load_img("celeste14.png"))
 	V.gfx.set_active_layer(LAYER_LEVEL)
 	title_screen()
 
@@ -1077,7 +1077,7 @@ func map(cx, cy, sx, sy, cw, ch, layer):
 			if SPRITE_FLAGS[v] & layer != 0 :
 				var spritex = (v % SPRITE_PER_ROW) * SPRITE_SIZE
 				var spritey = floor(v / SPRITE_PER_ROW) * SPRITE_SIZE
-				V.gfx.blit(
+				V.gfx.blit_region(
 					Vector2(sx + X_OFFSET + (x - cx) * SPRITE_SIZE, sy + Y_OFFSET + (y - cy) * SPRITE_SIZE), 
 					Vector2(spritex, spritey), 
 					Vector2(SPRITE_SIZE, SPRITE_SIZE))
@@ -1749,5 +1749,5 @@ const INST_PULSE ={TYPE="Oscillator",OVERTONE=1.0,SQUARE=0.5,PULSE=0.5,TRIANGLE=
 const INST_ORGAN ={TYPE="Oscillator",OVERTONE=0.5,TRIANGLE=0.75,NAME="organ"}
 const INST_NOISE ={TYPE="Oscillator", NOISE=1.0,NOISE_COLOR=0.2,NAME="noise"}
 const INST_PHASER ={TYPE="Oscillator",OVERTONE=0.5,METALIZER=1.0,TRIANGLE=0.7,NAME="phaser"}
-const INST_SNARE ={TYPE="Sample",ID=1,FILE="celeste/11_ZN.wav",FREQ=440}
-const INST_KICK ={TYPE="Sample",ID=2,FILE="celeste/10_HALLBD1.wav",FREQ=440}
+const INST_SNARE ={TYPE="Sample",ID=1,FILE="11_ZN.wav",FREQ=440}
+const INST_KICK ={TYPE="Sample",ID=2,FILE="10_HALLBD1.wav",FREQ=440}

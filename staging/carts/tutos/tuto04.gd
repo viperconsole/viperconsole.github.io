@@ -11,7 +11,7 @@ func init() :
         V.gfx.set_layer_size_v(i,img_size)
         # blit the image on the layer
         V.gfx.set_active_layer(i)
-        V.gfx.blit()
+        V.gfx.blit_region()
 
 func update() :
     var t : float = V.elapsed()*0.05

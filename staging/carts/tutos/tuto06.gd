@@ -3,7 +3,7 @@ func init():
 	# background from 1996 Air Gallet
 	# and ship sprite by buko-studios.deviantart.com
 	V.gfx.set_spritesheet(await V.gfx.load_img("tuto06.png"))
-	V.gfx.blit() # blit background on layer 1
+	V.gfx.blit_region() # blit background on layer 1
 	# layer 2 is our shadow layer
 	# draw every pixel in dark gray instead of the original sprite color
 	V.gfx.set_layer_blit_col(2,Color.DARK_GRAY)
@@ -38,8 +38,8 @@ func draw() :
 	V.gfx.set_active_layer(2)
 	V.gfx.clear()
 	# draw the shadow sprite
-	V.gfx.blit(pos + shadow_offset, SPRITE_POS, SPRITE_SIZE)
+	V.gfx.blit_region(pos + shadow_offset, SPRITE_POS, SPRITE_SIZE)
 	# draw the ship
 	V.gfx.set_active_layer(3)
 	V.gfx.clear() # clear the layer with transparent color
-	V.gfx.blit(pos, SPRITE_POS, SPRITE_SIZE)
+	V.gfx.blit_region(pos, SPRITE_POS, SPRITE_SIZE)

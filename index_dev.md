@@ -1,10 +1,10 @@
 # VIPER developer manual
 
-*Since November 2023, the Viper console has been undergoing a complete rewrite using the Godot Engine. This manual is a work in progress and may not fully reflect the current features of the console. However, the cheatsheet section does reflect the features of the current stable version.*
+*Since November 2023, the Viper console has been undergoing a complete rewrite using the Godot Engine. This manual is a work in progress and may not fully reflect the current features of the console. However, the cheatsheet section does reflect the features of the current development version.*
 
-*If you're consulting this from the viper console, an online version of this manual can be found at <https://viperconsole.github.io>*
+*If you're consulting this from the viper console, an online version of this manual can be found at <https://viperconsole.github.io/index_dev.html>*
 
-*This is the 3.0.1a stable version manual (the one published at <https://jice-nospam.itch.io/viper-console>). You can browse the 3.0.2a development version at <https://viperconsole.github.io/index_dev.html>*
+*This is the 3.0.2a development version manual. You can browse the stable version (the one published at <https://jice-nospam.itch.io/viper-console>) at <https://viperconsole.github.io>*
 
 ## Summary
 
@@ -21,11 +21,9 @@
     * [3.1.1. Cartridge entry point](#h3.1.1)
     * [3.1.2. Acces to the Viper API](#h3.1.2)
   * [3.2. Graphics API (V.gfx)](#h3.2)
-    * [3.2.1. Architecture](#h3.2.1)
+    * [3.2.1. Layers](#h3.2.1)
     * [3.2.2. Drawing API](#h3.2.2)
     * [3.2.3. Font API](#h3.2.3)
-    * [3.2.4. Sprite API](#h3.2.4)
-    * [3.2.5. Spritesheets](#h3.2.5)
   * [3.3. Sound API (V.snd)](#h3.3)
     * [3.3.1. Instrument API](#h3.3.1)
     * [3.3.2. Pattern API](#h3.3.2)
@@ -37,15 +35,16 @@
     * [3.4.3. Gamepad API](#h3.4.3)
     * [3.4.4. Generic V.input API](#h3.4.4)
 * [4. Cheatsheet](#h4)
-  * [4.1. Graphics - layer operations](#h4.1)
-  * [4.2. Graphics - drawing operations](#h4.2)
-  * [4.3. Graphics - image operations](#h4.3)
-  * [4.4. Graphics - font operations](#h4.4)
-  * [4.5. Audio - general operations](#h4.5)
-  * [4.6. Audio - channel operations](#h4.6)
-  * [4.7. Audio - music operations](#h4.7)
-  * [4.8. Input - generic operations](#h4.8)
-  * [4.9. Input - mouse operations](#h4.9)
+  * [4.1. common operations](#h4.1)
+  * [4.2. Graphics - layer operations](#h4.2)
+  * [4.3. Graphics - drawing operations](#h4.3)
+  * [4.4. Graphics - image operations](#h4.4)
+  * [4.5. Graphics - font operations](#h4.5)
+  * [4.6. Audio - general operations](#h4.6)
+  * [4.7. Audio - channel operations](#h4.7)
+  * [4.8. Audio - music operations](#h4.8)
+  * [4.9. Input - generic operations](#h4.9)
+  * [4.10. Input - mouse operations](#h4.10)
 * [5. FAQ](#h5)
 
 ## <a name="h1"></a>1. Getting started
@@ -209,7 +208,7 @@ Use `https://html.itch.zone/html/9217920/index.html/?fullscreen=1` in web mode
 | 1 | square | X | Y |
 | 6 | start | menu | + |
 
-## <a name="h3"></a>3. API Reference
+## <a name="h3"></a>3. API Overview
 
 ### <a name="h3.1"></a>3.1. Language
 
@@ -223,18 +222,15 @@ The following functions are called by the console :
 
 * `func init()` : called once during the cartridge boot.
 
- This is where external resources should be loaded with
-
-* `V.gfx.load_img` for images
-* `V.snd.new_instrument` for sound samples
+This is where external resources should be loaded with `V.gfx.load_img` for images and `V.snd.new_instrument` for sound samples.
 
 * `func update()` : called 60 times per second
 
- This is where you should update anything time dependant. Don't call drawing methods in this function
+This is the designated place to update anything time-dependent. You can't call drawing methods within this function.
 
 * `func draw()` : called every frame
 
- Render one game frame. Framerate might vary from one computer to another. Use `V.gfx.clear()` to erase the previous frame.
+Render one game frame. Framerate might vary from one computer to another. Use `V.gfx.clear()` to erase the previous frame.
 
 #### <a name="h3.1.2"></a>3.1.2 access to the Viper API
 
@@ -246,228 +242,64 @@ All the Viper API can be found under the V singleton :
 
 It also contains a few utilities :
 
+* `V.fps() -> float`
 * `V.elapsed() -> float`
 
-This function returns the time elapsed since the game started in seconds.
+Those functions return the number of frames rendered during the last second and the time elapsed in seconds since the game started. Note that you can display an fps counter on screen using the [deepswitch menu](#h2.1).
 
 ### <a name="h3.2"></a>3.2. Graphics (V.gfx)
 
-#### <a name="h3.2.1"></a>3.2.1. Architecture
+#### <a name="h3.2.1"></a>3.2.1. Layers
 
-The viper screen size is 384x224 pixels. You can get those values with `V.gfx.SCREEN_WIDTH` and `V.gfx.SCREEN_HEIGHT`. The graphics engine can display on screen any number of transparent layers. Viper doesn't use alpha blending, but a transparent key color that can be changed with `V.gfx.set_transparent_color` (default is pure black).
+The Viper screen size is fixed at 384x224 pixels, and you can retrieve these values using `V.gfx.SCREEN_WIDTH` and `V.gfx.SCREEN_HEIGHT`. The graphics engine supports displaying any number of layers with alpha blending.
 
-All colors are expressed with integer component between 0 and 255. All coordinates are floats but for a pixel perfect result, you should truncate them to integers. But smooth movement can be achieved using float coordinates.
+All colors are expressed with float components but you can use the [Color8](https://docs.godotengine.org/en/stable/classes/class_%40gdscript.html#class-gdscript-method-color8) constructor to create one from byte values. While coordinates are stored as floats, for pixel-perfect results, it's recommended to truncate them to integers. However, smooth movement can still be achieved using float coordinates.
 
-Each layer can be resized with `V.gfx.set_layer_size` and moved with `V.gfx.set_layer_offset`.
-You can hide and show layers with `V.gfx.show_layer` and `V.gfx.hide_layer`. By default, only one layer (layer 0) is displayed.
+Each layer is adjustable; you can resize them with `V.gfx.set_layer_size` and reposition them with `V.gfx.set_layer_offset`. Layers can be hidden or shown with `V.gfx.show_layer` and `V.gfx.hide_layer`. By default, only the first layer (layer 1) is displayed.
 
-The console renders the layers in increasing id order (first layer 0, then 1 on top of it and so on).
+The console renders layers in increasing ID order, starting with layer 1, followed by layer 2, and so on. You can load spritesheets offscreen with `V.gfx.load_img` and use them as source for blitting operation with `V.gfx.set_spritesheet` and `V.gfx.set_spritesheet_layout`. You can blit sprites with `V.gfx.blit_region` and `V.gfx.blit_sprite`
 
-Layers can be used to overlay graphics on screen or store bitmap fonts/sprite sheets offscreen. You can copy an image from a layer to another with `V.gfx.set_sprite_layer`, `V.gfx.set_active_layer` and `V.gfx.blit`. You can load an image in the current active layer with `V.gfx.load_img`.
+You can fill a layer with a color with `V.gfx.clear`. The default fill color is transparent.
 
 Each visible layer applies a color operation between its color and the underlying color :
 
-* `V.gfx.LAYEROP_SET` : new pixel color = layer pixel color (default)
-* `V.gfx.LAYEROP_ADD` : new pixel color = current pixel color + layer pixel color
-* `V.gfx.LAYEROP_AVERAGE` : new pixel color = (current pixel color + layer pixel color)/2
-* `V.gfx.LAYEROP_SUBTRACT` : new pixel color = current pixel color - layer pixel color
-* `V.gfx.LAYEROP_MULTIPLY` : new pixel color = current pixel color * layer pixel color
+* `V.gfx.LAYEROP_MIX` : new pixel color = layer pixel color blended with background pixel color using the alpha channel value
+* `V.gfx.LAYEROP_ADD` : new pixel color = background pixel color + layer pixel color
+* `V.gfx.LAYEROP_AVERAGE` : new pixel color = (background pixel color + layer pixel color)/2
+* `V.gfx.LAYEROP_SUBTRACT` : new pixel color = background pixel color - layer pixel color
+* `V.gfx.LAYEROP_MULTIPLY` : new pixel color = background pixel color * layer pixel color
 
-Example :
+You define the target layer for all drawing functions with `V.gfx.set_active_layer(id)`.
 
-`V.gfx.set_layer_operation(1, V.gfx.LAYEROP_ADD)`
+Layers also have advanced features :
 
-You can draw on any layer by activating it with `V.gfx.set_active_layer(id)`.
+You can set per-row and per-column offsets using `V.gfx.set_rowscroll` and `V.gfx.set_colscroll`. These offsets can be utilized to create a per-row/column parallax effect on background layers.
 
-You can get the number of frames rendered during the last second with :
-`V.gfx.fps()`
+You can configure a layer to render every pixel in a specific color using `V.gfx.set_layer_blit_col`. This feature is useful for drawing a sprite shadow by utilizing the original sprite or coloring the entire sprite in white or red during a hit event.
 
 #### <a name="h3.2.2"></a>3.2.2. Drawing
 
-* `set_active_layer(id)`
-* set current drawing layer.
-* id is an arbitrary integer value. Visible layers are rendered in ascending id order.
+You can draw various shapes with `V.gfx.line`, `V.gfx.triangle`, `V.gfx.rectangle`, `V.gfx.circle`.
 
-* `load_img(layer, filepath, [resource_name])`
-* load an image in a layer.
-* warning ! the layer is resized to match the image size.
+You can blit sprites and images with `V.gfx.blit_region` and `V.gfx.blit_sprite`.
 
- filepath is an URL :
-
-* local file : `'myimage.png'`
-* remote file : `'https://someserver.com/myimage.png'`
-* TODO data URL : `'data:image/png; ...'`
-
- TODO To convert an image into data url, simply drag and drop it on the console screen.
-
- If resource_name is defined and not empty, this image can be overriden by the player by running the console with res parameters. This makes it easy for users to mod the game graphics by replacing a named resource with another image.
-
-* `set_layer_size(id, w, h)`
-* resize a layer (w,h in pixels).
-
-* `get_layer_size(id)`
-* return the layer size in pixels
-
-Example :
-
-```
- local w,h = V.gfx.get_layer_size(0)
-```
-
-* `set_layer_offset(id, x, y)`
-* set a layer scrolling offset.
- TODO use id -1 to scroll all visible layers (screen shake effect)
-
-* `set_rowscroll(id,[start_row],[end_row],[start_value],[end_value])`
-* apply an horizontal skew effect to the layer, moving each row by a specific offset.
-* `id` : id of the layer. if no other parameter is set, the rowscroll is disabled for this layer
-* `start_row,end_row` : range of row where we want to change the offsets
-* `start_value,end_value` : offset value is interpolated between these values (or constant if end_value is nil)
-
-* `set_colscroll(id,[start_col],[end_col],[start_value],[end_value])`
-* apply a vertical skew effect to the layer, moving each column by a specific offset.
-* `id` : id of the layer. if no other parameter is set, the colscroll is disabled for this layer
-* `start_col,end_col` : range of columns where we want to change the offsets
-* `start_value,end_value` : offset value is interpolated between these values (or constant if end_value is nil)
-
-* `clear_scroll(id)`
-* disable all rows/columns scroll for this layer
-
-Example :
-
-```
-gfx.set_rowscroll(0,180,223,0,40)
-```
-
-Sets a rowscroll offset for rows 180 to 223. The offset ranges from 0 for row 180 to 40 for row 223
-
-* `set_layer_operation(id, layer_op)`
-* set the layer color operation.
-* layer_op values : `V.gfx.LAYEROP_SET`/`V.gfx.LAYEROP_ADD`/`V.gfx.LAYEROP_AVERAGE`/`V.gfx.LAYEROP_SUBTRACT`/`V.gfx.LAYEROP_MULTIPLY`.
-
-* `clear([r,g,b])`
-* fill the active layer with the color `r,g,b`. If the color is not defined, use the transparent color (default black).
-
-* `blit_pixels(x,y, width, rgb)`
-* set pixel colors on current layer.
-* x,y is the position on the layer
-* width is the width of the sprite
-* rgb is an array of colors with format rgb24 (0xRRGGBB). You can use `V.gfx.to_rgb24(r,g,b)` to get this value
-
- Example :
-
- `V.gfx.blit_pixels(0,0,1,{255})` would blit a single blue pixel at position 0,0 (255 = 0x0000FF => r=0,g=0,b=255)
-
- Another way to write it :
-
- `V.gfx.blit_pixels(0,0,1,{V.gfx.to_rgb24(0,0,255)})`
-
- Note that this function is far slower than the `V.gfx.blit` function which is fully running on the GPU.
-
-* `line(x1,y1, x2,y2, r,g,b)`
-* draw a line
-
-* `triangle(x1,y1, x2,y2, x3,y3, r,g,b)`
-* fill a triangle
-
-* `rectangle(x,y, w,h, r,g,b)`
-* fill a rectangle
-
-* `circle(x,y, radius_x, [radius_y], r,g,b)`
-* draw a circle/ellipse
-
-* `disk(x,y, radius_x, [radius_y], r,g,b)`
-* fill a circle/ellipse
+You can use `V.gfx.blit_pixels` to blit a sprite generated from your code. However, it's important to note that this function is significantly slower compared to `V.gfx.blit_region` and `V.gfx.blit_sprite`, which fully leverages GPU processing.
 
 #### <a name="h3.2.3"></a>3.2.3. Font
 
-* You define a bitmap font with `set_font` by defining a rectangular zone inside a layer, and the character size :
-* `set_font(id, x,y,w,h, char_width,char_height, [charset], [spacing_h],[spacing_v], [chars_width])`
-* `id` id of the layer containing the characters sprites
-* `x,y,w,h` define a region of a layer as a bitmap font to use with `V.gfx.print`
-* `char_width,char_height` if the size of a character in this bitmap (in case of non-monotype font, use the chars_width parameter)
-* `charset` is a string representing the characters in the bitmap font.
-* if `charset` is not set, the ascii table order is expected.
-* `spacing_h,spacing_v` additional horizontal and vertical spacing between characters when drawing text (default 0,0)
-* `chars_width` is an array containing the width of each character.
-* if `chars_width` is not set, this is a mono font and every character's width is `char_width`
-* The function returns a number representing this font. You can use this number to print text.
-* The console is preloaded with three fonts :
+You define a bitmap font with `set_font` by defining a rectangular zone inside the current spritesheet, and the character size :
+
+`set_font(char_size: Vector2i, rect: Rect2i = Rect2i(0,0,0,0), charset: String="", spacing: Vector2i = Vector2i.ZERO, char_width: PackedByteArray = []) -> int`
+
+Use the `spacing` parameter to add additional space between characters and the `char_width` parameter for proportional fonts. If `charset` is not defined, the full ASCII table from 0 to 255 is expected.
+
+The function returns a number representing this font. You can use this number to print text with `V.gfx.print`.
+
+The console is preloaded with three fonts :
+
 * `V.gfx.FONT_8X8` : the default mono font that contains the complete 128 ascii table characters.
 * `V.gfx.FONT_5X7` : a smaller non-mono font that contains the 93 ascii characters from `!` to `~`.
 * `V.gfx.FONT_4X6` : a very small mono font that contains the 93 ascii characters from `!` to `~`.
-
-* `print(font, text, x,y, [r],[g],[b])`
-* print the text at position `x,y` using a specific font
-* `r,g,b` : multiply the font's character sprites with this color (default white)
-
- Example : print hello at position 0,0 in white
-
- `V.gfx.print(V.gfx.FONT_8X8, "hello", 0,0)`
-
-#### <a name="h3.2.4"></a>3.2.4. Sprite
-
-You select a spritesheet with `set_sprite_layer` (default is `V.gfx.SYSTEM_LAYER`). `V.gfx.blit` uses it as a source. The destination is the current active layer.
-Source and destination cannot be the same layer.
-
-* `set_sprite_layer(id)`
-* define the current source for sprite blitting operations
-
-* `blit(sx,sy,sw,sh, dx,dy, [r,g,b], [angle], [dw],[dh], [hflip],[vflip])`
-* blit a rectangular zone from the current sprite layer to the active layer
-* warning : using angle = 0 or angle = nil does not produce the same result. See dx,dy description below
-* `sx,sy` : top left pixel position in the spritesheet
-* `sw,sh` : rectangular zone size in the spritesheet in pixels
-* `dx,dy` : destination on active pixel buffer (top left position if angle==nil, else center position)
-* `r,g,b` : multiply the sprite colors with this color (default white)
-* `angle` : an optional rotation angle in radians
-* `dw,dh` : destination size in pixel (if 0,0, or nil,nil, uses the source size). The sprite will be stretched to fill dw,dh
-* `hflip, vflip` : whether to flip the sprite horizontally or vertically (default false)
-
-* `blit_col(sx,sy,sw,sh, dx,dy, [r,g,b], [angle], [dw],[dh], [hflip],[vflip])`
-* blit a rectangular zone from the current sprite layer to the active layer replacing all non transparent pixels with r,g,b.
-* warning : using angle = 0 or angle = nil does not produce the same result. See dx,dy description below
-* This function is useful for example if you want to blit a sprite with all white pixels for a hit effect, or to black for drop shadow effects.
-* `sx,sy` : top left pixel position in the spritesheet
-* `sw,sh` : rectangular zone size in the spritesheet in pixels
-* `dx,dy` : destination on active pixel buffer (top left position if angle==nil, else center position)
-* `r,g,b` : replace all sprite's pixels with this color (default white)
-* `angle` : an optional rotation angle in radians
-* `dw,dh` : destination size in pixel (if 0,0, or nil,nil, uses the source size). The sprite will be stretched to fill dw,dh
-* `hflip, vflip` : whether to flip the sprite horizontally or vertically (default false)
-
-#### <a name="h3.2.5"></a>3.2.5. Spritesheets
-
-You can define a spritesheet on any layer using the `V.gfx.set_spritesheet` function.
-
-* `set_spritesheet(layer, sprite_w, sprite_h, [off_x], [off_y], [grid_width])`
-* return the id of a spritesheet that can be used to easily blit sprites
-* `layer` the layer containing the sprites
-* `sprite_w, sprite_h` : the size of a sprite in pixels
-* `off_x, off_y` : the top-left position of the sprite grid in the layer (default 0,0)
-* `grid_width` : in case the spritesheet doesn't use all the layer width, how many sprites are in a row
-
-You can then blit a sprite from this layer using `V.gfx.blit_sprite` :
-
-* `blit_sprite(spritesheet_id, sprite_num, dx, dy, [r,g,b], [angle], [dw],[dh], [hflip],[vflip])`
-* blit a sprite from a predefined spritesheet to the active layer.
-* warning : using angle = 0 or angle = nil does not produce the same result. See dx,dy description below
-* `spritesheet_id` : id returned by the `set_spritesheet` function
-* `sprite_num` : number of the sprite in the grid (0 = top-left, row-first order)
-* `dx,dy` : destination on active pixel buffer (the sprite's top left position if angle==nil, else center position)
-* `r,g,b` : multiply the sprite colors with this color (default white)
-* `angle` : an optional rotation angle in radians
-* `dw,dh` : destination size in pixel (if 0,0, or nil,nil, uses the sprite size). The sprite will be stretched to fill dw,dh
-* `hflip, vflip` : whether to flip the sprite horizontally or vertically (default false)
-
-Example :
-
-```
--- define layer 1 as a grid of 32x32 pixels sprites
-spritesheet_id = V.gfx.set_spritesheet(1, 32, 32)
--- blit the top left sprite (#0) on the current layer at position 10,10
-gfx.blit_sprite(spritesheet_id, 0, 10, 10)
-```
 
 ### <a name="h3.3"></a>3.3. Sound (V.snd)
 
@@ -804,13 +636,16 @@ Those last function will check controller #1 and keyboard if the player is not d
 
 ## <a name="h4"></a>4. Cheatsheet
 
-|**<a name="h4.1"></a>4.1 Graphics - layer operations**|`V.gfx`|
+|**<a name="h4.1"></a>4.1 common operations**|`V`|
 | --- | --- |
-|`set_layer_operation(layer_id: int,op: int)`|set layer's blending op :<br>`LAYEROP_(SET\|ADD\|MULTIPLY\|SUBTRACT)`|
+|`fps()`|Return the frames per second of the game|
+|`elapsed()`|Return the time elpased in seconds since the game started|
+|**<a name="h4.2"></a>4.2 Graphics - layer operations**|`V.gfx`|
+|`set_layer_operation(layer_id: int,op: int)`|set layer's blending op :<br>`LAYEROP_(SET|ADD|MULTIPLY|SUBTRACT)`|
 |`set_layer_size_v(layer_id: int, size: Vector2)`|set layer's size in pixels|
 |`set_layer_size(layer_id: int, w: float, h: float)`|set layer's size in pixels|
-|`set_layer_offset_v(layer_id, offset : Vector2)`|set layer's offset in pixels|
-|`set_layer_offset(layer_id, x:float, y:float)`|set layer's offset in pixels|
+|`set_layer_offset_v(layer_id: int, offset : Vector2)`|set layer's offset in pixels. Use layer_id -1 for all visible layers|
+|`set_layer_offset(layer_id: int, x:float, y:float)`|set layer's offset in pixels. Use layer_id -1 for all visible layers|
 |`set_active_layer(layer_id: int)`|set target layer for drawing functions|
 |`show_layer(layer_id: int)`|set a layer visible|
 |`hide_layer(layer_id: int)`|set a layer invisible|
@@ -819,28 +654,28 @@ Those last function will check controller #1 and keyboard if the player is not d
 |`unset_layer_blit_col(layer_id: int)`|disable forced color|
 |`set_rowscroll(first_row: int, last_row:int, start_offset: float, end_offset: float = start_offset)`|set per-row offset for current layer|
 |`set_colscroll(first_col: int, last_col:int, start_offset: float, end_offset: float = start_offset)`|set per-column offset for current layer|
-|**<a name="h4.2"></a>4.2 Graphics - drawing operations**|`V.gfx`|
+|**<a name="h4.3"></a>4.3 Graphics - drawing operations**|`V.gfx`|
 |`clear(col:Color = Color.TRANSPARENT)`|fill a layer with a color|
 |`line(p1: Vector2, p2: Vector2, col: Color)`|draw a line|
 |`rectangle(rect: Rect2,col:Color,fill=true)`|draw or fill a rectangle|
 |`triangle(p1: Vector2, p2: Vector2, p3: Vector2, col:Color, fill=true)`|draw or fill a triangle|
-|`disk(center: Vector2,radius_x: float,radius_y=0.0,col:Color=Color.WHITE)`|fill a circle|
-|`blit(dest_pos: Vector2 = Vector2.ZERO, source_pos: Vector2 = Vector2.ZERO, source_size : Vector2 = Vector2.ZERO, col: Color=Color.WHITE, _angle : float = 0.0, dest_size: Vector2 = Vector2.ZERO, hflip : bool = false, vflip : bool = false)`|blit a region of current spritesheet on current layer|
+|`circle(center: Vector2,radius_x: float,radius_y=0.0,col:Color=Color.WHITE)`|fill a circle|
+|`blit_region(dest_pos: Vector2 = Vector2.ZERO, source_pos: Vector2 = Vector2.ZERO, source_size : Vector2 = Vector2.ZERO, col: Color=Color.WHITE, _angle : float = 0.0, dest_size: Vector2 = Vector2.ZERO, hflip : bool = false, vflip : bool = false)`|blit a region of current spritesheet on current layer|
 |`blit_sprite(sprite_num: int, dest_pos: Vector2, col: Color = Color.WHITE, _angle: float = 0.0, dest_size: Vector2 = Vector2.ZERO, hflip: bool = false, vflip: bool = false)`|blit a sprite on current layer. See `set_spritesheet_layout`|
 |`print(font_id : int, text: String, pos:Vector2, col: Color = Color.WHITE)`|draw some text|
-|**<a name="h4.3"></a>4.3 Graphics - image operations**|`V.gfx`|
-|`load_img(filepath: String) -> int`|load an image, return its id|
+|**<a name="h4.4"></a>4.4 Graphics - image operations**|`V.gfx`|
+|`await load_img(filepath: String) -> int`|load an image, return its id|
 |`set_spritesheet(img_id: int)`|use a loaded image as source for blit operations|
 |`get_image_size(img_id: int) -> Vector2`|get the size of a loaded image|
 |`set_spritesheet_layout(sprite_size: Vector2i, offset: Vector2i = Vector2i.ZERO, grid_width: int = 0)`|define sprites layout for current spritesheet|
-|**<a name="h4.4"></a>4.4 Graphics - font operations**|`V.gfx`|
-|`set_font(char_size: Vector2i, rect: Rect2i = Rect2i(0,0,0,0), charset: String="", spacing: Vector2i = Vector2i.ZERO, char_width: PackedByteArray = []) -> int`|define a custom font|
-|**<a name="h4.5"></a>4.5 Audio - general operations**|`V.snd`|
+|**<a name="h4.5"></a>4.5 Graphics - font operations**|`V.gfx`|
+|`set_font(char_size: Vector2i, rect: Rect2i = Rect2i(0,0,0,0), charset: String="", spacing: Vector2i = Vector2i.ZERO, char_width: PackedByteArray = []) -> int`|define a custom font, monospace or proportional if using the `char_width` array|
+|**<a name="h4.6"></a>4.6 Audio - general operations**|`V.snd`|
 |`enable()`|activate audio system|
 |`disable()`|deactivate audio system (mute everything)|
 |`play_sound(inst_id: int, freq:float, duration:float, lvolume:float = 1.0, rvolume:float=-1.0, channel: int =-1)`|play a sound|
 |`play_note(note:Note, duration:float, channel: int=-1)`|play a note|
-|**<a name="h4.6"></a>4.6 Audio - channel operations**|`V.snd`|
+|**<a name="h4.7"></a>4.7 Audio - channel operations**|`V.snd`|
 |`get_available_channel(mask:int = 0) -> int`|get a free channel or -1|
 |`set_channel_volume(channel: int, lvolume: float, rvolume: float=-1)`|dynamically change a channel volume|
 |`set_channel_balance(channel: int, balance: float)`|dynamically change a channel balance between -1(left) and 1(right)|
@@ -850,14 +685,14 @@ Those last function will check controller #1 and keyboard if the player is not d
 |`mute_channel(channel:int)`|mute a channel|
 |`unmute_channel(channel:int)`|unmute a channel|
 |`solo_channel(channel:int)`|mute all channels but one|
-|**<a name="h4.7"></a>4.7 Audio - music operations**|`V.snd`|
+|**<a name="h4.8"></a>4.8 Audio - music operations**|`V.snd`|
 |`new_instrument(desc:Dictionary) -> int`|register a new instrument|
 |`new_pattern(desc:String) -> int`|register a new music or sfx pattern|
 |`play_pattern(pattern_id: int, channel_id: int=-1,loop=false)`|play a pattern|
 |`new_music(desc:Dictionary) -> int`|register a new music|
 |`stop_music()`|stop all channels playing music|
 |`play_music(music_id:int,channel_mask:int,loop:bool=true)`|play a music on specified channels|
-|**<a name="h4.8"></a>4.8 Input - generic operations**|`V.inp`|
+|**<a name="h4.9"></a>4.9 Input - generic operations**|`V.inp`|
 |`action1() -> bool`|wether action1 is currently pressed|
 |`action2() -> bool`|wether action2 is currently pressed|
 |`action1_pressed() -> bool`|wether action1 was pressed since last update|
@@ -870,7 +705,7 @@ Those last function will check controller #1 and keyboard if the player is not d
 |`left_pressed(player=null) -> bool`|wether left was pressed since last update|
 |`up_pressed(player=null) -> bool`|wether up was pressed since last update|
 |`down_pressed(player=null) -> bool`|wether down was pressed since last update|
-|**<a name="h4.9"></a>4.9 Input - mouse operations**|`V.inp`|
+|**<a name="h4.10"></a>4.10 Input - mouse operations**|`V.inp`|
 |`mouse_button(button: int) -> bool`|wether a mouse button is currently pressed|
 
 ## <a name="h5"></a>5. FAQ

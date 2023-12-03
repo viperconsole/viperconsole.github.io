@@ -260,10 +260,10 @@ static func minimap_line(p1 : Vector2, p2 : Vector2, color_index : float) :
 	var col=PAL[color_index as int]
 	V.gfx.line(p1, p2, col)
 
-static func minimap_disk(p : Vector2, color_index : float) :
+static func minimap_circle(p : Vector2, color_index : float) :
 	p = world2minimap(p)
 	var col=PAL[color_index as int]
-	V.gfx.disk(Vector2(p.x+0.5, p.y), 2.0, 0.0, col)
+	V.gfx.circle(Vector2(p.x+0.5, p.y), 2.0, 0.0, col)
 
 static func cam2screen(p : Vector2) -> Vector2 :
 	p = (p - cam_pos) * camera_scale
@@ -301,7 +301,7 @@ static func quadfill(p1 : Vector2, p2 : Vector2, p3 : Vector2, p4 : Vector2, col
 static func circfill(x : float, y : float, r : float, color_index: float) :
 	var col = PAL[color_index as int]
 	var p = cam2screen(Vector2(x, y))
-	V.gfx.disk(p, r * 224 / 128, null, col)
+	V.gfx.circle(p, r * 224 / 128, null, col)
 
 static func rectfill(x0 : float, y0 : float, x1 : float, y1 : float, color_index : float) :
 	var col = PAL[color_index as int]
@@ -322,10 +322,10 @@ static func mid(x : float, y : float, z : float) :
 	else:
 		return z
 
-static func gblit(x : float, y : float, w : float, h : float, p : Vector2, col_index : int, dir : float) :
+static func gblit_region(x : float, y : float, w : float, h : float, p : Vector2, col_index : int, dir : float) :
 	p = cam2screen(p)
 	var col=PAL[col_index]
-	V.gfx.blit(p, Vector2(x, y), Vector2(w, h), col, from_pico_angle(camera_angle - dir), Vector2(w * camera_scale, h * camera_scale))
+	V.gfx.blit_region(p, Vector2(x, y), Vector2(w, h), col, from_pico_angle(camera_angle - dir), Vector2(w * camera_scale, h * camera_scale))
 
 static func gblit_col(x : float, y : float, w : float, h : float, p: Vector2, col_index : int, dir : float) :
 	p = cam2screen(p)
@@ -361,11 +361,11 @@ static func geoff_menu_item(msg: String, y : float, selected: bool) :
 static func geoff_frame(x : float,y : float,w : float,h : float) :
 	V.gfx.rectangle(Rect2(x,y,w,h), Color8(28,63,98))
 	for fy in range (1,floor(h/8)+1) :
-		V.gfx.blit(Vector2(x,y+fy*8-8),Vector2(155,0),Vector2(4,8))
-		V.gfx.blit(Vector2(x+w-4,y+fy*8-8),Vector2(155,0),Vector2(4,8),Color.WHITE,0.0,Vector2.ZERO,true, true)
+		V.gfx.blit_region(Vector2(x,y+fy*8-8),Vector2(155,0),Vector2(4,8))
+		V.gfx.blit_region(Vector2(x+w-4,y+fy*8-8),Vector2(155,0),Vector2(4,8),Color.WHITE,0.0,Vector2.ZERO,true, true)
 	for fx in range (1,floor(w/8)+1) :
-		V.gfx.blit(Vector2(x+fx*8-8,y),Vector2( 159,0),Vector2(8,4))
-		V.gfx.blit(Vector2(x+fx*8-8,y+h-4),Vector2(159,0),Vector2(8,4),Color.WHITE,0.0,Vector2.ZERO,false,true)
+		V.gfx.blit_region(Vector2(x+fx*8-8,y),Vector2( 159,0),Vector2(8,4))
+		V.gfx.blit_region(Vector2(x+fx*8-8,y+h-4),Vector2(159,0),Vector2(8,4),Color.WHITE,0.0,Vector2.ZERO,false,true)
 
 const TEAMS = [
 	{
@@ -589,7 +589,7 @@ static func draw_smoke(p):
 	var draw_pos : Vector2 = cam2screen(Vector2(p.x, p.y))
 	var rgb : float = p.ttl as float / SMOKE_LIFE
 	var col : Color = rgb * PAL[p.col]
-	V.gfx.disk(draw_pos, p.r * (2 - rgb), null, col)
+	V.gfx.circle(draw_pos, p.r * (2 - rgb), null, col)
 
 class Smoke extends Particle :
 	var r : float = 0.0
@@ -1112,7 +1112,7 @@ static func car_draw_minimap(car:Car, pcam_car: Car) :
 	var seg = car_lap_seg(car.current_segment, pcam_car)
 	var pseg = pcam_car.current_segment
 	if seg >= pseg + MINIMAP_START and seg < pseg + MINIMAP_END :
-		minimap_disk(car.pos, car.color)
+		minimap_circle(car.pos, car.color)
 
 static func car_draw(car: Car) :
 	if car.verts.is_empty() :
@@ -1325,9 +1325,9 @@ class IntroMenu :
 		P.update_menu()
 	func draw(_o) :
 		P.cls()
-		V.gfx.blit(Vector2.ZERO, Vector2(0, 106), Vector2(224, 118), Color.WHITE, 0.0, 
+		V.gfx.blit_region(Vector2.ZERO, Vector2(0, 106), Vector2(224, 118), Color.WHITE, 0.0, 
 			Vector2(V.gfx.SCREEN_WIDTH,V.gfx.SCREEN_HEIGHT))
-		V.gfx.blit(Vector2(80, 10), Vector2(0, 62), Vector2(224, 44))
+		V.gfx.blit_region(Vector2(80, 10), Vector2(0, 62), Vector2(224, 44))
 		P.draw_menu(P.cur_menu)
 
 static var intro = IntroMenu.new()
@@ -1570,31 +1570,31 @@ static func mapeditor_draw(ed:MapEditor) :
 	rect(V.gfx.SCREEN_WIDTH / 2 + 16, 19, 16, 16, inside_rect(mx, my, V.gfx.SCREEN_WIDTH / 2 + 16, 19, 16, 16) and 10 or 7)
 	var y = 3
 	if ed.display == 0 :
-		V.gfx.blit(Vector2(17, y), Vector2(162, 8), Vector2(12, 12))
+		V.gfx.blit_region(Vector2(17, y), Vector2(162, 8), Vector2(12, 12))
 		gprint("  delete", 17, y + 2, 7)
 		y = y + 12
-		V.gfx.blit(Vector2(17, y), Vector2(174, 8), Vector2(12, 12))
+		V.gfx.blit_region(Vector2(17, y), Vector2(174, 8), Vector2(12, 12))
 		gprint("  add", 17, y + 2, 7)
 		y = y + 12
-		V.gfx.blit(Vector2(5, y), Vector2(66, 8), Vector2(24, 12))
+		V.gfx.blit_region(Vector2(5, y), Vector2(66, 8), Vector2(24, 12))
 		gprint("    length", 1, y + 2, 7)
 		y = y + 12
-		V.gfx.blit(Vector2(5, y), Vector2(90, 8), Vector2(24, 12))
+		V.gfx.blit_region(Vector2(5, y), Vector2(90, 8), Vector2(24, 12))
 		gprint("    curve", 1, y + 2, 7)
 		y = y + 12
-		V.gfx.blit(Vector2(5, y), Vector2(138, 8), Vector2(24, 12))
+		V.gfx.blit_region(Vector2(5, y), Vector2(138, 8), Vector2(24, 12))
 		gprint("    zoom", 1, y + 2, 7)
 		y = y + 12
-		V.gfx.blit(Vector2(5, y), Vector2(114, 8), Vector2(24, 12))
+		V.gfx.blit_region(Vector2(5, y), Vector2(114, 8), Vector2(24, 12))
 		gprint("    width", 1, y + 2, 7)
 		y = y + 12
-	V.gfx.blit(Vector2(5, y), Vector2(186, 8), Vector2(24, 12))
+	V.gfx.blit_region(Vector2(5, y), Vector2(186, 8), Vector2(24, 12))
 	gprint("    section", 1, y + 2, 7)
 	y = y + 12
-	V.gfx.blit(Vector2(17, y), Vector2(54, 8), Vector2(12, 12))
+	V.gfx.blit_region(Vector2(17, y), Vector2(54, 8), Vector2(12, 12))
 	gprint("  menu", 17, y + 2, 7)
 	y = y + 12
-	V.gfx.blit(Vector2(17, y), Vector2(210, 8), Vector2(12, 12))
+	V.gfx.blit_region(Vector2(17, y), Vector2(210, 8), Vector2(12, 12))
 	gprint("  display", 17, y + 2, 7)
 
 class MapEditor extends GameMode :
@@ -2140,7 +2140,7 @@ static func race_draw_tribune(_race: Race, li_rail:Vector2, side : Vector2, fron
 	var p4 = p2 - 32 *front
 	quadfill(p, p2, p3, p4, 22)
 	var p2s = p + 5 * side -16 * front
-	gblit(224, 0, 20, 60, p2s, 33, dir)
+	gblit_region(224, 0, 20, 60, p2s, 33, dir)
 	p += 50 * side
 	p3 += 50 * side
 	V.gfx.set_active_layer(LAYER_TOP)
@@ -2167,13 +2167,13 @@ static func race_draw_tribune2(_race: Race, li_rail: Vector2, side: Vector2, fro
 	quadfill(p, p2, p3, p4, 22)
 	V.gfx.set_active_layer(LAYER_TOP)
 	var p2s = p + 5 * side - 16 * front
-	gblit(244, 0, 20, 60, p2s, 33, dir)
+	gblit_region(244, 0, 20, 60, p2s, 33, dir)
 	p2s = p + 15 *side - 16 * front
-	gblit(264, 0, 20, 60, p2s, 33, dir)
+	gblit_region(264, 0, 20, 60, p2s, 33, dir)
 	p2s = p + 25 * side - 16 * front
-	gblit(244, 0, 20, 60, p2s, 33, dir)
+	gblit_region(244, 0, 20, 60, p2s, 33, dir)
 	p2s = p + 35 * side - 16 * front
-	gblit(264, 0, 20, 60, p2s, 33, dir)
+	gblit_region(264, 0, 20, 60, p2s, 33, dir)
 	V.gfx.set_active_layer(LAYER_SHADOW2)
 	var sd = SHADOW_DELTA * 0.1
 	p2s = p + 5 * side - 16 * front + sd
@@ -2198,11 +2198,11 @@ static func race_draw_tree(_race: Race, trees, li_rail:Vector2, last_li_rail:Vec
 		var tree_pos = tree.p
 		var tree_pos2 = li_rail - side * tree_pos.x - front * tree_pos.y
 		if typ == 1 :
-			gblit(224, 60, 20, 20, tree_pos2, 33, dir)
+			gblit_region(224, 60, 20, 20, tree_pos2, 33, dir)
 		elif typ == 2 :
-			gblit(224, 80, 30, 30, tree_pos2, 33, dir)
+			gblit_region(224, 80, 30, 30, tree_pos2, 33, dir)
 		elif typ == 3 :
-			gblit(224, 110, 40, 40, tree_pos2, 33, dir)
+			gblit_region(224, 110, 40, 40, tree_pos2, 33, dir)
 	V.gfx.set_active_layer(LAYER_SHADOW2)
 	for tree in trees :
 		var typ = tree.typ
@@ -2304,9 +2304,9 @@ static func race_draw_pit_guy(_race: Race,p: Vector2,c1: int,c2: int,dir: float,
 	var dx : float = (sx-323)*0.75 + (delta.x if delta != null else 0.0)
 	var dy : float = (sy-224)*0.75 + (delta.y if delta != null else 0.0)
 	p -= side * dx + front * dy
-	gblit(sx,sy,sw,sh,p,c1,dir)
-	gblit(sx+22,sy,sw,sh,p,33,dir)
-	gblit(sx,sy+26,sw,sh,p,c2,dir)
+	gblit_region(sx,sy,sw,sh,p,c1,dir)
+	gblit_region(sx+22,sy,sw,sh,p,33,dir)
+	gblit_region(sx,sy+26,sw,sh,p,c2,dir)
 
 static func race_draw_pit_crew(race: Race,ri_rail: Vector2, side: Vector2, front: Vector2, team: int, dir: float):
 	var c1: int = TEAMS[team].color
@@ -2664,7 +2664,7 @@ static func race_draw(race: Race) :
 				# starting line
 				if seg % mapsize == 0 :
 					var startling_line_pos = cam2screen(v.pos - 6 * v.front)
-					V.gfx.blit(startling_line_pos, Vector2(162, 254), Vector2(110, 6), Color.WHITE,
+					V.gfx.blit_region(startling_line_pos, Vector2(162, 254), Vector2(110, 6), Color.WHITE,
 						from_pico_angle(camera_angle - v.dir), Vector2(110 * camera_scale, 6 * camera_scale))
 				# starting grid
 				var wseg = posmod(seg, mapsize)
@@ -2694,18 +2694,18 @@ static func race_draw(race: Race) :
 					race.draw_tree(v.ltrees, li_rail, lastv.left_inner_rail, v.side, lastv.side, v.front, v.dir)
 				elif lobj == OBJ_BRIDGE :
 					V.gfx.set_active_layer(LAYER_TOP)
-					gblit(141, 224, 182, 30, v.pos, 33, v.dir)
+					gblit_region(141, 224, 182, 30, v.pos, 33, v.dir)
 					V.gfx.set_active_layer(LAYER_SHADOW2)
 					var bridge_shadow_pos = v.pos + SHADOW_DELTA
 					gblit_col(141, 224, 182, 30, bridge_shadow_pos, SHADOW_COL, v.dir)
 					V.gfx.set_active_layer(0)
 				elif lobj == OBJ_BRIDGE2 :
 					var p2 = v.pos -48 * v.side
-					gblit(141, 224, 8, 30, p2, 33, v.dir)
+					gblit_region(141, 224, 8, 30, p2, 33, v.dir)
 					var p3 = v.pos + 48 * v.side
-					gblit(315, 224, 8, 30, p3, 33, v.dir)
+					gblit_region(315, 224, 8, 30, p3, 33, v.dir)
 					V.gfx.set_active_layer(LAYER_TOP)
-					gblit(141, 260, 182, 11, v.pos, 33, v.dir)
+					gblit_region(141, 260, 182, 11, v.pos, 33, v.dir)
 					V.gfx.set_active_layer(LAYER_SHADOW2)
 					var bridge2_pos = v.pos + SHADOW_DELTA
 					p2 += SHADOW_DELTA
@@ -2762,7 +2762,7 @@ static func race_draw(race: Race) :
 		lastv = v
 
 	for p in panels :
-		gblit(91, p.y, 24, 10, p.p, 33, p.dir)
+		gblit_region(91, p.y, 24, 10, p.p, 33, p.dir)
 	# draw cars
 	V.gfx.set_active_layer(LAYER_CARS)
 	for obj in race.cars :
@@ -2808,16 +2808,16 @@ static func race_draw(race: Race) :
 	if not race.completed and race.mode != RaceMode.EDITOR :
 		var x=V.gfx.SCREEN_WIDTH-66
 		var y=V.gfx.SCREEN_HEIGHT-35
-		V.gfx.blit(Vector2(x, y), Vector2(0, 224), Vector2(66, 35))
+		V.gfx.blit_region(Vector2(x, y), Vector2(0, 224), Vector2(66, 35))
 		# speed indicator
 		printc("%d" % player.speed * 14, 370, 210, 28)
 		# gear
 		printc("N" if player.gear == 0 else "%d" % player.gear, V.gfx.SCREEN_WIDTH-32,V.gfx.SCREEN_HEIGHT-31,28)
 		# rpm
-		V.gfx.blit(Vector2(V.gfx.SCREEN_WIDTH - 28, V.gfx.SCREEN_HEIGHT - 23), Vector2(66, 224), 
+		V.gfx.blit_region(Vector2(V.gfx.SCREEN_WIDTH - 28, V.gfx.SCREEN_HEIGHT - 23), Vector2(66, 224), 
 			Vector2(25 * min(1, player.speed / 22), 8))
 		if player.freq :
-			V.gfx.blit(Vector2(V.gfx.SCREEN_WIDTH - 60, V.gfx.SCREEN_HEIGHT - 22), Vector2(66, 232), 
+			V.gfx.blit_region(Vector2(V.gfx.SCREEN_WIDTH - 60, V.gfx.SCREEN_HEIGHT - 22), Vector2(66, 232), 
 				Vector2(19 * player.rpm, 9))
 		# car status
 		# front wing
@@ -2864,7 +2864,7 @@ static func race_draw(race: Race) :
 		# fuel
 		var fuel = clamp((race.player.mass - CAR_BASE_MASS) / (FUEL_MASS_PER_KM * race.lap_count),0,1)
 		if fuel > 0.1 or frame % 4 < 2 :
-			V.gfx.blit(Vector2(V.gfx.SCREEN_WIDTH - 61, V.gfx.SCREEN_HEIGHT - 8), Vector2(66, 241), Vector2(21 * fuel, 4))
+			V.gfx.blit_region(Vector2(V.gfx.SCREEN_WIDTH - 61, V.gfx.SCREEN_HEIGHT - 8), Vector2(66, 241), Vector2(21 * fuel, 4))
 		if race.mode == RaceMode.RACE and race.panel_timer >= 0 :
 			# stand panel
 			var panelx = V.gfx.SCREEN_WIDTH - 90
@@ -2882,7 +2882,7 @@ static func race_draw(race: Race) :
 			printc("Warning!", ccutx + 45, 53, 8)
 			printc("Corner", ccutx + 45, 63, 9)
 			printc("cutting", ccutx + 45, 73, 9)
-			V.gfx.blit(Vector2(ccutx + 45 - 13, 83), Vector2(115, 224), Vector2(26, 16))
+			V.gfx.blit_region(Vector2(ccutx + 45 - 13, 83), Vector2(115, 224), Vector2(26, 16))
 	if race.mode == RaceMode.RACE and race.best_lap_timer >= 0 :
 		var x = 200
 		var y = 0
@@ -2895,10 +2895,10 @@ static func race_draw(race: Race) :
 			var x = V.gfx.SCREEN_WIDTH - 110
 			V.gfx.rectangle(Rect2(x, 50, 108, 75), UI_BACKGROUND_COLOR)
 			printc("Choose tyre", x + 55, 52, 7)
-			V.gfx.blit(Vector2(x + 55 - 12, 62), Vector2(66, 8), Vector2(24, 12))
+			V.gfx.blit_region(Vector2(x + 55 - 12, 62), Vector2(66, 8), Vector2(24, 12))
 			var tx = 0 if race.tyre < 2 else 1 if race.tyre < 4 else 2
-			V.gfx.blit(Vector2(x + 42, 76), Vector2(224, 192), Vector2(32, 32))
-			V.gfx.blit(Vector2(x + 38, 76), Vector2(256 + tx * 27, 192), Vector2(27, 32))
+			V.gfx.blit_region(Vector2(x + 42, 76), Vector2(224, 192), Vector2(32, 32))
+			V.gfx.blit_region(Vector2(x + 38, 76), Vector2(256 + tx * 27, 192), Vector2(27, 32))
 			rect(x + 37, 75, 36, 34, 9)
 			printc(TYRE_TYPE[race.tyre], x + 55, 114, TYRE_COL[race.tyre])
 		else:
@@ -2913,13 +2913,13 @@ static func race_draw(race: Race) :
 		var x = V.gfx.SCREEN_WIDTH - 66
 		var y = 105
 		V.gfx.rectangle(Rect2(x, y, 66, 75), UI_BACKGROUND_COLOR)
-		V.gfx.blit(Vector2(x+34-15,y+4),Vector2(326,0),Vector2(29,63))
-		V.gfx.blit(Vector2(x+34-15,y+13),Vector2(355,14),Vector2(7,9),tyre_col[0])
-		V.gfx.blit(Vector2(x+41,y+13),Vector2(377,14),Vector2(7,9),tyre_col[1])
-		V.gfx.blit(Vector2(x+34-14,y+52),Vector2(356,48),Vector2(6,8),tyre_col[2])
-		V.gfx.blit(Vector2(x+41,y+52),Vector2(377,48),Vector2(6,8),tyre_col[3])
-		V.gfx.blit(Vector2(x+34-8,y+58),Vector2(362,55),Vector2(15,8))
-		V.gfx.blit(Vector2(x+34-10,y+4),Vector2(360,0),Vector2(19,14))
+		V.gfx.blit_region(Vector2(x+34-15,y+4),Vector2(326,0),Vector2(29,63))
+		V.gfx.blit_region(Vector2(x+34-15,y+13),Vector2(355,14),Vector2(7,9),tyre_col[0])
+		V.gfx.blit_region(Vector2(x+41,y+13),Vector2(377,14),Vector2(7,9),tyre_col[1])
+		V.gfx.blit_region(Vector2(x+34-14,y+52),Vector2(356,48),Vector2(6,8),tyre_col[2])
+		V.gfx.blit_region(Vector2(x+41,y+52),Vector2(377,48),Vector2(6,8),tyre_col[3])
+		V.gfx.blit_region(Vector2(x+34-8,y+58),Vector2(362,55),Vector2(15,8))
+		V.gfx.blit_region(Vector2(x+34-10,y+4),Vector2(360,0),Vector2(19,14))
 		V.gfx.print(V.gfx.FONT_4X6, "%3d%%" % tyre_wear[0],Vector2(x+2,y+13))
 		V.gfx.print(V.gfx.FONT_4X6, "%3d%%" % tyre_wear[1],Vector2(V.gfx.SCREEN_WIDTH -17,y+13))
 		V.gfx.print(V.gfx.FONT_4X6, "%3d%%" % tyre_wear[2],Vector2(x+2,y+52))
@@ -2942,7 +2942,7 @@ static func race_draw(race: Race) :
 				gprint(TYRE_TYPE[car.tyre_type].substr(1,1),50,y,TYRE_COL[car.tyre_type])
 				gprint("%7s" % (leader_time if rank == 1 else car.time), 56, y, car.is_player and 7 or 6)
 				if car.race_finished :
-					V.gfx.blit(Vector2(113, y), Vector2(149, 0), Vector2(6, 8))
+					V.gfx.blit_region(Vector2(113, y), Vector2(149, 0), Vector2(6, 8))
 				y = y + 9
 				rank += 1
 			V.gfx.line(Vector2(0, y), Vector2(120, y), PAL[6])
@@ -2974,7 +2974,7 @@ static func race_draw(race: Race) :
 				gprint(format_time(car.best_time), 309, cy, car.driver.is_best and 8 or (car.is_player and 7 or 22))
 			rectfill(69, cy - 1, 75, cy + 7, car.color)
 			if car.race_finished :
-				V.gfx.blit(Vector2(233, cy), Vector2(149, 0), Vector2(6, 8))
+				V.gfx.blit_region(Vector2(233, cy), Vector2(149, 0), Vector2(6, 8))
 			rank += 1
 	# lap times
 	if not race.completed and race.mode == RaceMode.RACE :
@@ -3009,9 +3009,9 @@ static func race_draw(race: Race) :
 		var count = -floor(time)
 		var lit = 5 - count
 		for i in range(1,lit) :
-			V.gfx.blit(Vector2(217 + i * 22, 44), Vector2(34, 0), Vector2(20, 20))
+			V.gfx.blit_region(Vector2(217 + i * 22, 44), Vector2(34, 0), Vector2(20, 20))
 		for i in range(lit + 1, 4) :
-			V.gfx.blit(Vector2(217 + i * 22, 44), Vector2(14, 0), Vector2(20, 20))
+			V.gfx.blit_region(Vector2(217 + i * 22, 44), Vector2(14, 0), Vector2(20, 20))
 	if player.collision > 0 or race.completed :
 		player.collision -= 0.1
 	return Vector2i(minseg, maxseg)
