@@ -1,6 +1,8 @@
 # VIPER developer manual
 
-*As of November 2023, the Viper console is being rewritten from scratch using the Godot Engine. This manual is work-in-progress and might not reflect the console's current features.*
+*As of November 2023, the Viper console is being rewritten from scratch using the Godot Engine. This manual is work-in-progress and might not reflect the console's current features. The cheatsheet part though reflects the current development version*
+
+*If you're consulting this from the viper console, an online version of this manual can be found at <https://viperconsole.github.io>*
 
 ## Summary
 
@@ -32,7 +34,17 @@
     * [3.4.2. Mouse API](#h3.4.2)
     * [3.4.3. Gamepad API](#h3.4.3)
     * [3.4.4. Generic V.input API](#h3.4.4)
-* [4. FAQ](#h4)
+* [4. Cheatsheet](#h4)
+  * [4.1. Graphics - layer operations](#h4.1)
+  * [4.2. Graphics - drawing operations](#h4.2)
+  * [4.3. Graphics - image operations](#h4.3)
+  * [4.4. Graphics - font operations](#h4.4)
+  * [4.5. Audio - general operations](#h4.5)
+  * [4.6. Audio - channel operations](#h4.6)
+  * [4.7. Audio - music operations](#h4.7)
+  * [4.8. Input - generic operations](#h4.8)
+  * [4.9. Input - mouse operations](#h4.9)
+* [5. FAQ](#h5)
 
 ## <a name="h1"></a>1. Getting started
 
@@ -125,6 +137,7 @@ Start the store from the main menu ![](assets/tex/doc_icon_store.png) and enter 
 * tuto03 : using a custom bitmap font
 * tuto04 : parallax scrolling using layers
 * tuto05 : single layer parallax scrolling using rowscroll
+* tuto06 : sprite shadow using a shadow layer
 
 ### <a name="h1.5"></a>1.5. Filesystem
 
@@ -704,7 +717,7 @@ Functions :
 * `V.inp.MOUSE_MIDDLE`
 * `V.inp.MOUSE_RIGHT`
 
-* `mouse_button_pressed(num)` : return true if mouse button num was pressed since the last game tick
+* `mouse_button(num)` : return true if mouse button num was pressed since the last game tick
 * `mouse_button_released(num)` : return true if mouse button num was released since the last game tick
 * `mouse_pos()`: return the mouse position in pixels
 
@@ -790,7 +803,78 @@ Those last function will check controller #1 and keyboard if the player is not d
 * `V.inp.left_pressed([player])`
 * `V.inp.right_pressed([player])`
 
-## <a name="h4"></a>4. FAQ
+## <a name="h4"></a>4. Cheatsheet
+
+|**<a name="h4.1"></a>4.1 Graphics - layer operations**|`V.gfx`|
+| --- | --- |
+|`set_layer_operation(layer_id: int,op: int)`|set layer's blending op :<br>`LAYEROP_(SET\|ADD\|MULTIPLY\|SUBTRACT)`|
+|`set_layer_size_v(layer_id: int, size: Vector2)`|set layer's size in pixels|
+|`set_layer_size(layer_id: int, w: float, h: float)`|set layer's size in pixels|
+|`set_layer_offset_v(layer_id, offset : Vector2)`|set layer's offset in pixels|
+|`set_layer_offset(layer_id, x:float, y:float)`|set layer's offset in pixels|
+|`set_active_layer(layer_id: int)`|set target layer for drawing functions|
+|`show_layer(layer_id: int)`|set a layer visible|
+|`hide_layer(layer_id: int)`|set a layer invisible|
+|`is_layer_visible(layer_id: int) -> bool`|check if layer is visible|
+|`set_layer_blit_col(layer_id: int, col: Color)`|force non transparent pixels color|
+|`unset_layer_blit_col(layer_id: int)`|disable forced color|
+|`set_rowscroll(first_row: int, last_row:int, start_offset: float, end_offset: float = start_offset)`|set per-row offset for current layer|
+|`set_colscroll(first_col: int, last_col:int, start_offset: float, end_offset: float = start_offset)`|set per-column offset for current layer|
+|**<a name="h4.2"></a>4.2 Graphics - drawing operations**|`V.gfx`|
+|`clear(col:Color = Color.TRANSPARENT)`|fill a layer with a color|
+|`line(p1: Vector2, p2: Vector2, col: Color)`|draw a line|
+|`rectangle(rect: Rect2,col:Color,fill=true)`|draw or fill a rectangle|
+|`triangle(p1: Vector2, p2: Vector2, p3: Vector2, col:Color, fill=true)`|draw or fill a triangle|
+|`disk(center: Vector2,radius_x: float,radius_y=0.0,col:Color=Color.WHITE)`|fill a circle|
+|`blit(dest_pos: Vector2 = Vector2.ZERO, source_pos: Vector2 = Vector2.ZERO, source_size : Vector2 = Vector2.ZERO, col: Color=Color.WHITE, _angle : float = 0.0, dest_size: Vector2 = Vector2.ZERO, hflip : bool = false, vflip : bool = false)`|blit a region of current spritesheet on current layer|
+|`blit_sprite(sprite_num: int, dest_pos: Vector2, col: Color = Color.WHITE, _angle: float = 0.0, dest_size: Vector2 = Vector2.ZERO, hflip: bool = false, vflip: bool = false)`|blit a sprite on current layer. See `set_spritesheet_layout`|
+|`print(font_id : int, text: String, pos:Vector2, col: Color = Color.WHITE)`|draw some text|
+|**<a name="h4.3"></a>4.3 Graphics - image operations**|`V.gfx`|
+|`load_img(filepath: String) -> int`|load an image, return its id|
+|`set_spritesheet(img_id: int)`|use a loaded image as source for blit operations|
+|`get_image_size(img_id: int) -> Vector2`|get the size of a loaded image|
+|`set_spritesheet_layout(sprite_size: Vector2i, offset: Vector2i = Vector2i.ZERO, grid_width: int = 0)`|define sprites layout for current spritesheet|
+|**<a name="h4.4"></a>4.4 Graphics - font operations**|`V.gfx`|
+|`set_font(char_size: Vector2i, rect: Rect2i = Rect2i(0,0,0,0), charset: String="", spacing: Vector2i = Vector2i.ZERO, char_width: PackedByteArray = []) -> int`|define a custom font|
+|**<a name="h4.5"></a>4.5 Audio - general operations**|`V.snd`|
+|`enable()`|activate audio system|
+|`disable()`|deactivate audio system (mute everything)|
+|`play_sound(inst_id: int, freq:float, duration:float, lvolume:float = 1.0, rvolume:float=-1.0, channel: int =-1)`|play a sound|
+|`play_note(note:Note, duration:float, channel: int=-1)`|play a note|
+|**<a name="h4.6"></a>4.6 Audio - channel operations**|`V.snd`|
+|`get_available_channel(mask:int = 0) -> int`|get a free channel or -1|
+|`set_channel_volume(channel: int, lvolume: float, rvolume: float=-1)`|dynamically change a channel volume|
+|`set_channel_balance(channel: int, balance: float)`|dynamically change a channel balance between -1(left) and 1(right)|
+|`set_channel_freq(channel_id: int, freq: float)`|dynamically change the frequency of the current sound/note played on a channel|
+|`is_channel_silent(channel_id: int) -> bool`|wether a channel produces sound|
+|`get_channel_current_note(channel_id: int) -> Note`|current note played on a channel or `null`|
+|`mute_channel(channel:int)`|mute a channel|
+|`unmute_channel(channel:int)`|unmute a channel|
+|`solo_channel(channel:int)`|mute all channels but one|
+|**<a name="h4.7"></a>4.7 Audio - music operations**|`V.snd`|
+|`new_instrument(desc:Dictionary) -> int`|register a new instrument|
+|`new_pattern(desc:String) -> int`|register a new music or sfx pattern|
+|`play_pattern(pattern_id: int, channel_id: int=-1,loop=false)`|play a pattern|
+|`new_music(desc:Dictionary) -> int`|register a new music|
+|`stop_music()`|stop all channels playing music|
+|`play_music(music_id:int,channel_mask:int,loop:bool=true)`|play a music on specified channels|
+|**<a name="h4.8"></a>4.8 Input - generic operations**|`V.inp`|
+|`action1() -> bool`|wether action1 is currently pressed|
+|`action2() -> bool`|wether action2 is currently pressed|
+|`action1_pressed() -> bool`|wether action1 was pressed since last update|
+|`action2_pressed() -> bool`|wether action2 was pressed since last update|
+|`right(player=null) -> float`|amount of right movement between 0.0 and 1.0|
+|`left(player=null) -> float`|amount of left movement between 0.0 and 1.0|
+|`up(player=null) -> float`|amount of up movement between 0.0 and 1.0|
+|`down(player=null) -> float`|amount of down movement between 0.0 and 1.0|
+|`right_pressed(player=null) -> bool`|wether right was pressed since last update|
+|`left_pressed(player=null) -> bool`|wether left was pressed since last update|
+|`up_pressed(player=null) -> bool`|wether up was pressed since last update|
+|`down_pressed(player=null) -> bool`|wether down was pressed since last update|
+|**<a name="h4.9"></a>4.9 Input - mouse operations**|`V.inp`|
+|`mouse_button(button: int) -> bool`|wether a mouse button is currently pressed|
+
+## <a name="h5"></a>5. FAQ
 
 **How can I generate 1D/2D/3D noise ?**
 

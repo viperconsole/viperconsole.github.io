@@ -1310,7 +1310,7 @@ static func update() :
 	# update only every 2 ticks
 	flipflop = not flipflop
 	# : not lose press events
-	mlb_pressed = (flipflop and mlb_pressed) or V.inp.mouse_button_pressed(V.inp.MOUSE_LEFT)
+	mlb_pressed = (flipflop and mlb_pressed) or V.inp.mouse_button(V.inp.MOUSE_LEFT)
 	if flipflop or game_mode.get("mode") == null :
 		game_mode.update.call(game_mode)
 		mlb_pressed = false
