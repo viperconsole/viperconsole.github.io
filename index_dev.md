@@ -27,7 +27,7 @@
   * [3.3. Sound API (V.snd)](#h3.3)
     * [3.3.1. Instrument API](#h3.3.1)
     * [3.3.2. Pattern API](#h3.3.2)
-    * [3.3.3. Song API](#h3.3.3)
+    * [3.3.3. Music API](#h3.3.3)
     * [3.3.4. Midi API](#h3.3.4)
   * [3.4. Input API (V.inp)](#h3.4)
     * [3.4.1. Keyboard API](#h3.4.1)
@@ -265,7 +265,6 @@ Each visible layer applies a color operation between its color and the underlyin
 
 * `V.gfx.LAYEROP_MIX` : new pixel color = layer pixel color blended with background pixel color using the alpha channel value
 * `V.gfx.LAYEROP_ADD` : new pixel color = background pixel color + layer pixel color
-* `V.gfx.LAYEROP_AVERAGE` : new pixel color = (background pixel color + layer pixel color)/2
 * `V.gfx.LAYEROP_SUBTRACT` : new pixel color = background pixel color - layer pixel color
 * `V.gfx.LAYEROP_MULTIPLY` : new pixel color = background pixel color * layer pixel color
 
@@ -303,36 +302,38 @@ The console is preloaded with three fonts :
 
 ### <a name="h3.3"></a>3.3. Sound (V.snd)
 
-The viper has 6 channels that each can play stereo sound at 48kHz with float32 samples.
+The viper has 6 channels, each capable of playing stereo sound at 44kHz (16kHz on web platform) with float32 samples.
+
+You can completely disable all sounds with `V.snd.disable`.
 
 #### <a name="h3.3.1"></a>3.3.1. Instrument
 
-You can create any number of instruments that produce sound.
-Instrument can either use additive synthesis by using various oscillators or read samples from .wav files.
+You can create any number of instruments to produce sound using `V.snd.new_instrument`. Simply pass a Dictionary as a parameter with various keys to define the sound.
+Instrument can either utilize additive synthesis (`TYPE = "Oscillator"`) through various oscillators or read samples from .wav files (`TYPE = "Sample"`).
 
-Oscillator instrument properties:
+Oscillator instrument keys:
 
 * oscillator parameters
 
-* `OVERTONE` : amount of overtone
-* `OVERTONE_RATIO` : 0 = octave below, 1 = fifth above
+* `OVERTONE` : amount of overtone (TODO)
+* `OVERTONE_RATIO` : 0 = octave below, 1 = fifth above (TODO)
 * `SAW` : amount of sawtooth waveform (0.0-1.0)
-* `ULTRASAW` : amount of ultrasaw in the saw waveform (0.0-1.0)
+* `ULTRASAW` : amount of ultrasaw in the saw waveform (0.0-1.0) (TODO)
 * `SQUARE` : amount of square waveform (0.0-1.0)
 * `PULSE` : width of the square pulse should be in `]0..1[` interval
 * `TRIANGLE` : amount of triangle waveform (0.0-1.0)
-* `METALIZER` : amount of metalizer in the triangle waveform (0.0-1.0)
+* `METALIZER` : amount of metalizer in the triangle waveform (0.0-1.0) (TODO)
 * `NOISE` : amount of noise (0.0-1.0)
-* `NOISE_COLOR` : from white (0.0) to pink (1.0) noise
+* `NOISE_COLOR` : from white (0.0) to pink (1.0) noise (TODO)
 
-* filter parameters
+* filter parameters (TODO)
 
 * `FILTER_BAND` : type of filter (`LOWPASS`, `BANDPASS`, `HIGHPASS`, `NOTCH`)
 * `FILTER_DISTO` : amount of distortion (0-200)
 * `FILTER_GAIN`: lowshelf filter boost in Db (-40, 40)
 * `FILTER_CUTOFF`: upper limit of frequencies getting a boost (0-8000)
 
-* lfo parameters
+* lfo parameters (TODO)
 
 * `LFO_AMOUNT` : amplitude of the lfo waveform (0-1)
 * `LFO_RATE` : frequency of the lfo waveform (0-8000)
@@ -351,7 +352,7 @@ Oscillator instrument properties:
 * `SUSTAIN` : level of sustain phase between 0.0 and 1.0
 * `RELEASE` : duration of release phase in seconds
 
-   By default, envelop is altering the note volume. But it can also be used to alter other parameters :
+By default, envelop is altering the note volume. But it can also be used to alter other parameters (TODO) :
 
 * `ENV_AMOUNT` : scale the effect of the envelop on the parameter
 * `ENV_PITCH` : amount of envelop altering the note pitch
@@ -361,13 +362,13 @@ Oscillator instrument properties:
 * `ENV_PULSE` : amount of envelop altering the pulse width of the oscillator
 * `ENV_ULTRASAW` : amount of envelop altering the utrasaw parameter of the oscillator
 
-Sample instrument properties :
+Sample instrument keys :
 
 * base parameters
   * `FILE` : path to the .wav file
   * `FREQ` : base frequency of the sound in the file
 
-* looping
+* looping (TODO)
   * `LOOP_START` : sample index where to start the loop
   * `LOOP_END` : sample index where to end the loop
 
@@ -377,31 +378,16 @@ Sample instrument properties :
   * `SUSTAIN` : duration of sustain phase
   * `RELEASE` : duration of release phase
 
-* `new_instrument(description)` : create a new instrument, return a numerical id for the instrument that can be used in the song patterns (the first is 0 then it is incremented for each new instrument).
-
-   For oscillator instruments, the description starts with the `INST` keyword followed with a list of parameters. It should end with the `NAM` parameter with the instrument name.
-   Example:
+Examples :
 
 ```
- var triangle_id = V.snd.new_instrument("INST OVERTONE 1.0 TRIANGLE 1.0 METALIZER 0.85 NAM triangle")
- var pulse_id = V.snd.new_instrument("INST OVERTONE 1.0 SQUARE 0.5 PULSE 0.5 TRIANGLE 1.0 METALIZER 1.0 OVERTONE_RATIO 0.5 NAM pulse")
+var triangle_instrument_id = V.snd.new_instrument({TYPE="Oscillator", OVERTONE=1.0, TRIANGLE=1.0, METALIZER=0.85})
+var snare_instrument_id = V.snd.new_instrument({TYPE="Sample",FILE="musics/samples/snare.wav",FREQ=440})
 ```
 
-   For sample instruments, the description starts with the `SAMPLE`keywords followed with a list of parameters.
-   Example :
+Once you defined instruments, you can play sound with `V.snd.play_sound` and `V.snd.play_note`.
 
-```
-snare_id = V.snd.new_instrument("SAMPLE FILE musics/samples/snare.wav FREQ 17000")
-```
-
-* `set_instrument(id, new_description)` : update the parameters of instrument id from a new description
-* `play_note(instrument_id, frequency, lvolume, [rvolume], [channel])` : start playing a note on a channel (between 0 and 5). If channel is not defined, any free channel will be used. volume is between 0 and 1
-* `set_channel_volume(channel, lvolume, [rvolume])` : change the volume of a channel without interrupting the oscillator/sample
-* `set_channel_balance(channel, balance)` : alternative way to change the volume of a channel, balance is between -1 (left) and 1 (right)
-* `set_channel_freq(channel, freq)` : change the frequency of a channel without interrupting the oscillator/sample
-* `stop_channel(channel)` : mute the channel
-* `reserve_channel(channel)` : mark a channel so that it's not used except if explicitely adressed in play_note, play_pattern or play_music
-* `release_channel(channel)` : release a channel so that it can be used by play_note, play_pattern or play_music when the channel are not specified
+`play_note` take a Note object as parameter. You can create such an object with `V.snd.parse_note`. See the [pattern](#h3.3.2) chapter for note format.
 
 #### <a name="h3.3.2"></a>3.3.2. Pattern
 
@@ -409,7 +395,7 @@ A pattern is a list of notes that plays at a specific rate.
 
 * `new_pattern(description)` : register a new pattern and returns its id (0, then incremented for each new pattern).
 
-The description starts with the `PAT` keyword followed by the notes duration (or speed at which the pattern plays the notes). The duration is divided by 120. For example :
+The description starts with the notes duration (or speed at which the pattern plays the notes). The duration is divided by 120. For example :
 
 * 01 => each note duration is 1/120 second
 * 02 => each note duration is 1/60 second
@@ -419,7 +405,7 @@ Then it's followed by a list of notes.
 Example :
 
 ```
-new_pattern("PAT 02 F.2070 G.2070 D.3070 C.4070")
+V.snd.new_pattern("02 F.207. G.207. D.307. C.407.")
 ```
 
 The note format is [note] [octave] [instrument_id] [volume] [fx] with :
@@ -427,60 +413,68 @@ The note format is [note] [octave] [instrument_id] [volume] [fx] with :
 * note : C. C# D. D# E. F. F# G. G# A. A# B.
 * octave : between 0 and 8
 * volume : hexadecimal between 1 (lowest) and F (highest)
+
+  you can define the balance by using two volume values :
+  * F.2070 => volume is 7 for both left and right channels
+  * F.20290 => volume is 2 for left channel and 9 for right channel
+
 * fx : special sound effect between 0 and 5 :
-  * 0 : no effect
+  * 0 or '.' : no effect
   * 1 : slide
   * 2 : vibrato
   * 3 : drop
   * 4 : fade in
   * 5 : fade out
 
+Note that for more control over fade-in/fade-out effects, you can use an envelope on the instrument instead of effects. However, note that the envelope will affect all notes played with the instrument.
+
 You can add a silence by filling the note format with 6 dots : `......`
 Example :
 
 ```
-new_pattern("PAT 16 C#3915 ...... ...... C#3915 D#3835")
+new_pattern("16 C#3915 ...... ...... C#3915 D#3835")
 ```
 
-* `set_pattern(id, new_description)` : update a pattern
-* `play_pattern(id, [channel])` : play the pattern on a channel. If channel is not defined, any free channel will be used.
+Once a pattern is defined, you can play it with `V.snd.play_pattern`.
 
-#### <a name="h3.3.3"></a>3.3.3. Song
+#### <a name="h3.3.3"></a>3.3.3. Music
 
-A song is an ordered list of patterns to play on one or several of the 6 available channels.
+A music is a list of *sequences*, each sequence being a list of patterns being played simultaneously on different channels.
 
-* `new_music(desc)` : create a new music from a description. return an id (0, then incremented for each new music)
+You define a song using `V.snd.new_music`, using a Dictionary as parameter with following keys :
 
-The description is a multi-line string.
-
-* The first line contains the song's name using the `NAM` parameter.
-* The second line contain the list of patterns used by the song using the `PATLIST`parameter (you can select only a part of all the patterns created).
-* The last line contain the actual sequence of patterns. Each sequence display which pattern to play on each channel. Unused channels contains a dot.
+* `SEQ` is an array of 6 characters string, each describing which pattern to play on specific channels. Use a dot for unused channels.
 
 Example :
 
 ```
-MUSIC_TITLE = [[NAM title screen
-PATLIST 56 57 58 59 60
-SEQ 024... 134...]]
-snd.new_music(MUSIC_TITLE)
+V.snd.new_music({SEQ=["07....","08...."]})
 ```
 
-Here the song is named "title screen". It uses 5 patterns number 56, 57, 58, 59 and 60.
+This music is composed of two sequences. The first one plays pattern 0 on channel 0 and pattern 7 on channel 1. The second plays pattern 0 on channel 0 and pattern 8 on channel 1.
 
-* The first sequence plays pattern 0 (56) on channel 1, 2 (58) on channel 2, 4 (60) on channel 3.
-* The second sequence plays pattern 1 (57) on channel 1, 3 (59) on channel 2, 4 (60) on channel 3.
-* The last 3 channels are not used and can be used to play other sound effects (using the `play_pattern` function while the music is playing.
+Each channel pattern is encoded as an hexadecimal number between 0 and F.
 
-If you have more than 16 patterns, a single hexadecimal digit is not enough. You can then use SEQ2 instead of SEQ where each pattern index is a 2 digits hex number :
+If the music requires more than 16 patterns, you extends this limit to 256 (from `00` to `FF`) using a double digit format with 12 characters strings :
 
 ```
-SEQ2 000204...... 010304......
+V.snd.new_music({SEQ=["0007........","0008........"]})
 ```
 
-* `play_music(id, channel_mask)` : play a music. The channel_mask defines the channels to be used to play the music patterns. There must be enough channel to play all the simultaneous patterns in a sequence.
+If the song requires less than 16 patterns but those pattern ids are bigger than 16, you can use a `PATLIST` key to define the list of patterns used by the music :
 
-For example with the previous song, which requires 3 channels, you can use the binary mask 111 = 7. This would result in the song using the channels 0,1,2.
+```
+V.snd.new_music({PATLIST=[20,21,22],SEQ=["01....","02...."]})
+```
+
+* Sequence 1 : pattern 20 on channel 0 and pattern 21 on channel 1
+* Sequence 2 : pattern 20 on channel 0 and pattern 22 on channel 1
+
+* PATLIST is an array of pattern ids used in the song.
+
+You can play a music with `V.snd.play_music`. The channel_mask defines the channels to be used to play the music patterns. There must be enough channel to play all the simultaneous patterns in every sequence of the music.
+
+For example with the previous song, which requires 3 channels, you can use the binary mask 000011 = 3. This would result in the channels 0 and 1 being reserved for the song.
 
 #### <a name="h3.3.4"></a>3.3.4. Midi
 
@@ -488,7 +482,7 @@ TODO
 
 ### <a name="h3.4"></a>3.4. Input (V.inp)
 
-#### <a name="h3.4.1"></a>3.4.1. Keyboard
+#### <a name="h3.4.1"></a>3.4.1. Keyboard (TODO)
 
 * `key(key)` : return true if key is pressed.
 * `key_pressed(key)` : return true if key was pressed during last frame
@@ -528,7 +522,7 @@ Special keys :
 * `V.inp.KEY_RALT`
 * `V.inp.KEY_RSHIFT`
 
-#### <a name="h3.4.2"></a>3.4.2. Mouse
+#### <a name="h3.4.2"></a>3.4.2. Mouse (TODO)
 
 List of button values :
 
@@ -568,9 +562,7 @@ Example :
 V.gfx.show_mouse_cursor(false)
 ```
 
-#### <a name="h3.4.3"></a>3.4.3. Gamepad
-
-***in beta***
+#### <a name="h3.4.3"></a>3.4.3. Gamepad (TODO)
 
 In the following functions, `player_num` value is :
 
@@ -674,6 +666,7 @@ Those last function will check controller #1 and keyboard if the player is not d
 |`enable()`|activate audio system|
 |`disable()`|deactivate audio system (mute everything)|
 |`play_sound(inst_id: int, freq:float, duration:float, lvolume:float = 1.0, rvolume:float=-1.0, channel: int =-1)`|play a sound|
+|`parse_note(note: String) -> Note`|Convert a note in string format to an object usable with `play_note`|
 |`play_note(note:Note, duration:float, channel: int=-1)`|play a note|
 |**<a name="h4.7"></a>4.7 Audio - channel operations**|`V.snd`|
 |`get_available_channel(mask:int = 0) -> int`|get a free channel or -1|
@@ -687,8 +680,8 @@ Those last function will check controller #1 and keyboard if the player is not d
 |`solo_channel(channel:int)`|mute all channels but one|
 |**<a name="h4.8"></a>4.8 Audio - music operations**|`V.snd`|
 |`new_instrument(desc:Dictionary) -> int`|register a new instrument|
-|`new_pattern(desc:String) -> int`|register a new music or sfx pattern|
-|`play_pattern(pattern_id: int, channel_id: int=-1,loop=false)`|play a pattern|
+|`new_pattern(desc:String) -> int`|register a new pattern|
+|`play_pattern(pattern_id: int, channel_id: int=-1,loop=false)`|play a pattern. `channel_id` -1 to use first available channel|
 |`new_music(desc:Dictionary) -> int`|register a new music|
 |`stop_music()`|stop all channels playing music|
 |`play_music(music_id:int,channel_mask:int,loop:bool=true)`|play a music on specified channels|
