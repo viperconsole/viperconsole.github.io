@@ -323,16 +323,17 @@ Oscillator instrument keys:
 
 * oscillator parameters
 
-* `OVERTONE` : amount of overtone (TODO)
-* `OVERTONE_RATIO` : 0 = octave below, 1 = fifth above (TODO)
-* `SAW` : amount of sawtooth waveform (0.0-1.0)
-* `ULTRASAW` : amount of ultrasaw in the saw waveform (0.0-1.0) (TODO)
-* `SQUARE` : amount of square waveform (0.0-1.0)
-* `PULSE` : width of the square pulse should be in `]0..1[` interval
-* `TRIANGLE` : amount of triangle waveform (0.0-1.0)
-* `METALIZER` : amount of metalizer in the triangle waveform (0.0-1.0) (TODO)
-* `NOISE` : amount of noise (0.0-1.0)
-* `NOISE_COLOR` : from white (0.0) to pink (1.0) noise (TODO)
+|parameter|wave|
+| --- | --- |
+|- `OVERTONE` : amount of overtone (TODO)<br>- `OVERTONE_RATIO` : 0 = octave below, 1 = fifth above (TODO)||
+|- `SAW` : amount of sawtooth waveform (0.0-1.0)<br>- `ULTRASAW` : amount of ultrasaw in the saw waveform (0.0-1.0) (TODO)|![](assets/tex/wave_saw.png)|
+|- `SQUARE` : amount of square waveform (0.0-1.0)<br>- `PULSE` : width of the square pulse should be in `]0..1[` interval|![](assets/tex/wave_pulse.png)|
+|- `TRIANGLE` : amount of triangle waveform (0.0-1.0)<br>- `METALIZER` : amount of metalizer in the triangle waveform (0.0-1.0) (TODO)|![](assets/tex/wave_tri.png)|
+|- `SIN` : amount of sin waveform (0.0-1.0) (TODO)|![](assets/tex/wave_sin.png)|
+|- `ABS_SIN` : amount of absolute sin waveform (0.0-1.0) (TODO)|![](assets/tex/wave_abs_sin.png)|
+|- `HALF_SIN` : amount of half-sin waveform (0.0-1.0) (TODO)|![](assets/tex/wave_half_sin.png)|
+|- `PSEUDO_SAW` : amount of pseudo-saw waveform (0.0-1.0) (TODO)`|![](assets/tex/wave_quart_sin.png)|
+|- `NOISE` : amount of noise (0.0-1.0)<br>- `NOISE_COLOR` : from white (0.0) to pink (1.0) noise (TODO)||
 
 * filter parameters (TODO)
 
