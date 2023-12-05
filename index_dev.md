@@ -305,8 +305,11 @@ The function returns a number representing this font. You can use this number to
 The console is preloaded with three fonts :
 
 * `V.gfx.FONT_8X8` : the default mono font that contains the complete 128 ascii table characters.
+![](assets/tex/demo_font_8x8.png)
 * `V.gfx.FONT_5X7` : a smaller non-mono font that contains the 93 ascii characters from `!` to `~`.
+![](assets/tex/demo_font_5x7.png)
 * `V.gfx.FONT_4X6` : a very small mono font that contains the 93 ascii characters from `!` to `~`.
+![](assets/tex/demo_font_4x6.png)
 
 ### <a name="h3.3"></a>3.3. Sound (V.snd)
 
