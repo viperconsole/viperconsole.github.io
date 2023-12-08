@@ -1,14 +1,13 @@
-# we use an image 50% smaller than screen because computing it is CPU intensive
+# we use an image that is 50% smaller than 
+# the screen because computing it is CPU intensive
 const IMG_WIDTH=192
 const IMG_HEIGHT=112
+# we store the image pixels in a byte array with RGB8 format
 var pix_data: PackedByteArray = PackedByteArray()
 
 func init():
-	# fill the image with black
-	for i in range(0,IMG_WIDTH*IMG_HEIGHT) :
-		pix_data.append(0)
-		pix_data.append(0)
-		pix_data.append(0)
+	# allocate the array (3 bytes per pixel)
+	pix_data.resize(3*IMG_WIDTH*IMG_HEIGHT)
 	
 func update():
 	# fill the image with some varying colors

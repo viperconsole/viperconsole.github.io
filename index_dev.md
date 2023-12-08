@@ -666,8 +666,9 @@ Those last function will check controller #1 and keyboard if the player is not d
 |`rectangle(rect: Rect2,col:Color,fill=true)`|draw or fill a rectangle|
 |`triangle(p1: Vector2, p2: Vector2, p3: Vector2, col:Color, fill=true)`|draw or fill a triangle|
 |`circle(center: Vector2,radius_x: float,radius_y=0.0,col:Color=Color.WHITE)`|fill a circle|
-|`blit_region(dest_pos: Vector2 = Vector2.ZERO, source_pos: Vector2 = Vector2.ZERO, source_size : Vector2 = Vector2.ZERO, col: Color=Color.WHITE, _angle : float = 0.0, dest_size: Vector2 = Vector2.ZERO, hflip : bool = false, vflip : bool = false)`|blit a region of current spritesheet on current layer|
-|`blit_sprite(sprite_num: int, dest_pos: Vector2, col: Color = Color.WHITE, _angle: float = 0.0, dest_size: Vector2 = Vector2.ZERO, hflip: bool = false, vflip: bool = false)`|blit a sprite on current layer. See `set_spritesheet_layout`|
+|`blit_region(dest_pos: Vector2 = Vector2.ZERO, source_pos: Vector2 = Vector2.ZERO, source_size : Vector2 = Vector2.ZERO, col: Color=Color.WHITE, dest_size: Vector2 = Vector2.ZERO, hflip : bool = false, vflip : bool = false)`|blit a region of current |`blit_region_rot(dest_pos: Vector2 = Vector2.ZERO, source_pos: Vector2 = Vector2.ZERO, source_size : Vector2 = Vector2.ZERO, col: Color=Color.WHITE, angle : float = 0.0, dest_size: Vector2 = Vector2.ZERO, hflip : bool = false, vflip : bool = false)`|blit a region of current spritesheet on current layer|
+|`blit_sprite(sprite_num: int, dest_pos: Vector2, col: Color = Color.WHITE, dest_size: Vector2 = Vector2.ZERO, hflip: bool = false, vflip: bool = false)`|blit a sprite on current layer. See `set_spritesheet_layout`|
+|`blit_sprite_rot(sprite_num: int, dest_pos: Vector2, col: Color = Color.WHITE, angle: float = 0.0, dest_size: Vector2 = Vector2.ZERO, hflip: bool = false, vflip: bool = false)`|blit a sprite on current layer. See `set_spritesheet_layout`|
 |`blit_pixels(pos: Vector2, sprite_width: int, pixel_data:PackedByteArray, size: Vector2=Vector2.ZERO)`|blit a sprite defined by an array of 8bit RGB values. Use `size` to scale it|
 |`print(font_id : int, text: String, pos:Vector2, col: Color = Color.WHITE)`|draw some text|
 |**<a name="h4.4"></a>4.4 Graphics - image operations**|`V.gfx`|

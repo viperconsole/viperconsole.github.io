@@ -2,7 +2,9 @@ func init() :
     # oaks woods assets by Brullov
     for i in range(1,5) :
         # load each layer image
-        var img_id=await V.gfx.load_img("tuto4_%d.png" % i)
+        await V.gfx.load_img("tuto4_%d.png" % i)
+    for i in range(1,5) :
+        var img_id = i-1 # img_id starts at 0
         # set it as current spritesheet
         V.gfx.set_spritesheet(img_id) 
         # resize the layer to fit the image. 

@@ -85,7 +85,7 @@ func spr(n:float, x:float, y:float, w:int, h:int, hflip:bool, vflip:bool) -> voi
 		Vector2(floor(x + X_OFFSET),floor(y + Y_OFFSET)),
 		Vector2(spritex,spritey),
 		Vector2(w * SPRITE_SIZE,h * SPRITE_SIZE),
-		Color8(255, 255, 255), 0.0,
+		Color8(255, 255, 255),
 		Vector2.ZERO,
 		hflip,
 		vflip
