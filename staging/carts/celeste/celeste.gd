@@ -1743,10 +1743,10 @@ SEQ=["012...","012...","342...","352...","792...","792...","6A2...","8B2..."]}
 
 const INST_TRIANGLE ={TYPE="Oscillator",OVERTONE=1.0,TRIANGLE=1.0,METALIZER=0.85,NAME="triangle"}
 const INST_TILTED ={TYPE="Oscillator",OVERTONE=1.0,TRIANGLE=0.5,SAW=0.1,NAME= "tilted"}
-const INST_SAW ={TYPE="Oscillator",OVERTONE=1.0,SAW=1.0,ULTRASAW=1.0,NAME="saw"}
+const INST_SAW ={TYPE="Oscillator",OVERTONE=1.0,SAW=0.75,ULTRASAW=1.0,NAME="saw"}
 const INST_SQUARE ={TYPE="Oscillator",OVERTONE=1.0,SQUARE=0.5,NAME="square"}
 const INST_PULSE ={TYPE="Oscillator",OVERTONE=1.0,SQUARE=0.5,PULSE=0.5,TRIANGLE=1.0,METALIZER=1.0,OVERTONE_RATIO=0.5,NAME="pulse"}
-const INST_ORGAN ={TYPE="Oscillator",OVERTONE=0.5,TRIANGLE=0.75,NAME="organ"}
+const INST_ORGAN ={TYPE="Oscillator",OVERTONE=0.5,TRIANGLE=1.0,NAME="organ"}
 const INST_NOISE ={TYPE="Oscillator", NOISE=1.0,NOISE_COLOR=0.2,NAME="noise"}
 const INST_PHASER ={TYPE="Oscillator",OVERTONE=0.5,METALIZER=1.0,TRIANGLE=0.7,NAME="phaser"}
 const INST_SNARE ={TYPE="Sample",ID=1,FILE="11_ZN.wav",FREQ=440}
