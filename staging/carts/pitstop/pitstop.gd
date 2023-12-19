@@ -1264,8 +1264,6 @@ static func init() :
 	for data in TRACK_DATA :
 		data.length = TRACKS[track_id].size() * 15.8
 		track_id += 1
-	for sfx in SFX :
-		V.snd.new_pattern(sfx)
 	V.snd.reserve_channel(1) # reserved for engine sound
 	V.snd.reserve_channel(2) # reserved for tribunes
 	V.snd.reserve_channel(3) # reserved for tyre screech
@@ -1277,10 +1275,12 @@ static func init() :
 	V.snd.new_instrument(INST_ORGAN)
 	V.snd.new_instrument(INST_NOISE)
 	V.snd.new_instrument(INST_PHASER)
-	V.snd.new_instrument(INST_ENGINE)
-	V.snd.new_instrument(INST_TRIBUNE)
-	V.snd.new_instrument(INST_TYRE)
-	V.snd.new_instrument(INST_PIT)
+	await V.snd.new_instrument(INST_ENGINE)
+	await V.snd.new_instrument(INST_TRIBUNE)
+	await V.snd.new_instrument(INST_TYRE)
+	await V.snd.new_instrument(INST_PIT)
+	for sfx in SFX :
+		V.snd.new_pattern(sfx)
 	V.gfx.set_spritesheet(await V.gfx.load_img("pitstop_spr.png"))
 	V.gfx.show_layer(LAYER_SMOKE) # smoke fx
 	V.gfx.set_layer_operation(LAYER_SMOKE, V.gfx.LAYEROP_ADD)

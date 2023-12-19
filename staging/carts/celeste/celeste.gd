@@ -1000,13 +1000,6 @@ func title_screen():
 	load_room(7, 3)
 
 func init_music():
-	for sfx in SFX :
-		V.snd.new_pattern(sfx)
-	V.snd.new_music(MUSIC_TITLE)
-	V.snd.new_music(MUSIC_FIRST_LEVELS)
-	V.snd.new_music(MUSIC_WIND)
-	V.snd.new_music(MUSIC_SECOND_PART)
-	V.snd.new_music(MUSIC_LAST_PART)
 	V.snd.new_instrument(INST_TRIANGLE)
 	V.snd.new_instrument(INST_TILTED)
 	V.snd.new_instrument(INST_SAW)
@@ -1015,8 +1008,15 @@ func init_music():
 	V.snd.new_instrument(INST_ORGAN)
 	V.snd.new_instrument(INST_NOISE)
 	V.snd.new_instrument(INST_PHASER)
-	V.snd.new_instrument(INST_SNARE)
-	V.snd.new_instrument(INST_KICK)
+	await V.snd.new_instrument(INST_SNARE)
+	await V.snd.new_instrument(INST_KICK)
+	for sfx in SFX :
+		V.snd.new_pattern(sfx)
+	V.snd.new_music(MUSIC_TITLE)
+	V.snd.new_music(MUSIC_FIRST_LEVELS)
+	V.snd.new_music(MUSIC_WIND)
+	V.snd.new_music(MUSIC_SECOND_PART)
+	V.snd.new_music(MUSIC_LAST_PART)
 #	V.snd.bounce_patterns()
 	V.snd.play_music(0, 7)
 
