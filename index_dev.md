@@ -681,13 +681,13 @@ Those last function will check controller #1 and keyboard if the player is not d
 |**<a name="h4.6"></a>4.6 Audio - general operations**|`V.snd`|
 |`enable()`|activate audio system|
 |`disable()`|deactivate audio system (mute everything)|
-|`play_sound(inst_id: int, freq:float, duration:float, lvolume:float = 1.0, rvolume:float=-1.0, channel: int =-1)`|play a sound|
+|`play_sound(inst_id: int, freq:float, duration:float, volume:float = 1.0, panning:float=0.0, channel: int =-1)`|play a sound|
 |`parse_note(note: String) -> Note`|Convert a note in string format to an object usable with `play_note`|
 |`play_note(note:Note, duration:float, channel: int=-1)`|play a note|
 |**<a name="h4.7"></a>4.7 Audio - channel operations**|`V.snd`|
 |`get_available_channel(mask:int = 0) -> int`|get a free channel or -1|
-|`set_channel_volume(channel: int, lvolume: float, rvolume: float=-1)`|dynamically change a channel volume|
-|`set_channel_balance(channel: int, balance: float)`|dynamically change a channel balance between -1(left) and 1(right)|
+|`set_channel_volume(channel: int, volume: float)`|dynamically change a channel volume|
+|`set_channel_panning(channel: int, panning: float)`|dynamically change a channel panning between -1(left) and 1(right)|
 |`set_channel_freq(channel_id: int, freq: float)`|dynamically change the frequency of the current sound/note played on a channel|
 |`is_channel_silent(channel_id: int) -> bool`|wether a channel produces sound|
 |`get_channel_current_note(channel_id: int) -> Note`|current note played on a channel or `null`|
